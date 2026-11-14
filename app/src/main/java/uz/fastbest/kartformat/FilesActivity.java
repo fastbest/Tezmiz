@@ -346,27 +346,63 @@ public class FilesActivity extends Activity {
 
     private void fileMenu(final CardVolume.Entry e) {
         boolean w = volume.writable();
-        String[] opts = w ? new String[]{"Telefona kaydet", "Sil"} : new String[]{"Telefona kaydet"};
+        String[] opts = w ? new String[]{"Telefona kaydet", "Sil", "Birleştir (defrag)"}
+                : new String[]{"Telefona kaydet"};
         new AlertDialog.Builder(this)
                 .setTitle(e.name + "  (" + DiskOps.sizeText(e.size) + ")")
                 .setItems(opts, (d, which) -> {
-                    if (which == 0) exportFile(e); else confirmDelete(e);
+                    if (which == 0) exportFile(e);
+                    else if (which == 1) confirmDelete(e);
+                    else defrag(e);
                 })
                 .show();
     }
 
     private void dirMenu(final CardVolume.Entry e) {
         boolean w = volume.writable();
-        String[] opts = w ? new String[]{"Aç", "Telefona kaydet", "Sil"}
-                : new String[]{"Aç", "Telefona kaydet"};
+        String[] opts = w ? new String[]{"Aç", "Telefona kaydet", "Sil",
+                "İçindekileri birleştir (defrag)"} : new String[]{"Aç", "Telefona kaydet"};
         new AlertDialog.Builder(this)
                 .setTitle(e.name)
                 .setItems(opts, (d, which) -> {
                     if (which == 0) open(e);
                     else if (which == 1) exportDir(e);
-                    else confirmDelete(e);
+                    else if (which == 2) confirmDelete(e);
+                    else defrag(e);
                 })
                 .show();
+    }
+
+    /** Dosyayı ya da klasördeki bütün parçalı dosyaları ardışık hale getirir. */
+    private void defrag(final CardVolume.Entry e) {
+        run("Birleştiriliyor", (p, c) -> {
+            int[] r = {0, 0, 0}; // incelenen, birleştirilen, başarısız
+            StringBuilder err = new StringBuilder();
+            defragRec(e, p, c, r, err, 0);
+            String msg = r[0] + " dosya incelendi, " + r[1] + " dosya birleştirildi.";
+            if (r[2] > 0) msg += "\n" + r[2] + " dosya birleştirilemedi: " + err;
+            return msg;
+        });
+    }
+
+    private void defragRec(CardVolume.Entry e, Fat32Formatter.Progress p, DiskOps.Cancel c,
+                           int[] r, StringBuilder err, int depth) throws IOException {
+        if (depth > 64) return;
+        if (e.dir) {
+            for (CardVolume.Entry k : volume.list(e)) defragRec(k, p, c, r, err, depth + 1);
+            return;
+        }
+        r[0]++;
+        if (volume.fragments(e) <= 1) return;
+        setProgressLater("Birleştiriliyor: " + e.name);
+        try {
+            if (volume.defragment(e, p, c)) r[1]++;
+        } catch (DiskOps.CancelledException ex) {
+            throw ex;
+        } catch (IOException ex) {
+            r[2]++;
+            if (err.length() < 300) err.append(ex.getMessage()).append("; ");
+        }
     }
 
     private void confirmDelete(final CardVolume.Entry e) {

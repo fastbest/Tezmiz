@@ -112,6 +112,7 @@ public class MainActivity extends Activity {
         usb = (UsbManager) getSystemService(Context.USB_SERVICE);
         NtfsFormatter.tool = new java.io.File(getApplicationInfo().nativeLibraryDir, "libmkntfs.so");
         NtfsFormatter.workDir = getCacheDir();
+        BootCode.load(getAssets());
         status = findViewById(R.id.status);
         result = findViewById(R.id.result);
         progressText = findViewById(R.id.progressText);
@@ -401,6 +402,10 @@ public class MainActivity extends Activity {
         input.setSingleLine(true);
         box.addView(input);
 
+        final CheckBox freedos = new CheckBox(this);
+        freedos.setText("FreeDOS ile açılabilir yap (BIOS güncellemesi için; FAT32 + MBR)");
+        if (BootCode.freeDos()) box.addView(freedos);
+
         ScrollView scroll = new ScrollView(this);
         scroll.addView(box);
 
@@ -409,6 +414,10 @@ public class MainActivity extends Activity {
                 .setView(scroll)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Devam", (d, w) -> {
+                    if (freedos.isChecked()) {
+                        confirmFreeDos(input.getText().toString());
+                        return;
+                    }
                     DiskFormatter.Fs fs = exfat.isChecked() ? DiskFormatter.Fs.EXFAT
                             : ntfs.isChecked() ? DiskFormatter.Fs.NTFS
                             : ext4.isChecked() ? DiskFormatter.Fs.EXT4 : DiskFormatter.Fs.FAT32;
@@ -452,6 +461,22 @@ public class MainActivity extends Activity {
                             checkTable(s);
                             return "Tamamlandı. Kart " + fsName + " olarak biçimlendirildi.\n\n"
                                     + "Okuyucuyu çıkarıp kartı kullanabilirsiniz.";
+                        }))
+                .show();
+    }
+
+    private void confirmFreeDos(final String label) {
+        if (storage == null || busy) return;
+        new AlertDialog.Builder(this)
+                .setTitle("FreeDOS açılış kartı hazırlansın mı?")
+                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
+                        + "Kart: " + cardSize() + "\nFAT32, MBR")
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil ve hazırla", (d, w) ->
+                        runOp("FreeDOS kartı hazırlanıyor", (s, p, c) -> {
+                            final long bs = s.blockSize();
+                            return BootCode.makeFreeDos(s, label,
+                                    (done, total) -> p.onProgress(done * bs, total * bs));
                         }))
                 .show();
     }
@@ -915,8 +940,10 @@ public class MainActivity extends Activity {
             about.append("\n\ninstall.wim 4 GB'tan büyük; ").append(info.parts)
                     .append(" parçaya bölünecek.");
         }
-        about.append("\n\nKart yalnızca UEFI ile açılır (2012 sonrası bilgisayarların çoğu). "
-                + "Eski BIOS'lu bilgisayarlarda açılmaz.");
+        about.append(BootCode.windowsBios()
+                ? "\n\nGPT seçilirse kart yalnızca UEFI ile, MBR seçilirse eski BIOS'lu "
+                        + "bilgisayarlarda da açılır."
+                : "\n\nKart yalnızca UEFI ile açılır (2012 sonrası bilgisayarların çoğu).");
         TextView text = new TextView(this);
         text.setText(about);
         box.addView(text);
@@ -933,8 +960,9 @@ public class MainActivity extends Activity {
 
         box.addView(caption("Bölüm tablosu"));
         final RadioGroup tableGroup = new RadioGroup(this);
-        final RadioButton gpt = radio("GPT (Windows 11 ve yeni bilgisayarlar)");
-        final RadioButton mbr = radio("MBR (açılmazsa bunu deneyin)");
+        final RadioButton gpt = radio("GPT (yalnızca UEFI)");
+        final RadioButton mbr = radio(BootCode.windowsBios()
+                ? "MBR (UEFI + eski BIOS; eski bilgisayarlar için)" : "MBR (açılmazsa bunu deneyin)");
         tableGroup.addView(gpt);
         tableGroup.addView(mbr);
         tableGroup.check(gpt.getId());
@@ -1047,7 +1075,8 @@ public class MainActivity extends Activity {
         final String usbInfo = usbInfo();
         runOp("Kart bilgisi okunuyor", (s, p, c) -> {
             String name = s.name().isEmpty() ? "USB depolama" : s.name();
-            return "Kart okuyucu: " + name + "\n" + usbInfo + "\n" + DiskInfo.describe(s);
+            return "Kart okuyucu: " + name + "\n" + usbInfo + s.describeUsb() + "\n"
+                    + DiskInfo.describe(s);
         });
     }
 

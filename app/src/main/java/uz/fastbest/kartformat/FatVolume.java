@@ -542,6 +542,55 @@ final class FatVolume extends CardVolume {
         commit();
     }
 
+    @Override
+    public int fragments(Entry e) throws IOException {
+        return valid(e.cluster) ? countRuns(chain(e.cluster)) : 0;
+    }
+
+    private long findRun(long n) throws IOException {
+        long run = 0;
+        for (long c = 2; c < clusterCount + 2; c++) {
+            if (next(c) == 0) {
+                if (++run == n) return c - n + 1;
+            } else {
+                run = 0;
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public boolean defragment(Entry e, Fat32Formatter.Progress p, DiskOps.Cancel c)
+            throws IOException {
+        if (e.dir || !valid(e.cluster)) return false;
+        List<Long> old = chain(e.cluster);
+        if (countRuns(old) <= 1) return false;
+        long n = old.size();
+        long to = findRun(n);
+        if (to < 0) throw new IOException(e.name + ": kartta yeterli ardışık boş alan yok");
+        try {
+            for (long i = 0; i < n; i++) set(to + i, i == n - 1 ? eoc() : to + i + 1);
+            if (freeCount >= 0) freeCount -= n;
+            fat.flush();
+            copyClusters(old, to, spc, dataStart, e.size, p, c);
+        } catch (IOException | RuntimeException ex) {
+            for (long i = 0; i < n; i++) set(to + i, 0);
+            if (freeCount >= 0) freeCount += n;
+            commit();
+            throw ex;
+        }
+        byte[][] slots = readSlots(e.slots);
+        byte[] sh = slots[slots.length - 1];
+        DiskFormatter.putShort(sh, 20, (int) (to >>> 16));
+        DiskFormatter.putShort(sh, 26, (int) to);
+        writeSlots(new long[]{e.slots[e.slots.length - 1]}, new byte[][]{sh});
+        long oldFirst = e.cluster;
+        e.cluster = to;
+        freeChain(oldFirst);
+        commit();
+        return true;
+    }
+
     private void deleteRec(Entry e, DiskOps.Cancel c, int depth) throws IOException {
         if (c != null && c.isCancelled()) throw new DiskOps.CancelledException();
         if (e.parent == null) throw new IOException("Kök klasör silinemez");

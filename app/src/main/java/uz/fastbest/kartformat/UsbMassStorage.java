@@ -124,6 +124,51 @@ public final class UsbMassStorage implements BlockDevice {
         return name;
     }
 
+    /** USB tanımlayıcılarının özeti (sürüm, güç, uç noktalar). */
+    public String describeUsb() {
+        StringBuilder sb = new StringBuilder();
+        byte[] raw = null;
+        try {
+            raw = conn.getRawDescriptors();
+        } catch (RuntimeException ignored) {
+        }
+        if (raw != null && raw.length >= 18 && raw[1] == 1) {
+            int bcd = (raw[2] & 0xFF) | ((raw[3] & 0xFF) << 8);
+            sb.append(String.format(java.util.Locale.ROOT, "USB sürümü: %x.%02x", bcd >> 8, bcd & 0xFF));
+            if (bcd >= 0x300) sb.append(" (USB 3 aygıt; hız telefonun portuna bağlı)");
+            sb.append('\n');
+            int bcdDev = (raw[12] & 0xFF) | ((raw[13] & 0xFF) << 8);
+            sb.append(String.format(java.util.Locale.ROOT, "Aygıt sürümü: %x.%02x\n",
+                    bcdDev >> 8, bcdDev & 0xFF));
+            int p = raw[0] & 0xFF;
+            while (p + 2 <= raw.length) {
+                int len = raw[p] & 0xFF;
+                int type = raw[p + 1] & 0xFF;
+                if (len < 2 || p + len > raw.length) break;
+                if (type == 2 && len >= 9) {
+                    sb.append("En çok güç: ").append((raw[p + 8] & 0xFF) * (bcd >= 0x300 ? 8 : 2))
+                            .append(" mA\n");
+                } else if (type == 4 && len >= 9) {
+                    sb.append(String.format(java.util.Locale.ROOT,
+                            "Arayüz %d: sınıf %02X/%02X/%02X\n", raw[p + 2] & 0xFF,
+                            raw[p + 5] & 0xFF, raw[p + 6] & 0xFF, raw[p + 7] & 0xFF));
+                } else if (type == 5 && len >= 7) {
+                    int addr = raw[p + 2] & 0xFF;
+                    int attr = raw[p + 3] & 3;
+                    int max = (raw[p + 4] & 0xFF) | ((raw[p + 5] & 0x07) << 8);
+                    String[] kinds = {"kontrol", "eşzamanlı", "toplu", "kesme"};
+                    sb.append(String.format(java.util.Locale.ROOT,
+                            "  Uç nokta %02X: %s, %s, paket %d bayt\n", addr,
+                            (addr & 0x80) != 0 ? "giriş" : "çıkış", kinds[attr], max));
+                }
+                p += len;
+            }
+        }
+        sb.append("Mantıksal birim (LUN): ").append(lun).append('\n');
+        sb.append("Sektör boyutu: ").append(blockSize).append(" bayt\n");
+        return sb.toString();
+    }
+
     @Override
     public int blockSize() {
         return blockSize;

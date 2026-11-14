@@ -63,6 +63,43 @@ public abstract class CardVolume {
 
     public abstract void delete(Entry e, DiskOps.Cancel c) throws IOException;
 
+    /** Dosyanın kaç ayrı parçada durduğu (1 = ardışık). */
+    public abstract int fragments(Entry e) throws IOException;
+
+    /** Dosyayı ardışık boş alana taşır; zaten ardışıksa false döner. */
+    public abstract boolean defragment(Entry e, Fat32Formatter.Progress p, DiskOps.Cancel c)
+            throws IOException;
+
+    static int countRuns(List<Long> clusters) {
+        int runs = clusters.isEmpty() ? 0 : 1;
+        for (int i = 1; i < clusters.size(); i++) {
+            if (clusters.get(i) != clusters.get(i - 1) + 1) runs++;
+        }
+        return runs;
+    }
+
+    /** Eski kümelerden yeni ardışık alana veri kopyalar. */
+    void copyClusters(List<Long> from, long to, int spc, long dataLbaOf2, long size,
+                      Fat32Formatter.Progress p, DiskOps.Cancel c) throws IOException {
+        long cb = spc * 512L;
+        int maxRun = (int) Math.max(1, (1024 * 1024) / cb);
+        byte[] buf = new byte[(int) (maxRun * cb)];
+        int i = 0;
+        long done = 0;
+        while (i < from.size()) {
+            if (c != null && c.isCancelled()) throw new DiskOps.CancelledException();
+            int run = 1;
+            while (run < maxRun && i + run < from.size() && from.get(i + run) == from.get(i) + run) {
+                run++;
+            }
+            dev.read(dataLbaOf2 + (from.get(i) - 2) * spc, buf, run * spc);
+            dev.write(dataLbaOf2 + (to + i - 2) * spc, buf, run * spc);
+            i += run;
+            done += run * cb;
+            if (p != null) p.onProgress(Math.min(done, size), size);
+        }
+    }
+
     // ------------------------------------------------------------ açma
 
     /** Gösterim için: "Bölüm 2" gibi. */

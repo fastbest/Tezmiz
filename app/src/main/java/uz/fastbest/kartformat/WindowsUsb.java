@@ -100,6 +100,11 @@ public final class WindowsUsb {
         String label = Fat32Formatter.cleanLabel(info.label);
         if (label.isEmpty()) label = "WINDOWS";
         DiskFormatter.layout(dev, gpt, 0x0C, label, new Fat32Builder(root, label, c), p);
+        boolean bios = false;
+        if (!gpt && BootCode.windowsBios() && root.child("bootmgr") != null) {
+            BootCode.install(dev, false);
+            bios = true;
+        }
 
         StringBuilder sb = new StringBuilder("Tamamlandı. Windows kurulum kartı hazır.\n\n");
         if (info.split) {
@@ -111,8 +116,10 @@ public final class WindowsUsb {
         } else if (bypassChecks || localAccount) {
             sb.append("ISO'da zaten autounattend.xml olduğu için ayarlar eklenmedi.\n");
         }
-        sb.append("\nBilgisayarı karttan açmak için açılış menüsünden (F12, F11, F9 ya da Esc) "
-                + "\"UEFI: USB\" seçeneğini seçin.");
+        sb.append(bios ? "\nKart hem UEFI hem eski BIOS'lu bilgisayarlarda açılır.\n"
+                : "\nKart yalnızca UEFI ile açılır.\n");
+        sb.append("Bilgisayarı karttan açmak için açılış menüsünü (F12, F11, F9 ya da Esc) "
+                + "kullanın.");
         return sb.toString();
     }
 

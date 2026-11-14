@@ -50,6 +50,13 @@ final class Fat32Builder implements DiskFormatter.VolumeWriter {
         long size() {
             return dir ? 0 : content.size();
         }
+
+        Node child(String n) {
+            for (Node k : kids) {
+                if (k.name.equalsIgnoreCase(n)) return k;
+            }
+            return null;
+        }
     }
 
     private final Node root;

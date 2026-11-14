@@ -101,7 +101,17 @@ final class Ps2Games {
         if (vol.freeBytes() < g.size) throw new IOException("Kartta yeterli yer yok");
         CardVolume.Entry e = vol.create(dir, g.fileName(), new IsoImage.Stream(iso, 0, g.size),
                 g.size, p, c);
-        return "Tamamlandı: " + folder + "/" + e.name + "\n\nKartı PS2'ye takıp OPL'de "
+        String frag = "";
+        if (vol.fragments(e) > 1) {
+            // OPL, USB'deki oyunların ardışık olmasını ister
+            try {
+                vol.defragment(e, p, c);
+            } catch (IOException ex) {
+                frag = "\n\nUyarı: oyun dosyası parçalı kaldı (" + ex.getMessage() + "). OPL "
+                        + "açamayabilir; kartta yer açıp Dosyalar ekranından \"Birleştir\" deneyin.";
+            }
+        }
+        return "Tamamlandı: " + folder + "/" + e.name + frag + "\n\nKartı PS2'ye takıp OPL'de "
                 + (vol.type().equals("exFAT") ? "BDM/USB" : "USB") + " oyunlarını açın.";
     }
 }

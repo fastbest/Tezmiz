@@ -553,6 +553,65 @@ final class ExFatVolume extends CardVolume {
         commit();
     }
 
+    @Override
+    public int fragments(Entry e) throws IOException {
+        if (!valid(e.cluster)) return 0;
+        return countRuns(clusters(e.cluster, e.size, e.contiguous));
+    }
+
+    private long findRun(long n) {
+        long run = 0;
+        for (long c = 2; c < clusterCount + 2; c++) {
+            if (!used(c)) {
+                if (++run == n) return c - n + 1;
+            } else {
+                run = 0;
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public boolean defragment(Entry e, Fat32Formatter.Progress p, DiskOps.Cancel c)
+            throws IOException {
+        requireWritable();
+        if (e.dir || !valid(e.cluster)) return false;
+        List<Long> old = clusters(e.cluster, e.size, e.contiguous);
+        if (countRuns(old) <= 1) return false;
+        long n = old.size();
+        long to = findRun(n);
+        if (to < 0) throw new IOException(e.name + ": kartta yeterli ardışık boş alan yok");
+        try {
+            for (long i = 0; i < n; i++) {
+                mark(to + i, true);
+                set(to + i, i == n - 1 ? EOC : to + i + 1);
+            }
+            commit();
+            copyClusters(old, to, spc, heapOffset, e.size, p, c);
+        } catch (IOException | RuntimeException ex) {
+            for (long i = 0; i < n; i++) {
+                mark(to + i, false);
+                set(to + i, 0);
+            }
+            commit();
+            throw ex;
+        }
+        byte[][] set = readSlots(e.slots);
+        set[1][1] = (byte) (set[1][1] & ~0x02);   // FAT zinciri kullanılıyor
+        DiskFormatter.putInt(set[1], 20, (int) to);
+        DiskFormatter.putShort(set[0], 2, setChecksum(set));
+        writeSlots(e.slots, set);
+        Entry oldEntry = new Entry();
+        oldEntry.cluster = e.cluster;
+        oldEntry.size = e.size;
+        oldEntry.contiguous = e.contiguous;
+        e.cluster = to;
+        e.contiguous = false;
+        freeClusters(oldEntry);
+        commit();
+        return true;
+    }
+
     private void deleteRec(Entry e, DiskOps.Cancel c, int depth) throws IOException {
         if (c != null && c.isCancelled()) throw new DiskOps.CancelledException();
         if (e.parent == null) throw new IOException("Kök klasör silinemez");

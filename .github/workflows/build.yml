@@ -34,6 +34,17 @@ jobs:
         if: steps.ntfs-cache.outputs.cache-hit != 'true'
         run: bash tools/build-mkntfs.sh "$GITHUB_WORKSPACE/app/src/main/jniLibs"
 
+      - name: Açılış kodu önbelleği
+        id: boot-cache
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/boot
+          key: bootcode-${{ hashFiles('tools/fetch-bootcode.sh') }}
+
+      - name: BIOS açılış kodu ve FreeDOS (Rufus / ms-sys)
+        if: steps.boot-cache.outputs.cache-hit != 'true'
+        run: bash tools/fetch-bootcode.sh "$GITHUB_WORKSPACE/app/src/main/assets/boot"
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
