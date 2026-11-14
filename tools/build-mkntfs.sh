@@ -3,6 +3,7 @@
 # ntfs-3g GPL-2.0 lisanslıdır: https://github.com/tuxera/ntfs-3g
 set -euo pipefail
 VER=2022.10.3
+# autogen için libgcrypt20-dev (AM_PATH_LIBGCRYPT makrosu) gerekir
 OUT="${1:-$PWD/app/src/main/jniLibs}"
 NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_HOME:-}}"
 [ -d "$NDK" ] || { echo "NDK bulunamadı"; exit 1; }
