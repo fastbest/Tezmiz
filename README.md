@@ -1,10 +1,15 @@
 # Kart Format
 
-OTG kart okuyucuyla takılan microSD kartı veya USB belleği **root'suz** FAT32 olarak
-biçimlendiren, reklamsız Android uygulaması.
+OTG kart okuyucuyla takılan microSD kart ve USB bellekler için **root'suz**, reklamsız
+Android araç kutusu.
 
-- Kartı OTG kart okuyucuya, okuyucuyu telefona takın.
-- Uygulamayı açın, USB iznini verin, **Biçimlendir**'e basın.
-- Telefonun kendi kart yuvasındaki kartı biçimlendiremez (Android buna root'suz izin vermez).
+- **Biçimlendir:** kartı FAT32 yapar.
+- **İmaj yaz:** ISO / IMG dosyasını (ham, `.gz` ya da `.zip`) karta yazar ve doğrular.
+- **Yedek al:** kartın tamamını `.img.gz` dosyasına kopyalar; "İmaj yaz" ile geri yüklenir.
+- **Sil:** hızlı ya da tam silme.
+- **Hız testi:** okuma/yazma hızını karttaki veriyi değiştirmeden ölçer.
+- **Kart bilgisi:** bölüm tablosu ve dosya sistemini gösterir.
+
+Telefonun kendi kart yuvasındaki kartla çalışmaz (Android buna root'suz izin vermez).
 
 APK: bu deponun **Releases** bölümündeki `KartFormat.apk`.

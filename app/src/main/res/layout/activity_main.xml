@@ -23,7 +23,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="OTG ile takılan kartı FAT32 yapar. Root gerekmez."
+            android:text="OTG ile takılan kart ve USB bellek araçları. Root gerekmez."
             android:textColor="@color/muted"
             android:textSize="14sp" />
 
@@ -31,24 +31,113 @@
             android:id="@+id/status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="12dp"
             android:background="@drawable/card_bg"
             android:lineSpacingExtra="3dp"
-            android:minHeight="96dp"
+            android:minHeight="72dp"
             android:padding="16dp"
             android:textColor="@color/text"
             android:textSize="16sp" />
 
-        <EditText
-            android:id="@+id/labelInput"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:hint="Kart adı (isteğe bağlı)"
-            android:inputType="textCapCharacters"
-            android:maxLength="11"
-            android:maxLines="1"
-            android:textSize="16sp" />
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/formatButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/accent"
+                android:textColor="#FFFFFF"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="Biçimlendir"
+                android:textAllCaps="false"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/imageButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="@color/text"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="İmaj yaz"
+                android:textAllCaps="false"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/backupButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="@color/text"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="Yedek al"
+                android:textAllCaps="false"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/wipeButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="@color/text"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="Sil"
+                android:textAllCaps="false"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/benchButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="@color/text"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="Hız testi"
+                android:textAllCaps="false"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/infoButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="@color/text"
+                android:alpha="0.5"
+                android:enabled="false"
+                android:text="Kart bilgisi"
+                android:textAllCaps="false"
+                android:textSize="15sp" />
+        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/progressBar"
@@ -67,16 +156,25 @@
             android:textSize="14sp" />
 
         <Button
-            android:id="@+id/formatButton"
+            android:id="@+id/cancelButton"
+            style="?android:attr/borderlessButtonStyle"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="12dp"
-            android:backgroundTint="@color/accent"
-            android:enabled="false"
-            android:text="Biçimlendir"
+            android:layout_height="48dp"
+            android:text="İptal"
             android:textAllCaps="false"
-            android:textColor="#FFFFFF"
-            android:textSize="17sp" />
+            android:textColor="#C62828"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text"
+            android:textIsSelectable="true"
+            android:textSize="15sp" />
 
         <Button
             android:id="@+id/refreshButton"
@@ -92,9 +190,9 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:lineSpacingExtra="2dp"
-            android:text="Uyarı: biçimlendirme karttaki bütün dosyaları siler. Önce yedek alın."
+            android:text="Biçimlendirme, imaj yazma ve silme karttaki bütün dosyaları siler. Önce yedek alın."
             android:textColor="@color/muted"
             android:textSize="13sp" />
     </LinearLayout>

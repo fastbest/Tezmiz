@@ -4,46 +4,71 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.GZIPOutputStream;
 
 public class MainActivity extends Activity {
 
     private static final String ACTION_USB_PERMISSION = "uz.fastbest.kartformat.USB_PERMISSION";
+    private static final int REQ_OPEN_IMAGE = 1;
+    private static final int REQ_CREATE_BACKUP = 2;
+
+    /** Uzun süren bir kart işlemi; sonuç metnini döndürür. */
+    private interface Op {
+        String run(UsbMassStorage s, Fat32Formatter.Progress p, DiskOps.Cancel c)
+                throws IOException;
+    }
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean cancelled = new AtomicBoolean();
 
     private UsbManager usb;
     private UsbMassStorage storage;
+    private UsbDevice device;
     private boolean busy;
+    private boolean rescanAfter;
     private boolean receiverRegistered;
 
     private TextView status;
+    private TextView result;
     private TextView progressText;
     private ProgressBar progressBar;
-    private EditText labelInput;
-    private Button formatButton;
+    private Button cancelButton;
     private Button refreshButton;
+    private Button[] tools;
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -51,13 +76,17 @@ public class MainActivity extends Activity {
             String action = intent.getAction();
             if (ACTION_USB_PERMISSION.equals(action)) {
                 if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                    scan();
+                    if (!busy) scan();
                 } else {
                     status.setText("USB izni verilmedi. \"Yenile\"ye basıp izin verin.");
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)
                     || UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-                if (!busy) scan();
+                if (busy) {
+                    rescanAfter = true;
+                } else {
+                    scan();
+                }
             }
         }
     };
@@ -69,23 +98,32 @@ public class MainActivity extends Activity {
 
         usb = (UsbManager) getSystemService(Context.USB_SERVICE);
         status = findViewById(R.id.status);
+        result = findViewById(R.id.result);
         progressText = findViewById(R.id.progressText);
         progressBar = findViewById(R.id.progressBar);
-        labelInput = findViewById(R.id.labelInput);
-        formatButton = findViewById(R.id.formatButton);
+        cancelButton = findViewById(R.id.cancelButton);
         refreshButton = findViewById(R.id.refreshButton);
 
-        formatButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                confirmFormat();
-            }
+        Button format = findViewById(R.id.formatButton);
+        Button image = findViewById(R.id.imageButton);
+        Button backup = findViewById(R.id.backupButton);
+        Button wipe = findViewById(R.id.wipeButton);
+        Button bench = findViewById(R.id.benchButton);
+        Button info = findViewById(R.id.infoButton);
+        tools = new Button[]{format, image, backup, wipe, bench, info};
+
+        format.setOnClickListener(v -> askFormat());
+        image.setOnClickListener(v -> pickImage());
+        backup.setOnClickListener(v -> pickBackupTarget());
+        wipe.setOnClickListener(v -> askWipe());
+        bench.setOnClickListener(v -> runOp("Hız ölçülüyor", (s, p, c) -> DiskOps.benchmark(s, p, c)));
+        info.setOnClickListener(v -> showInfo());
+        cancelButton.setOnClickListener(v -> {
+            cancelled.set(true);
+            cancelButton.setEnabled(false);
         });
-        refreshButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!busy) scan();
-            }
+        refreshButton.setOnClickListener(v -> {
+            if (!busy) scan();
         });
 
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
@@ -109,27 +147,39 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        cancelled.set(true);
         if (receiverRegistered) unregisterReceiver(receiver);
         final UsbMassStorage s = storage;
         storage = null;
-        worker.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (s != null) s.close();
-            }
+        worker.execute(() -> {
+            if (s != null) s.close();
         });
         worker.shutdown();
         super.onDestroy();
     }
 
+    private void setToolsEnabled(boolean enabled) {
+        for (Button b : tools) {
+            b.setEnabled(enabled);
+            b.setAlpha(enabled ? 1f : 0.5f);
+        }
+    }
+
+    private void closeAsync(final UsbMassStorage s) {
+        if (s == null || worker.isShutdown()) return;
+        worker.execute(s::close);
+    }
+
     /** Takılı kart okuyucuyu bulur, gerekirse izin ister ve kartı açar. */
     private void scan() {
-        formatButton.setEnabled(false);
+        rescanAfter = false;
+        setToolsEnabled(false);
         progressBar.setProgress(0);
         progressText.setText("");
 
         final UsbMassStorage old = storage;
         storage = null;
+        device = null;
 
         UsbDevice found = null;
         if (usb != null) {
@@ -157,146 +207,391 @@ public class MainActivity extends Activity {
 
         status.setText("Kart okunuyor…");
         busy = true;
-        final UsbDevice device = found;
-        worker.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (old != null) old.close();
-                try {
-                    final UsbMassStorage s = UsbMassStorage.open(usb, device);
-                    main.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            busy = false;
-                            if (isFinishing() || isDestroyed()) {
-                                closeAsync(s);
-                                return;
-                            }
-                            storage = s;
-                            String name = s.name().isEmpty() ? "USB depolama" : s.name();
-                            status.setText("Bulunan kart: " + name + "\nBoyut: "
-                                    + sizeText(s.blockCount() * s.blockSize()));
-                            formatButton.setEnabled(true);
-                        }
-                    });
-                } catch (final IOException e) {
-                    main.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            busy = false;
-                            status.setText("Hata: " + e.getMessage());
-                        }
-                    });
-                }
-            }
-        });
-    }
-
-    private void closeAsync(final UsbMassStorage s) {
-        if (s == null || worker.isShutdown()) return;
-        worker.execute(new Runnable() {
-            @Override
-            public void run() {
-                s.close();
-            }
-        });
-    }
-
-    private void confirmFormat() {
-        final UsbMassStorage s = storage;
-        if (s == null || busy) return;
-        new AlertDialog.Builder(this)
-                .setTitle("Kart biçimlendirilsin mi?")
-                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
-                        + "Kart: " + sizeText(s.blockCount() * s.blockSize()))
-                .setNegativeButton("Vazgeç", null)
-                .setPositiveButton("Sil ve biçimlendir", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        startFormat(s);
+        final UsbDevice target = found;
+        worker.execute(() -> {
+            if (old != null) old.close();
+            try {
+                final UsbMassStorage s = UsbMassStorage.open(usb, target);
+                main.post(() -> {
+                    busy = false;
+                    if (isFinishing() || isDestroyed()) {
+                        closeAsync(s);
+                        return;
                     }
-                })
-                .show();
-    }
-
-    private void startFormat(final UsbMassStorage s) {
-        if (busy || s != storage) return;
-        busy = true;
-        formatButton.setEnabled(false);
-        refreshButton.setEnabled(false);
-        labelInput.setEnabled(false);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        status.setText("Biçimlendiriliyor… Kartı çıkarmayın.");
-        final String label = labelInput.getText().toString();
-
-        worker.execute(new Runnable() {
-            @Override
-            public void run() {
-                String error = null;
-                try {
-                    Fat32Formatter.format(s, label, new Fat32Formatter.Progress() {
-                        private int last = -1;
-
-                        @Override
-                        public void onProgress(long doneBlocks, long totalBlocks) {
-                            final int pct = (int) (doneBlocks * 100 / Math.max(1, totalBlocks));
-                            if (pct == last) return;
-                            last = pct;
-                            main.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    progressBar.setProgress(pct);
-                                    progressText.setText("%" + pct);
-                                }
-                            });
-                        }
-                    });
-                    // Yazılanı doğrula: bölüm tablosu geri okunabiliyor mu?
-                    byte[] check = new byte[s.blockSize()];
-                    s.read(0, check, 1);
-                    if ((check[510] & 0xFF) != 0x55 || (check[511] & 0xFF) != 0xAA
-                            || check[450] != 0x0C) {
-                        error = "Yazılan veri doğrulanamadı; kart bozuk ya da sahte olabilir";
-                    }
-                } catch (IOException e) {
-                    error = e.getMessage();
-                } catch (RuntimeException e) {
-                    error = "Beklenmeyen hata: " + e;
-                }
-                final String result = error;
-                main.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        finishFormat(result);
-                    }
+                    storage = s;
+                    device = target;
+                    String name = s.name().isEmpty() ? "USB depolama" : s.name();
+                    status.setText("Bulunan kart: " + name + "\nBoyut: "
+                            + DiskOps.sizeText(s.blockCount() * s.blockSize()));
+                    setToolsEnabled(true);
+                    if (rescanAfter) scan();
+                });
+            } catch (final IOException e) {
+                main.post(() -> {
+                    busy = false;
+                    status.setText("Hata: " + e.getMessage());
+                    if (rescanAfter) scan();
                 });
             }
         });
     }
 
-    private void finishFormat(String error) {
-        busy = false;
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        refreshButton.setEnabled(true);
-        labelInput.setEnabled(true);
-        if (error == null) {
-            progressBar.setProgress(100);
-            progressText.setText("%100");
-            status.setText("Tamamlandı. Kart FAT32 olarak biçimlendirildi.\n\n"
-                    + "Okuyucuyu çıkarın ve kartı telefonun kart yuvasına takın.");
-            closeAsync(storage);
-            storage = null;
+    // ---------------------------------------------------------------- işlem çalıştırıcı
+
+    private void runOp(final String title, final Op op) {
+        final UsbMassStorage s = storage;
+        if (s == null || busy) return;
+        busy = true;
+        cancelled.set(false);
+        setToolsEnabled(false);
+        refreshButton.setEnabled(false);
+        cancelButton.setEnabled(true);
+        cancelButton.setVisibility(View.VISIBLE);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        progressBar.setIndeterminate(false);
+        progressBar.setProgress(0);
+        progressText.setText("");
+        result.setText(title + "… Kartı çıkarmayın, uygulamayı kapatmayın.");
+
+        final Fat32Formatter.Progress progress = new Fat32Formatter.Progress() {
+            private long last;
+
+            @Override
+            public void onProgress(final long done, final long total) {
+                long now = SystemClock.elapsedRealtime();
+                if (now - last < 150 && done != total) return;
+                last = now;
+                main.post(() -> showProgress(done, total));
+            }
+        };
+
+        worker.execute(() -> {
+            String message;
+            try {
+                message = op.run(s, progress, cancelled::get);
+            } catch (DiskOps.CancelledException e) {
+                message = "İptal edildi. Yazma işlemi yarıda kaldıysa kartı kullanmadan önce "
+                        + "biçimlendirin.";
+            } catch (IOException e) {
+                message = "Hata: " + e.getMessage();
+            } catch (RuntimeException | OutOfMemoryError e) {
+                message = "Beklenmeyen hata: " + e;
+            }
+            final String text = message;
+            main.post(() -> finishOp(text));
+        });
+    }
+
+    private void showProgress(long done, long total) {
+        if (!busy) return;
+        if (total > 0) {
+            int pct = (int) Math.min(100, done * 100 / total);
+            progressBar.setIndeterminate(false);
+            progressBar.setProgress(pct);
+            progressText.setText("%" + pct + "  •  " + DiskOps.sizeText(done) + " / "
+                    + DiskOps.sizeText(total));
         } else {
-            status.setText("Biçimlendirme başarısız: " + error
-                    + "\n\nOkuyucuyu çıkarıp yeniden takın ve tekrar deneyin.");
-            closeAsync(storage);
-            storage = null;
+            progressBar.setIndeterminate(true);
+            progressText.setText(DiskOps.sizeText(done));
         }
     }
 
-    private static String sizeText(long bytes) {
-        double gb = bytes / 1e9;
-        if (gb >= 1) return String.format(Locale.ROOT, "%.1f GB", gb);
-        return String.format(Locale.ROOT, "%.0f MB", bytes / 1e6);
+    private void finishOp(String message) {
+        busy = false;
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        cancelButton.setVisibility(View.GONE);
+        refreshButton.setEnabled(true);
+        progressBar.setIndeterminate(false);
+        result.setText(message);
+        if (rescanAfter) {
+            scan();
+        } else if (storage != null) {
+            setToolsEnabled(true);
+        }
+    }
+
+    private void setResultLater(final String text) {
+        main.post(() -> {
+            if (busy) result.setText(text);
+        });
+    }
+
+    private String cardSize() {
+        UsbMassStorage s = storage;
+        return s == null ? "" : DiskOps.sizeText(s.blockCount() * s.blockSize());
+    }
+
+    // ---------------------------------------------------------------- biçimlendirme
+
+    private void askFormat() {
+        if (storage == null || busy) return;
+        final EditText input = new EditText(this);
+        input.setHint("Kart adı (isteğe bağlı)");
+        input.setSingleLine(true);
+        FrameLayout box = new FrameLayout(this);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, 0);
+        box.addView(input);
+
+        new AlertDialog.Builder(this)
+                .setTitle("FAT32 olarak biçimlendir")
+                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
+                        + "Kart: " + cardSize())
+                .setView(box)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil ve biçimlendir", (d, w) -> {
+                    final String label = input.getText().toString();
+                    runOp("Biçimlendiriliyor", (s, p, c) -> {
+                        final long bs = s.blockSize();
+                        Fat32Formatter.format(s, label,
+                                (done, total) -> p.onProgress(done * bs, total * bs));
+                        byte[] check = new byte[s.blockSize()];
+                        s.read(0, check, 1);
+                        if ((check[510] & 0xFF) != 0x55 || (check[511] & 0xFF) != 0xAA
+                                || check[450] != 0x0C) {
+                            throw new IOException("Yazılan veri doğrulanamadı; kart bozuk ya da "
+                                    + "sahte olabilir");
+                        }
+                        return "Tamamlandı. Kart FAT32 olarak biçimlendirildi.\n\n"
+                                + "Okuyucuyu çıkarıp kartı telefonun kart yuvasına takabilirsiniz.";
+                    });
+                })
+                .show();
+    }
+
+    // ---------------------------------------------------------------- imaj yazma
+
+    private void pickImage() {
+        if (storage == null || busy) return;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        try {
+            startActivityForResult(intent, REQ_OPEN_IMAGE);
+        } catch (RuntimeException e) {
+            result.setText("Dosya seçici açılamadı.");
+        }
+    }
+
+    private void pickBackupTarget() {
+        if (storage == null || busy) return;
+        String date = new SimpleDateFormat("yyyyMMdd-HHmm", Locale.ROOT).format(new Date());
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/gzip");
+        intent.putExtra(Intent.EXTRA_TITLE, "kart-yedek-" + date + ".img.gz");
+        try {
+            startActivityForResult(intent, REQ_CREATE_BACKUP);
+        } catch (RuntimeException e) {
+            result.setText("Dosya kaydetme ekranı açılamadı.");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        if (requestCode == REQ_OPEN_IMAGE) {
+            inspectImage(uri);
+        } else if (requestCode == REQ_CREATE_BACKUP) {
+            startBackup(uri);
+        }
+    }
+
+    /** Seçilen dosyaya bakar (ad, boyut, sıkıştırma, önyükleme imzası) ve onay ister. */
+    private void inspectImage(final Uri uri) {
+        if (storage == null || busy) return;
+        busy = true;
+        setToolsEnabled(false);
+        result.setText("Dosya inceleniyor…");
+        final ContentResolver cr = getContentResolver();
+        worker.execute(() -> {
+            String name = "imaj";
+            long size = -1;
+            try (Cursor cur = cr.query(uri, null, null, null, null)) {
+                if (cur != null && cur.moveToFirst()) {
+                    int ni = cur.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    int si = cur.getColumnIndex(OpenableColumns.SIZE);
+                    if (ni >= 0 && !cur.isNull(ni)) name = cur.getString(ni);
+                    if (si >= 0 && !cur.isNull(si)) size = cur.getLong(si);
+                }
+            } catch (RuntimeException ignored) {
+            }
+
+            String error = null;
+            boolean compressed = false;
+            boolean bootable = false;
+            try {
+                byte[] magic = new byte[6];
+                try (InputStream raw = open(cr, uri)) {
+                    compressed = DiskOps.isCompressed(magic, DiskOps.readFully(raw, magic, 0, 6));
+                }
+                byte[] head = new byte[512];
+                try (InputStream img = DiskOps.openImage(open(cr, uri))) {
+                    bootable = DiskOps.looksBootable(head, DiskOps.readFully(img, head, 0, 512));
+                }
+            } catch (IOException | RuntimeException e) {
+                error = "Dosya açılamadı: " + e.getMessage();
+            }
+
+            final String fName = name;
+            final long fSize = size;
+            final long total = compressed || size <= 0 ? -1 : size;
+            final boolean fBootable = bootable;
+            final String fError = error;
+            main.post(() -> {
+                busy = false;
+                if (storage != null) setToolsEnabled(true);
+                if (rescanAfter) {
+                    scan();
+                    return;
+                }
+                if (fError != null) {
+                    result.setText(fError);
+                    return;
+                }
+                result.setText("");
+                confirmImage(uri, fName, fSize, total, fBootable);
+            });
+        });
+    }
+
+    private void confirmImage(final Uri uri, String name, long size, final long total,
+                              boolean bootable) {
+        if (storage == null || busy || isFinishing()) return;
+        StringBuilder msg = new StringBuilder();
+        msg.append("Dosya: ").append(name);
+        if (size > 0) msg.append(" (").append(DiskOps.sizeText(size)).append(")");
+        msg.append("\nKart: ").append(cardSize());
+        msg.append("\n\nKarttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.");
+        if (!bootable) {
+            msg.append("\n\nUyarı: bu dosya doğrudan yazılmaya uygun bir disk imajına "
+                    + "benzemiyor (örneğin Windows kurulum ISO'ları bu yöntemle çalışmaz). "
+                    + "Yazılırsa bilgisayar bu karttan açılmayabilir.");
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("İmaj karta yazılsın mı?")
+                .setMessage(msg.toString())
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil ve yaz", (d, w) -> startImageWrite(uri, total))
+                .show();
+    }
+
+    private void startImageWrite(final Uri uri, final long total) {
+        final ContentResolver cr = getContentResolver();
+        runOp("İmaj yazılıyor", (s, p, c) -> {
+            long written;
+            try (InputStream in = DiskOps.openImage(open(cr, uri))) {
+                written = DiskOps.writeImage(s, in, total, p, c);
+            }
+            setResultLater("Yazılan veri doğrulanıyor… Kartı çıkarmayın.");
+            try (InputStream in = DiskOps.openImage(open(cr, uri))) {
+                DiskOps.verifyImage(s, in, written, p, c);
+            }
+            return "Tamamlandı. " + DiskOps.sizeText(written)
+                    + " yazıldı ve doğrulandı.\n\nOkuyucuyu çıkarabilirsiniz.";
+        });
+    }
+
+    private static InputStream open(ContentResolver cr, Uri uri) throws IOException {
+        InputStream in = cr.openInputStream(uri);
+        if (in == null) throw new IOException("dosya okunamıyor");
+        return in;
+    }
+
+    // ---------------------------------------------------------------- yedekleme
+
+    private void startBackup(final Uri uri) {
+        final ContentResolver cr = getContentResolver();
+        if (storage == null || busy) {
+            deleteQuietly(cr, uri);
+            return;
+        }
+        runOp("Kart yedekleniyor", (s, p, c) -> {
+            boolean ok = false;
+            try {
+                OutputStream raw = cr.openOutputStream(uri);
+                if (raw == null) throw new IOException("Yedek dosyası oluşturulamadı");
+                long bytes;
+                try (GZIPOutputStream gz = new GZIPOutputStream(
+                        new BufferedOutputStream(raw, 65536), 65536)) {
+                    bytes = DiskOps.backup(s, gz, p, c);
+                }
+                ok = true;
+                return "Yedek alındı (" + DiskOps.sizeText(bytes) + " kart, sıkıştırılmış "
+                        + ".img.gz dosyası).\n\nGeri yüklemek için \"İmaj yaz\" ile bu dosyayı "
+                        + "seçin.";
+            } finally {
+                if (!ok) deleteQuietly(cr, uri);
+            }
+        });
+    }
+
+    private static void deleteQuietly(ContentResolver cr, Uri uri) {
+        try {
+            DocumentsContract.deleteDocument(cr, uri);
+        } catch (Exception ignored) {
+        }
+    }
+
+    // ---------------------------------------------------------------- silme
+
+    private void askWipe() {
+        if (storage == null || busy) return;
+        String[] items = {
+                "Hızlı sil (birkaç saniye; bölüm tablosunu ve dosya sistemini siler)",
+                "Tam sil (kartın tamamını sıfırla doldurur; uzun sürer)"
+        };
+        new AlertDialog.Builder(this)
+                .setTitle("Kartı sil")
+                .setItems(items, (d, which) -> confirmWipe(which == 1))
+                .setNegativeButton("Vazgeç", null)
+                .show();
+    }
+
+    private void confirmWipe(final boolean full) {
+        if (storage == null || busy) return;
+        new AlertDialog.Builder(this)
+                .setTitle(full ? "Tam silme" : "Hızlı silme")
+                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
+                        + "Kart: " + cardSize() + "\n\nSildikten sonra kartı kullanmak için "
+                        + "biçimlendirmeniz gerekir.")
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil", (d, w) -> runOp("Kart siliniyor", (s, p, c) -> {
+                    DiskOps.wipe(s, full, p, c);
+                    return "Kart silindi. Kullanmak için \"Biçimlendir\"e basın.";
+                }))
+                .show();
+    }
+
+    // ---------------------------------------------------------------- bilgi
+
+    private void showInfo() {
+        final String usbInfo = usbInfo();
+        runOp("Kart bilgisi okunuyor", (s, p, c) -> {
+            String name = s.name().isEmpty() ? "USB depolama" : s.name();
+            return "Kart okuyucu: " + name + "\n" + usbInfo + "\n" + DiskInfo.describe(s);
+        });
+    }
+
+    private String usbInfo() {
+        UsbDevice d = device;
+        if (d == null) return "";
+        StringBuilder sb = new StringBuilder();
+        try {
+            if (d.getManufacturerName() != null) {
+                sb.append("Üretici: ").append(d.getManufacturerName()).append('\n');
+            }
+            if (d.getProductName() != null) {
+                sb.append("Ürün: ").append(d.getProductName()).append('\n');
+            }
+            sb.append(String.format(Locale.ROOT, "USB kimliği: %04X:%04X\n",
+                    d.getVendorId(), d.getProductId()));
+            String serial = d.getSerialNumber();
+            if (serial != null) sb.append("Seri no: ").append(serial).append('\n');
+        } catch (RuntimeException ignored) {
+        }
+        return sb.toString();
     }
 }
