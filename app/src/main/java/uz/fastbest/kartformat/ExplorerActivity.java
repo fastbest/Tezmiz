@@ -1041,8 +1041,14 @@ public class ExplorerActivity extends Activity {
             try {
                 ZipFs z = new ZipFs(local);
                 p.openDir(z.root());
-            } catch (IOException ex) {
-                toast("ZIP açılamadı: " + ex.getMessage());
+            } catch (IOException | RuntimeException ex) {
+                // Ör. Türkçe Windows'ta UTF-8 olmadan sıkıştırılmış adlar: "Arşivi aç" ile çıkarılabilir
+                new AlertDialog.Builder(this).setTitle(f.name)
+                        .setMessage("ZIP içine göz atılamadı (" + ex.getMessage() + "). "
+                                + "Arşivi bir klasöre çıkarmayı deneyin.")
+                        .setNegativeButton("Vazgeç", null)
+                        .setPositiveButton("Buraya çıkar", (d, w) -> extract(f, p.dir))
+                        .show();
             }
             return;
         }
