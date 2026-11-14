@@ -5,33 +5,27 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Locale;
 
-/** Aygıta MBR bölüm tablosu ve tek bir FAT32 bölümü yazar. */
+import static uz.fastbest.kartformat.DiskFormatter.SECTOR;
+import static uz.fastbest.kartformat.DiskFormatter.putInt;
+import static uz.fastbest.kartformat.DiskFormatter.putShort;
+
+/** Bir bölümü FAT32 olarak biçimlendirir. */
 public final class Fat32Formatter {
 
     public interface Progress {
         void onProgress(long doneBlocks, long totalBlocks);
     }
 
-    private static final int SECTOR = 512;
-    private static final int PART_START = 2048;      // 1 MiB hizalama
     private static final int RESERVED = 32;
     private static final int NUM_FATS = 2;
-    private static final int CHUNK = 128;            // tek seferde 64 KB
-    private static final long MIN_SECTORS = 262144;  // 128 MB
 
-    private final BlockDevice dev;
-    private final Progress progress;
-    private long done;
-    private long total;
-
-    private Fat32Formatter(BlockDevice dev, Progress progress) {
-        this.dev = dev;
-        this.progress = progress;
+    private Fat32Formatter() {
     }
 
+    /** Eski kullanım: MBR + tek FAT32 bölümü. */
     public static void format(BlockDevice dev, String label, Progress progress)
             throws IOException {
-        new Fat32Formatter(dev, progress).run(label);
+        DiskFormatter.format(dev, DiskFormatter.Fs.FAT32, false, label, progress);
     }
 
     static int sectorsPerCluster(long partSectors) {
@@ -44,47 +38,32 @@ public final class Fat32Formatter {
         return 128;                           // 64 KB
     }
 
-    private void run(String label) throws IOException {
-        if (dev.blockSize() != SECTOR) {
-            throw new IOException("Desteklenmeyen sektör boyutu: " + dev.blockSize());
-        }
-        long totalSectors = dev.blockCount();
-        if (totalSectors < MIN_SECTORS) {
-            throw new IOException("Kart çok küçük (en az 128 MB olmalı)");
-        }
-        if (totalSectors > 0xFFFFFFFFL) {
-            throw new IOException("2 TB üstü kartlar desteklenmiyor");
-        }
-
-        long partSectors = totalSectors - PART_START;
-        int spc = sectorsPerCluster(partSectors);
-
+    static long fatSize(long partSectors, int spc) {
         // Microsoft'un FAT boyutu formülü
         long tmp1 = partSectors - RESERVED;
         long tmp2 = (256L * spc + NUM_FATS) / 2;
-        long fatSize = (tmp1 + tmp2 - 1) / tmp2;
+        return (tmp1 + tmp2 - 1) / tmp2;
+    }
 
+    static long estimateBlocks(long partSectors) {
+        int spc = sectorsPerCluster(partSectors);
+        return RESERVED + NUM_FATS * fatSize(partSectors, spc) + spc;
+    }
+
+    static void formatVolume(BlockDevice dev, long start, long partSectors, String label,
+                             DiskFormatter.Tracker t) throws IOException {
+        int spc = sectorsPerCluster(partSectors);
+        long fatSize = fatSize(partSectors, spc);
         long dataSectors = partSectors - RESERVED - NUM_FATS * fatSize;
         long clusters = dataSectors / spc;
-        if (clusters < 65525) {
-            throw new IOException("Kart FAT32 için çok küçük");
-        }
+        if (clusters < 65525) throw new IOException("Kart FAT32 için çok küçük");
 
         int volumeId = (int) (System.currentTimeMillis() & 0xFFFFFFFFL);
         byte[] label11 = makeLabel(label);
 
-        long tail = Math.min(64, partSectors);
-        total = PART_START + RESERVED + NUM_FATS * fatSize + spc + tail;
-        done = 0;
-
-        // 1) Kartın başını temizle (eski MBR/GPT ve dosya sistemi izleri) ve MBR yaz
-        byte[] head = new byte[PART_START * SECTOR];
-        writeMbr(head, partSectors);
-        writeRange(0, head, PART_START);
-
-        // 2) Ayrılmış bölge: önyükleme sektörü, FSInfo ve yedekleri
+        // Ayrılmış bölge: önyükleme sektörü, FSInfo ve yedekleri
         byte[] reserved = new byte[RESERVED * SECTOR];
-        byte[] boot = bootSector(partSectors, spc, fatSize, volumeId, label11);
+        byte[] boot = bootSector(start, partSectors, spc, fatSize, volumeId, label11);
         byte[] fsInfo = fsInfo(clusters - 1);
         byte[] third = new byte[SECTOR];
         third[510] = 0x55;
@@ -94,91 +73,28 @@ public final class Fat32Formatter {
             System.arraycopy(fsInfo, 0, reserved, (copy + 1) * SECTOR, SECTOR);
             System.arraycopy(third, 0, reserved, (copy + 2) * SECTOR, SECTOR);
         }
-        writeRange(PART_START, reserved, RESERVED);
+        DiskFormatter.writeData(dev, start, reserved, RESERVED, t);
 
-        // 3) FAT tabloları
-        long fatStart = PART_START + RESERVED;
+        // FAT tabloları
+        long fatStart = start + RESERVED;
+        byte[] head = new byte[12];
+        putInt(head, 0, 0x0FFFFFF8);   // ortam türü
+        putInt(head, 4, 0x0FFFFFFF);   // temiz kapatma bayrakları
+        putInt(head, 8, 0x0FFFFFFF);   // kök dizin: zincir sonu
         for (int f = 0; f < NUM_FATS; f++) {
-            writeFat(fatStart + f * fatSize, fatSize);
+            DiskFormatter.writeData(dev, fatStart + f * fatSize, head, fatSize, t);
         }
 
-        // 4) Kök dizin kümesi
+        // Kök dizin kümesi
         byte[] root = new byte[spc * SECTOR];
         if (label11 != null) {
             System.arraycopy(label11, 0, root, 0, 11);
             root[11] = 0x08; // birim etiketi
         }
-        long dataStart = fatStart + NUM_FATS * fatSize;
-        writeRange(dataStart, root, spc);
-
-        // 5) Kartın sonundaki olası yedek GPT'yi temizle
-        long tailStart = totalSectors - tail;
-        if (tailStart >= dataStart + spc) {
-            writeRange(tailStart, new byte[(int) tail * SECTOR], (int) tail);
-        } else {
-            done += tail;
-        }
-
-        dev.flush();
-        report(total);
+        DiskFormatter.writeData(dev, fatStart + NUM_FATS * fatSize, root, spc, t);
     }
 
-    private void writeFat(long start, long fatSize) throws IOException {
-        byte[] chunk = new byte[CHUNK * SECTOR];
-        putInt(chunk, 0, 0x0FFFFFF8);   // ortam türü
-        putInt(chunk, 4, 0x0FFFFFFF);   // temiz kapatma bayrakları
-        putInt(chunk, 8, 0x0FFFFFFF);   // kök dizin: zincir sonu
-        long pos = 0;
-        boolean first = true;
-        while (pos < fatSize) {
-            int n = (int) Math.min(CHUNK, fatSize - pos);
-            dev.write(start + pos, chunk, n);
-            pos += n;
-            done += n;
-            report(done);
-            if (first) {
-                Arrays.fill(chunk, 0, 12, (byte) 0);
-                first = false;
-            }
-        }
-    }
-
-    private void writeRange(long lba, byte[] data, int blocks) throws IOException {
-        byte[] chunk = new byte[CHUNK * SECTOR];
-        int pos = 0;
-        while (pos < blocks) {
-            int n = Math.min(CHUNK, blocks - pos);
-            System.arraycopy(data, pos * SECTOR, chunk, 0, n * SECTOR);
-            dev.write(lba + pos, chunk, n);
-            pos += n;
-            done += n;
-            report(done);
-        }
-    }
-
-    private void report(long value) {
-        if (progress != null) progress.onProgress(Math.min(value, total), total);
-    }
-
-    private static void writeMbr(byte[] mbr, long partSectors) {
-        int e = 446;
-        mbr[e] = 0x00;                 // önyüklenebilir değil
-        mbr[e + 1] = (byte) 0xFE;      // CHS başlangıç (LBA kullanılır)
-        mbr[e + 2] = (byte) 0xFF;
-        mbr[e + 3] = (byte) 0xFF;
-        mbr[e + 4] = 0x0C;             // FAT32 (LBA)
-        mbr[e + 5] = (byte) 0xFE;      // CHS bitiş
-        mbr[e + 6] = (byte) 0xFF;
-        mbr[e + 7] = (byte) 0xFF;
-        putInt(mbr, e + 8, PART_START);
-        putInt(mbr, e + 12, (int) partSectors);
-        int sig = (int) (System.nanoTime() & 0xFFFFFFFFL);
-        putInt(mbr, 440, sig);         // disk imzası
-        mbr[510] = 0x55;
-        mbr[511] = (byte) 0xAA;
-    }
-
-    private static byte[] bootSector(long partSectors, int spc, long fatSize,
+    private static byte[] bootSector(long hidden, long partSectors, int spc, long fatSize,
                                      int volumeId, byte[] label11) {
         byte[] b = new byte[SECTOR];
         b[0] = (byte) 0xEB;
@@ -189,17 +105,12 @@ public final class Fat32Formatter {
         b[13] = (byte) spc;
         putShort(b, 14, RESERVED);
         b[16] = NUM_FATS;
-        putShort(b, 17, 0);            // kök dizin girişi (FAT32'de 0)
-        putShort(b, 19, 0);            // 16 bit toplam sektör
         b[21] = (byte) 0xF8;           // ortam türü
-        putShort(b, 22, 0);            // 16 bit FAT boyutu
         putShort(b, 24, 63);           // iz başına sektör
         putShort(b, 26, 255);          // kafa sayısı
-        putInt(b, 28, PART_START);     // gizli sektörler
+        putInt(b, 28, (int) hidden);   // gizli sektörler
         putInt(b, 32, (int) partSectors);
         putInt(b, 36, (int) fatSize);
-        putShort(b, 40, 0);            // bayraklar
-        putShort(b, 42, 0);            // sürüm
         putInt(b, 44, 2);              // kök dizin kümesi
         putShort(b, 48, 1);            // FSInfo sektörü
         putShort(b, 50, 6);            // yedek önyükleme sektörü
@@ -228,16 +139,7 @@ public final class Fat32Formatter {
 
     /** Etiketi FAT kurallarına uygun 11 baytlık hale getirir; boşsa null döner. */
     static byte[] makeLabel(String label) {
-        if (label == null) return null;
-        String s = label.trim().toUpperCase(Locale.ROOT);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.length() && sb.length() < 11; i++) {
-            char c = s.charAt(i);
-            boolean ok = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-                    || c == ' ' || c == '_' || c == '-';
-            if (ok) sb.append(c);
-        }
-        String clean = sb.toString().trim();
+        String clean = cleanLabel(label);
         if (clean.isEmpty()) return null;
         byte[] out = new byte[11];
         Arrays.fill(out, (byte) ' ');
@@ -246,20 +148,22 @@ public final class Fat32Formatter {
         return out;
     }
 
+    /** Etiketten izin verilmeyen karakterleri atar (A-Z, 0-9, boşluk, _ ve -). */
+    static String cleanLabel(String label) {
+        if (label == null) return "";
+        String s = label.trim().toUpperCase(Locale.ROOT);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length() && sb.length() < 11; i++) {
+            char c = s.charAt(i);
+            boolean ok = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                    || c == ' ' || c == '_' || c == '-';
+            if (ok) sb.append(c);
+        }
+        return sb.toString().trim();
+    }
+
     private static void put(byte[] b, int off, String s) {
         byte[] src = s.getBytes(StandardCharsets.US_ASCII);
         System.arraycopy(src, 0, b, off, src.length);
-    }
-
-    private static void putShort(byte[] b, int off, int v) {
-        b[off] = (byte) v;
-        b[off + 1] = (byte) (v >>> 8);
-    }
-
-    private static void putInt(byte[] b, int off, int v) {
-        b[off] = (byte) v;
-        b[off + 1] = (byte) (v >>> 8);
-        b[off + 2] = (byte) (v >>> 16);
-        b[off + 3] = (byte) (v >>> 24);
     }
 }

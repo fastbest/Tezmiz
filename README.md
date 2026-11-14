@@ -3,7 +3,7 @@
 OTG kart okuyucuyla takılan microSD kart ve USB bellekler için **root'suz**, reklamsız
 Android araç kutusu.
 
-- **Biçimlendir:** kartı FAT32 yapar.
+- **Biçimlendir:** FAT32 ya da exFAT; MBR ya da GPT bölüm tablosu.
 - **İmaj yaz:** ISO / IMG dosyasını (ham, `.gz` ya da `.zip`) karta yazar ve doğrular.
 - **Yedek al:** kartın tamamını `.img.gz` dosyasına kopyalar; "İmaj yaz" ile geri yüklenir.
 - **Sil:** hızlı ya da tam silme.

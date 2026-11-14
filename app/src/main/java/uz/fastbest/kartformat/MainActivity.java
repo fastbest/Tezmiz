@@ -23,8 +23,11 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.BufferedOutputStream;
@@ -324,38 +327,89 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- biçimlendirme
 
     private void askFormat() {
-        if (storage == null || busy) return;
+        final UsbMassStorage card = storage;
+        if (card == null || busy) return;
+        long bytes = card.blockCount() * card.blockSize();
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad / 2, pad, 0);
+
+        box.addView(caption("Dosya sistemi"));
+        final RadioGroup fsGroup = new RadioGroup(this);
+        final RadioButton fat32 = radio("FAT32 (her cihaz okur, tek dosya en çok 4 GB)");
+        final RadioButton exfat = radio("exFAT (4 GB'tan büyük dosyalar, 64 GB+ kartlar)");
+        fsGroup.addView(fat32);
+        fsGroup.addView(exfat);
+        fsGroup.check(bytes > 32L * 1000 * 1000 * 1000 ? exfat.getId() : fat32.getId());
+        box.addView(fsGroup);
+
+        box.addView(caption("Bölüm tablosu"));
+        final RadioGroup tableGroup = new RadioGroup(this);
+        final RadioButton mbr = radio("MBR (önerilen; telefonlar ve kameralar için)");
+        final RadioButton gpt = radio("GPT (yeni bilgisayarlar için)");
+        tableGroup.addView(mbr);
+        tableGroup.addView(gpt);
+        tableGroup.check(mbr.getId());
+        box.addView(tableGroup);
+
         final EditText input = new EditText(this);
         input.setHint("Kart adı (isteğe bağlı)");
         input.setSingleLine(true);
-        FrameLayout box = new FrameLayout(this);
-        int pad = (int) (20 * getResources().getDisplayMetrics().density);
-        box.setPadding(pad, pad / 2, pad, 0);
         box.addView(input);
 
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(box);
+
         new AlertDialog.Builder(this)
-                .setTitle("FAT32 olarak biçimlendir")
-                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
-                        + "Kart: " + cardSize())
-                .setView(box)
+                .setTitle("Biçimlendir  •  " + DiskOps.sizeText(bytes))
+                .setView(scroll)
                 .setNegativeButton("Vazgeç", null)
-                .setPositiveButton("Sil ve biçimlendir", (d, w) -> {
-                    final String label = input.getText().toString();
-                    runOp("Biçimlendiriliyor", (s, p, c) -> {
-                        final long bs = s.blockSize();
-                        Fat32Formatter.format(s, label,
-                                (done, total) -> p.onProgress(done * bs, total * bs));
-                        byte[] check = new byte[s.blockSize()];
-                        s.read(0, check, 1);
-                        if ((check[510] & 0xFF) != 0x55 || (check[511] & 0xFF) != 0xAA
-                                || check[450] != 0x0C) {
-                            throw new IOException("Yazılan veri doğrulanamadı; kart bozuk ya da "
-                                    + "sahte olabilir");
-                        }
-                        return "Tamamlandı. Kart FAT32 olarak biçimlendirildi.\n\n"
-                                + "Okuyucuyu çıkarıp kartı telefonun kart yuvasına takabilirsiniz.";
-                    });
-                })
+                .setPositiveButton("Devam", (d, w) -> confirmFormat(
+                        exfat.isChecked() ? DiskFormatter.Fs.EXFAT : DiskFormatter.Fs.FAT32,
+                        gpt.isChecked(), input.getText().toString()))
+                .show();
+    }
+
+    private TextView caption(String text) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextSize(13);
+        t.setPadding(0, (int) (12 * getResources().getDisplayMetrics().density), 0, 0);
+        return t;
+    }
+
+    private RadioButton radio(String text) {
+        RadioButton r = new RadioButton(this);
+        r.setId(View.generateViewId());
+        r.setText(text);
+        return r;
+    }
+
+    private void confirmFormat(final DiskFormatter.Fs fs, final boolean gpt, final String label) {
+        if (storage == null || busy) return;
+        final String fsName = fs == DiskFormatter.Fs.EXFAT ? "exFAT" : "FAT32";
+        new AlertDialog.Builder(this)
+                .setTitle(fsName + " olarak biçimlendirilsin mi?")
+                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
+                        + "Kart: " + cardSize() + "\nBölüm tablosu: " + (gpt ? "GPT" : "MBR"))
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil ve biçimlendir", (d, w) ->
+                        runOp("Biçimlendiriliyor", (s, p, c) -> {
+                            final long bs = s.blockSize();
+                            DiskFormatter.format(s, fs, gpt, label,
+                                    (done, total) -> p.onProgress(done * bs, total * bs));
+                            byte[] check = new byte[s.blockSize()];
+                            s.read(0, check, 1);
+                            if ((check[510] & 0xFF) != 0x55 || (check[511] & 0xFF) != 0xAA) {
+                                throw new IOException("Yazılan veri doğrulanamadı; kart bozuk ya "
+                                        + "da sahte olabilir");
+                            }
+                            return "Tamamlandı. Kart " + fsName + " olarak biçimlendirildi.\n\n"
+                                    + "Okuyucuyu çıkarıp kartı telefonun kart yuvasına "
+                                    + "takabilirsiniz.";
+                        }))
                 .show();
     }
 
