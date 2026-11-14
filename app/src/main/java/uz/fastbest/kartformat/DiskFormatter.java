@@ -3,7 +3,9 @@ package uz.fastbest.kartformat;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.zip.CRC32;
 
 /**
@@ -13,7 +15,35 @@ import java.util.zip.CRC32;
 public final class DiskFormatter {
 
     public enum Fs {
-        FAT32, EXFAT
+        FAT32, EXFAT, EXT4, NTFS;
+
+        public String title() {
+            switch (this) {
+                case FAT32: return "FAT32";
+                case EXFAT: return "exFAT";
+                case EXT4: return "ext4";
+                default: return "NTFS";
+            }
+        }
+
+        int mbrType() {
+            return this == FAT32 ? 0x0C : this == EXT4 ? 0x83 : 0x07;
+        }
+    }
+
+    /** Bölüm sihirbazı için bir bölüm: boyut 0 ise kalan alanın tamamı. */
+    public static final class Part {
+        public final Fs fs;
+        public final long sectors;
+        public final String label;
+        public final int clusterBytes;
+
+        public Part(Fs fs, long sectors, String label, int clusterBytes) {
+            this.fs = fs;
+            this.sectors = sectors;
+            this.label = label;
+            this.clusterBytes = clusterBytes;
+        }
     }
 
     static final int SECTOR = 512;
@@ -23,6 +53,12 @@ public final class DiskFormatter {
     private static final int GPT_ENTRIES = 128;
     private static final int GPT_ENTRY_SIZE = 128;
     private static final int GPT_ARRAY_SECTORS = GPT_ENTRIES * GPT_ENTRY_SIZE / SECTOR; // 32
+
+    /** Linux dosya sistemi bölümü. */
+    private static final byte[] LINUX_GUID = {
+            (byte) 0xAF, 0x3D, (byte) 0xC6, 0x0F, (byte) 0x83, (byte) 0x84, 0x72, 0x47,
+            (byte) 0x8E, 0x79, 0x3D, 0x69, (byte) 0xD8, 0x47, 0x7D, (byte) 0xE4
+    };
 
     /** Microsoft temel veri bölümü (FAT32, exFAT, NTFS için). */
     private static final byte[] BASIC_DATA_GUID = {
@@ -58,31 +94,83 @@ public final class DiskFormatter {
         void write(BlockDevice dev, long start, long sectors, Tracker t) throws IOException;
     }
 
-    public static void format(BlockDevice dev, final Fs fs, boolean gpt, final String label,
+    public static void format(BlockDevice dev, Fs fs, boolean gpt, String label,
                               Fat32Formatter.Progress progress) throws IOException {
-        VolumeWriter w = new VolumeWriter() {
+        format(dev, fs, gpt, label, 0, progress);
+    }
+
+    public static void format(BlockDevice dev, Fs fs, boolean gpt, String label, int clusterBytes,
+                              Fat32Formatter.Progress progress) throws IOException {
+        List<Part> one = new ArrayList<>();
+        one.add(new Part(fs, 0, label, clusterBytes));
+        partition(dev, gpt, one, progress);
+    }
+
+    /** Bir dosya sistemine uygun bölüm yazıcısı. */
+    static VolumeWriter writer(final Fs fs, final String label, final int clusterBytes) {
+        if (fs == Fs.EXT4) return new Ext4Formatter(label);
+        if (fs == Fs.NTFS) return new NtfsFormatter(label, clusterBytes);
+        final int spc = clusterBytes / SECTOR;
+        return new VolumeWriter() {
             @Override
-            public long estimateBlocks(long sectors) {
-                return fs == Fs.FAT32 ? Fat32Formatter.estimateBlocks(sectors)
-                        : ExFatFormatter.estimateBlocks(sectors);
+            public long estimateBlocks(long sectors) throws IOException {
+                return fs == Fs.FAT32 ? Fat32Formatter.estimateBlocks(sectors, spc)
+                        : ExFatFormatter.estimateBlocks(sectors, spc);
             }
 
             @Override
             public void write(BlockDevice d, long start, long sectors, Tracker t)
                     throws IOException {
                 if (fs == Fs.FAT32) {
-                    Fat32Formatter.formatVolume(d, start, sectors, label, t);
+                    Fat32Formatter.formatVolume(d, start, sectors, label, t, spc);
                 } else {
-                    ExFatFormatter.formatVolume(d, start, sectors, label, t);
+                    ExFatFormatter.formatVolume(d, start, sectors, label, t, spc);
                 }
             }
         };
-        layout(dev, gpt, fs == Fs.FAT32 ? 0x0C : 0x07, label, w, progress);
     }
 
-    /** Kartı temizler, tek bölümü verilen yazıcıyla doldurur ve bölüm tablosunu en son yazar. */
+    /** Tek bölüm, verilen yazıcıyla (Windows USB gibi özel içerikler için). */
     static void layout(BlockDevice dev, boolean gpt, int mbrType, String name, VolumeWriter w,
                        Fat32Formatter.Progress progress) throws IOException {
+        List<Spec> specs = new ArrayList<>();
+        specs.add(new Spec(w, 0, mbrType, BASIC_DATA_GUID, name));
+        layout(dev, gpt, specs, progress);
+    }
+
+    /** Bölüm sihirbazı: en çok 4 bölüm. */
+    public static void partition(BlockDevice dev, boolean gpt, List<Part> parts,
+                                 Fat32Formatter.Progress progress) throws IOException {
+        if (parts.isEmpty() || parts.size() > 4) throw new IOException("1 ile 4 arası bölüm olmalı");
+        List<Spec> specs = new ArrayList<>();
+        for (Part p : parts) {
+            specs.add(new Spec(writer(p.fs, p.label, p.clusterBytes), p.sectors, p.fs.mbrType(),
+                    p.fs == Fs.EXT4 ? LINUX_GUID : BASIC_DATA_GUID, p.label));
+        }
+        layout(dev, gpt, specs, progress);
+    }
+
+    private static final class Spec {
+        final VolumeWriter w;
+        final long sectors;
+        final int mbrType;
+        final byte[] gptType;
+        final String name;
+        long start;
+        long count;
+
+        Spec(VolumeWriter w, long sectors, int mbrType, byte[] gptType, String name) {
+            this.w = w;
+            this.sectors = sectors;
+            this.mbrType = mbrType;
+            this.gptType = gptType;
+            this.name = name;
+        }
+    }
+
+    /** Kartı temizler, bölümleri yazar ve bölüm tablosunu en son yazar. */
+    private static void layout(BlockDevice dev, boolean gpt, List<Spec> specs,
+                               Fat32Formatter.Progress progress) throws IOException {
         if (dev.blockSize() != SECTOR) {
             throw new IOException("Desteklenmeyen sektör boyutu: " + dev.blockSize());
         }
@@ -90,27 +178,43 @@ public final class DiskFormatter {
         if (total < MIN_SECTORS) throw new IOException("Kart çok küçük (en az 128 MB olmalı)");
         if (total > 0xFFFFFFFFL) throw new IOException("2 TB üstü kartlar desteklenmiyor");
 
-        long partStart = PART_START;
-        long partEnd = gpt ? total - 1 - GPT_ARRAY_SECTORS - 1 : total - 1; // dahil
-        long partSectors = partEnd - partStart + 1;
+        long limit = gpt ? total - 1 - GPT_ARRAY_SECTORS : total; // ilk kullanılamayan sektör
+        long pos = PART_START;
+        for (int i = 0; i < specs.size(); i++) {
+            Spec s = specs.get(i);
+            boolean last = i == specs.size() - 1;
+            long size = s.sectors > 0 && !last ? s.sectors / PART_START * PART_START
+                    : s.sectors > 0 ? Math.min(s.sectors, limit - pos) : limit - pos;
+            if (s.sectors == 0 && !last) throw new IOException("Yalnızca son bölüm \"kalan\" olabilir");
+            if (size <= 0 || pos + size > limit) {
+                throw new IOException("Bölümler karta sığmıyor");
+            }
+            s.start = pos;
+            s.count = size;
+            pos += size;
+        }
 
         Tracker t = new Tracker(progress);
         long tail = 64;  // yedek GPT'nin durduğu son 33 sektörü kapsar
-        t.total = PART_START + tail + w.estimateBlocks(partSectors);
+        t.total = PART_START + tail;
+        for (Spec s : specs) t.total += s.w.estimateBlocks(s.count);
 
         // 1) Kartın başını ve sonunu temizle (eski MBR/GPT ve dosya sistemi izleri)
         writeZeros(dev, 0, PART_START, t);
         writeZeros(dev, total - tail, tail, t);
 
-        // 2) Dosya sistemi
-        w.write(dev, partStart, partSectors, t);
+        // 2) Dosya sistemleri
+        for (Spec s : specs) s.w.write(dev, s.start, s.count, t);
 
         // 3) Bölüm tablosu en son yazılır; yarıda kalan işlem geçerli görünmez
         if (gpt) {
-            writeGpt(dev, partStart, partEnd, name);
+            writeGpt(dev, specs);
         } else {
             byte[] mbr = new byte[SECTOR];
-            mbrEntry(mbr, 0, mbrType, partStart, partSectors);
+            for (int i = 0; i < specs.size(); i++) {
+                Spec s = specs.get(i);
+                mbrEntry(mbr, i, s.mbrType, s.start, s.count);
+            }
             putInt(mbr, 440, new SecureRandom().nextInt()); // disk imzası
             mbr[510] = 0x55;
             mbr[511] = (byte) 0xAA;
@@ -120,23 +224,26 @@ public final class DiskFormatter {
         if (progress != null) progress.onProgress(t.total, t.total);
     }
 
-    private static void writeGpt(BlockDevice dev, long first, long last, String label)
-            throws IOException {
+    private static void writeGpt(BlockDevice dev, List<Spec> specs) throws IOException {
         long total = dev.blockCount();
         SecureRandom rnd = new SecureRandom();
 
         byte[] entries = new byte[GPT_ARRAY_SECTORS * SECTOR];
-        System.arraycopy(BASIC_DATA_GUID, 0, entries, 0, 16);
-        byte[] unique = new byte[16];
-        rnd.nextBytes(unique);
-        unique[7] = (byte) ((unique[7] & 0x0F) | 0x40);   // sürüm 4 (karışık sıralı alan)
-        unique[8] = (byte) ((unique[8] & 0x3F) | 0x80);
-        System.arraycopy(unique, 0, entries, 16, 16);
-        putLong(entries, 32, first);
-        putLong(entries, 40, last);
-        String name = label == null || label.trim().isEmpty() ? "Kart" : label.trim();
-        byte[] n = name.getBytes(StandardCharsets.UTF_16LE);
-        System.arraycopy(n, 0, entries, 56, Math.min(n.length, 72));
+        for (int i = 0; i < specs.size(); i++) {
+            Spec s = specs.get(i);
+            int o = i * GPT_ENTRY_SIZE;
+            System.arraycopy(s.gptType, 0, entries, o, 16);
+            byte[] unique = new byte[16];
+            rnd.nextBytes(unique);
+            unique[7] = (byte) ((unique[7] & 0x0F) | 0x40);
+            unique[8] = (byte) ((unique[8] & 0x3F) | 0x80);
+            System.arraycopy(unique, 0, entries, o + 16, 16);
+            putLong(entries, o + 32, s.start);
+            putLong(entries, o + 40, s.start + s.count - 1);
+            String name = s.name == null || s.name.trim().isEmpty() ? "Kart" : s.name.trim();
+            byte[] n = name.getBytes(StandardCharsets.UTF_16LE);
+            System.arraycopy(n, 0, entries, o + 56, Math.min(n.length, 72));
+        }
 
         CRC32 crc = new CRC32();
         crc.update(entries, 0, entries.length);

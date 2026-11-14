@@ -22,6 +22,7 @@ import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -30,6 +31,7 @@ import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import java.io.BufferedOutputStream;
@@ -38,7 +40,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -105,6 +109,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         usb = (UsbManager) getSystemService(Context.USB_SERVICE);
+        NtfsFormatter.tool = new java.io.File(getApplicationInfo().nativeLibraryDir, "libmkntfs.so");
+        NtfsFormatter.workDir = getCacheDir();
         status = findViewById(R.id.status);
         result = findViewById(R.id.result);
         progressText = findViewById(R.id.progressText);
@@ -120,7 +126,9 @@ public class MainActivity extends Activity {
         Button info = findViewById(R.id.infoButton);
         Button windows = findViewById(R.id.windowsButton);
         Button files = findViewById(R.id.filesButton);
-        tools = new Button[]{files, format, image, backup, wipe, bench, info, windows};
+        Button parts = findViewById(R.id.partsButton);
+        Button ps2 = findViewById(R.id.ps2Button);
+        tools = new Button[]{files, format, image, backup, wipe, bench, info, windows, parts, ps2};
 
         format.setOnClickListener(v -> askFormat());
         image.setOnClickListener(v -> pickImage());
@@ -130,6 +138,8 @@ public class MainActivity extends Activity {
         info.setOnClickListener(v -> showInfo());
         windows.setOnClickListener(v -> pickIso());
         files.setOnClickListener(v -> openFiles());
+        parts.setOnClickListener(v -> askPartitions());
+        ps2.setOnClickListener(v -> pickPs2());
         cancelButton.setOnClickListener(v -> {
             cancelled.set(true);
             cancelButton.setEnabled(false);
@@ -335,6 +345,20 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- biçimlendirme
 
+    private static final String[] CLUSTER_NAMES = {
+            "Otomatik", "4 KB", "8 KB", "16 KB", "32 KB", "64 KB", "128 KB"};
+    private static final int[] CLUSTER_BYTES = {0, 4096, 8192, 16384, 32768, 65536, 131072};
+
+    private Spinner spinner(String[] items, int selected) {
+        Spinner sp = new Spinner(this);
+        ArrayAdapter<String> a = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, items);
+        a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sp.setAdapter(a);
+        sp.setSelection(selected);
+        return sp;
+    }
+
     private void askFormat() {
         final UsbMassStorage card = storage;
         if (card == null || busy) return;
@@ -349,10 +373,18 @@ public class MainActivity extends Activity {
         final RadioGroup fsGroup = new RadioGroup(this);
         final RadioButton fat32 = radio("FAT32 (her cihaz okur, tek dosya en çok 4 GB)");
         final RadioButton exfat = radio("exFAT (4 GB'tan büyük dosyalar, 64 GB+ kartlar)");
+        final RadioButton ntfs = radio("NTFS (Windows bilgisayarlar için)");
+        final RadioButton ext4 = radio("ext4 (Linux, Raspberry Pi, bazı Android cihazlar)");
         fsGroup.addView(fat32);
         fsGroup.addView(exfat);
+        fsGroup.addView(ntfs);
+        fsGroup.addView(ext4);
         fsGroup.check(bytes > 32L * 1000 * 1000 * 1000 ? exfat.getId() : fat32.getId());
         box.addView(fsGroup);
+
+        box.addView(caption("Küme boyutu (FAT32 / exFAT / NTFS)"));
+        final Spinner cluster = spinner(CLUSTER_NAMES, 0);
+        box.addView(cluster);
 
         box.addView(caption("Bölüm tablosu"));
         final RadioGroup tableGroup = new RadioGroup(this);
@@ -375,9 +407,14 @@ public class MainActivity extends Activity {
                 .setTitle("Biçimlendir  •  " + DiskOps.sizeText(bytes))
                 .setView(scroll)
                 .setNegativeButton("Vazgeç", null)
-                .setPositiveButton("Devam", (d, w) -> confirmFormat(
-                        exfat.isChecked() ? DiskFormatter.Fs.EXFAT : DiskFormatter.Fs.FAT32,
-                        gpt.isChecked(), input.getText().toString()))
+                .setPositiveButton("Devam", (d, w) -> {
+                    DiskFormatter.Fs fs = exfat.isChecked() ? DiskFormatter.Fs.EXFAT
+                            : ntfs.isChecked() ? DiskFormatter.Fs.NTFS
+                            : ext4.isChecked() ? DiskFormatter.Fs.EXT4 : DiskFormatter.Fs.FAT32;
+                    int cb = fs == DiskFormatter.Fs.EXT4 ? 0
+                            : CLUSTER_BYTES[cluster.getSelectedItemPosition()];
+                    confirmFormat(fs, gpt.isChecked(), input.getText().toString(), cb);
+                })
                 .show();
     }
 
@@ -396,28 +433,170 @@ public class MainActivity extends Activity {
         return r;
     }
 
-    private void confirmFormat(final DiskFormatter.Fs fs, final boolean gpt, final String label) {
+    private void confirmFormat(final DiskFormatter.Fs fs, final boolean gpt, final String label,
+                               final int clusterBytes) {
         if (storage == null || busy) return;
-        final String fsName = fs == DiskFormatter.Fs.EXFAT ? "exFAT" : "FAT32";
+        final String fsName = fs.title();
         new AlertDialog.Builder(this)
                 .setTitle(fsName + " olarak biçimlendirilsin mi?")
                 .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
-                        + "Kart: " + cardSize() + "\nBölüm tablosu: " + (gpt ? "GPT" : "MBR"))
+                        + "Kart: " + cardSize() + "\nBölüm tablosu: " + (gpt ? "GPT" : "MBR")
+                        + (clusterBytes > 0 ? "\nKüme: " + clusterBytes / 1024 + " KB" : ""))
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Sil ve biçimlendir", (d, w) ->
                         runOp("Biçimlendiriliyor", (s, p, c) -> {
                             final long bs = s.blockSize();
-                            DiskFormatter.format(s, fs, gpt, label,
+                            DiskFormatter.format(s, fs, gpt, label, clusterBytes,
                                     (done, total) -> p.onProgress(done * bs, total * bs));
-                            byte[] check = new byte[s.blockSize()];
-                            s.read(0, check, 1);
-                            if ((check[510] & 0xFF) != 0x55 || (check[511] & 0xFF) != 0xAA) {
-                                throw new IOException("Yazılan veri doğrulanamadı; kart bozuk ya "
-                                        + "da sahte olabilir");
-                            }
+                            checkTable(s);
                             return "Tamamlandı. Kart " + fsName + " olarak biçimlendirildi.\n\n"
-                                    + "Okuyucuyu çıkarıp kartı telefonun kart yuvasına "
-                                    + "takabilirsiniz.";
+                                    + "Okuyucuyu çıkarıp kartı kullanabilirsiniz.";
+                        }))
+                .show();
+    }
+
+    private static void checkTable(UsbMassStorage s) throws IOException {
+        byte[] check = new byte[s.blockSize()];
+        s.read(0, check, 1);
+        if ((check[510] & 0xFF) != 0x55 || (check[511] & 0xFF) != 0xAA) {
+            throw new IOException("Yazılan veri doğrulanamadı; kart bozuk ya da sahte olabilir");
+        }
+    }
+
+    // ---------------------------------------------------------------- bölüm sihirbazı
+
+    private static final String[] PART_FS = {"FAT32", "exFAT", "NTFS", "ext4"};
+    private static final DiskFormatter.Fs[] PART_FS_VALUES = {DiskFormatter.Fs.FAT32,
+            DiskFormatter.Fs.EXFAT, DiskFormatter.Fs.NTFS, DiskFormatter.Fs.EXT4};
+
+    private void askPartitions() {
+        final UsbMassStorage card = storage;
+        if (card == null || busy) return;
+        final long bytes = card.blockCount() * card.blockSize();
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad / 2, pad, 0);
+
+        box.addView(caption("Bölüm sayısı"));
+        final RadioGroup count = new RadioGroup(this);
+        count.setOrientation(LinearLayout.HORIZONTAL);
+        final RadioButton[] counts = new RadioButton[4];
+        for (int i = 0; i < 4; i++) {
+            counts[i] = radio(String.valueOf(i + 1));
+            count.addView(counts[i]);
+        }
+        box.addView(count);
+
+        final LinearLayout rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
+        box.addView(rows);
+        final List<Spinner> fsViews = new ArrayList<>();
+        final List<EditText> sizeViews = new ArrayList<>();
+
+        count.setOnCheckedChangeListener((g, id) -> {
+            int n = 1;
+            for (int i = 0; i < 4; i++) if (counts[i].getId() == id) n = i + 1;
+            rows.removeAllViews();
+            fsViews.clear();
+            sizeViews.clear();
+            for (int i = 0; i < n; i++) {
+                rows.addView(caption("Bölüm " + (i + 1)));
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                Spinner fs = spinner(PART_FS, i == 0 ? 0 : 1);
+                EditText size = new EditText(this);
+                size.setSingleLine(true);
+                size.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+                        | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                if (i == n - 1) {
+                    size.setText("");
+                    size.setHint("kalan");
+                    size.setEnabled(false);
+                } else {
+                    size.setHint("GB");
+                    size.setText(String.valueOf(Math.max(1, bytes / 1000000000L / n)));
+                }
+                row.addView(fs, new LinearLayout.LayoutParams(0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                row.addView(size, new LinearLayout.LayoutParams(0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                rows.addView(row);
+                fsViews.add(fs);
+                sizeViews.add(size);
+            }
+        });
+        count.check(counts[1].getId());
+
+        box.addView(caption("Bölüm tablosu"));
+        final RadioGroup tableGroup = new RadioGroup(this);
+        final RadioButton mbr = radio("MBR");
+        final RadioButton gpt = radio("GPT");
+        tableGroup.addView(mbr);
+        tableGroup.addView(gpt);
+        tableGroup.check(mbr.getId());
+        box.addView(tableGroup);
+
+        TextView note = new TextView(this);
+        note.setText("Not: telefonlar ve kameralar çoğunlukla yalnızca ilk bölümü görür.");
+        note.setTextSize(13);
+        box.addView(note);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(box);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Bölüm sihirbazı  •  " + DiskOps.sizeText(bytes))
+                .setView(scroll)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Devam", (d, w) -> {
+                    List<DiskFormatter.Part> parts = new ArrayList<>();
+                    StringBuilder sum = new StringBuilder();
+                    for (int i = 0; i < fsViews.size(); i++) {
+                        DiskFormatter.Fs fs = PART_FS_VALUES[fsViews.get(i).getSelectedItemPosition()];
+                        long sectors = 0;
+                        boolean last = i == fsViews.size() - 1;
+                        if (!last) {
+                            double gb;
+                            try {
+                                gb = Double.parseDouble(sizeViews.get(i).getText().toString()
+                                        .replace(',', '.'));
+                            } catch (NumberFormatException e) {
+                                gb = 0;
+                            }
+                            if (gb <= 0) {
+                                result.setText("Bölüm " + (i + 1) + " için boyut girin.");
+                                return;
+                            }
+                            sectors = (long) (gb * 1e9 / 512);
+                        }
+                        parts.add(new DiskFormatter.Part(fs, sectors, "BOLUM" + (i + 1), 0));
+                        sum.append("Bölüm ").append(i + 1).append(": ").append(fs.title())
+                                .append(", ").append(last ? "kalan alan"
+                                        : DiskOps.sizeText(sectors * 512)).append('\n');
+                    }
+                    confirmPartitions(parts, gpt.isChecked(), sum.toString());
+                })
+                .show();
+    }
+
+    private void confirmPartitions(final List<DiskFormatter.Part> parts, final boolean gpt,
+                                   String summary) {
+        if (storage == null || busy) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Bölümler oluşturulsun mu?")
+                .setMessage(summary + "\nKarttaki BÜTÜN dosyalar silinecek ve geri "
+                        + "getirilemeyecek.")
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil ve oluştur", (d, w) ->
+                        runOp("Bölümler oluşturuluyor", (s, p, c) -> {
+                            final long bs = s.blockSize();
+                            DiskFormatter.partition(s, gpt, parts,
+                                    (done, total) -> p.onProgress(done * bs, total * bs));
+                            checkTable(s);
+                            return "Tamamlandı. " + parts.size() + " bölüm oluşturuldu.\n\n"
+                                    + DiskInfo.describe(s);
                         }))
                 .show();
     }
@@ -567,6 +746,12 @@ public class MainActivity extends Activity {
         InputStream in = cr.openInputStream(uri);
         if (in == null) throw new IOException("dosya okunamıyor");
         return in;
+    }
+
+    // ---------------------------------------------------------------- PS2
+
+    private void pickPs2() {
+        result.setText("PS2 oyun ekleme hazırlanıyor.");
     }
 
     // ---------------------------------------------------------------- dosyalar

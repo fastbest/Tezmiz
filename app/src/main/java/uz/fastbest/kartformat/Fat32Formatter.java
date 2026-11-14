@@ -45,18 +45,43 @@ public final class Fat32Formatter {
         return (tmp1 + tmp2 - 1) / tmp2;
     }
 
+    /** Seçilen küme boyutunu (sektör) denetler; 0 ise otomatik seçer. */
+    static int pickSpc(long partSectors, int spc) throws IOException {
+        if (spc == 0) spc = sectorsPerCluster(partSectors);
+        if (spc < 1 || spc > 128 || (spc & (spc - 1)) != 0) {
+            throw new IOException("Geçersiz küme boyutu");
+        }
+        long clusters = (partSectors - RESERVED - NUM_FATS * fatSize(partSectors, spc)) / spc;
+        if (clusters < 65525) {
+            throw new IOException("Bu küme boyutu için bölüm FAT32'ye fazla küçük; daha küçük küme seçin");
+        }
+        if (clusters > 0x0FFFFFF4L) {
+            throw new IOException("Bu küme boyutu için bölüm fazla büyük; daha büyük küme seçin");
+        }
+        return spc;
+    }
+
     static long estimateBlocks(long partSectors) {
         int spc = sectorsPerCluster(partSectors);
         return RESERVED + NUM_FATS * fatSize(partSectors, spc) + spc;
     }
 
+    static long estimateBlocks(long partSectors, int spc) throws IOException {
+        spc = pickSpc(partSectors, spc);
+        return RESERVED + NUM_FATS * fatSize(partSectors, spc) + spc;
+    }
+
     static void formatVolume(BlockDevice dev, long start, long partSectors, String label,
                              DiskFormatter.Tracker t) throws IOException {
-        int spc = sectorsPerCluster(partSectors);
+        formatVolume(dev, start, partSectors, label, t, 0);
+    }
+
+    static void formatVolume(BlockDevice dev, long start, long partSectors, String label,
+                             DiskFormatter.Tracker t, int spcWanted) throws IOException {
+        int spc = pickSpc(partSectors, spcWanted);
         long fatSize = fatSize(partSectors, spc);
         long dataSectors = partSectors - RESERVED - NUM_FATS * fatSize;
         long clusters = dataSectors / spc;
-        if (clusters < 65525) throw new IOException("Kart FAT32 için çok küçük");
 
         int volumeId = (int) (System.currentTimeMillis() & 0xFFFFFFFFL);
         byte[] label11 = makeLabel(label);

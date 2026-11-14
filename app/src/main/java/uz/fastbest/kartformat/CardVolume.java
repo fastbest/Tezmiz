@@ -65,13 +65,25 @@ public abstract class CardVolume {
 
     // ------------------------------------------------------------ açma
 
+    /** Gösterim için: "Bölüm 2" gibi. */
+    public String name = "Kart";
+
     /** Karttaki ilk FAT/exFAT bölümünü açar. */
     public static CardVolume open(BlockDevice dev) throws IOException {
+        return openAll(dev).get(0);
+    }
+
+    /** Karttaki bütün FAT/exFAT bölümlerini açar (en az bir tane, yoksa hata). */
+    public static List<CardVolume> openAll(BlockDevice dev) throws IOException {
         if (dev.blockSize() != 512) throw new IOException("Desteklenmeyen sektör boyutu");
         byte[] s0 = new byte[512];
         dev.read(0, s0, 1);
+        List<CardVolume> found = new ArrayList<>();
         CardVolume v = tryOpen(dev, 0, dev.blockCount(), s0);
-        if (v != null) return v;
+        if (v != null) {
+            found.add(v);
+            return found;
+        }
         if ((s0[510] & 0xFF) != 0x55 || (s0[511] & 0xFF) != 0xAA) {
             throw new IOException("Kartta tanınan bir dosya sistemi yok. Önce biçimlendirin.");
         }
@@ -106,14 +118,26 @@ public abstract class CardVolume {
                 if (start + size <= dev.blockCount()) parts.add(new long[]{start, size});
             }
         }
-        for (long[] p : parts) {
+        IOException firstError = null;
+        for (int i = 0; i < parts.size(); i++) {
+            long[] p = parts.get(i);
             byte[] b = new byte[512];
             dev.read(p[0], b, 1);
-            v = tryOpen(dev, p[0], p[1], b);
-            if (v != null) return v;
+            try {
+                v = tryOpen(dev, p[0], p[1], b);
+            } catch (IOException e) {
+                if (firstError == null) firstError = e;
+                v = null;
+            }
+            if (v != null) {
+                v.name = "Bölüm " + (i + 1);
+                found.add(v);
+            }
         }
-        throw new IOException("Kartta FAT ya da exFAT bölümü bulunamadı (NTFS ve ext4 henüz "
-                + "desteklenmiyor).");
+        if (!found.isEmpty()) return found;
+        if (firstError != null) throw firstError;
+        throw new IOException("Kartta FAT ya da exFAT bölümü bulunamadı (NTFS ve ext4 bölümleri "
+                + "dosya yöneticisinde açılamıyor).");
     }
 
     private static CardVolume tryOpen(BlockDevice dev, long start, long count, byte[] b)

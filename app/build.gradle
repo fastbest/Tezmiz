@@ -10,8 +10,8 @@ android {
         applicationId 'uz.fastbest.kartformat'
         minSdk 21
         targetSdk 34
-        versionCode 5
-        versionName '2.3'
+        versionCode 6
+        versionName '3.0'
     }
 
     buildTypes {
@@ -29,4 +29,20 @@ android {
         abortOnError false
         checkReleaseBuilds false
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging true   // mkntfs dosya olarak açılsın ve çalıştırılabilsin
+        }
+        resources {
+            excludes += ['META-INF/*']
+        }
+    }
+}
+
+dependencies {
+    // .xz imajlar ve 7z arşivleri (kamu malı / 0BSD)
+    implementation 'org.tukaani:xz:1.10'
+    // zip, tar, 7z, bzip2 (Apache-2.0)
+    implementation 'org.apache.commons:commons-compress:1.24.0'
 }

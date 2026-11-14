@@ -148,19 +148,46 @@ public class FilesActivity extends Activity {
         final UsbMassStorage s = storage;
         worker.execute(() -> {
             try {
-                final CardVolume v = CardVolume.open(s);
-                final long free = v.freeBytes();
-                final List<CardVolume.Entry> kids = sorted(v.list(v.root()));
-                main.post(() -> {
-                    volume = v;
-                    current = v.root();
-                    showList(kids);
-                    showInfo(free);
-                });
+                final List<CardVolume> all = CardVolume.openAll(s);
+                if (all.size() == 1) {
+                    loadVolume(all.get(0));
+                } else {
+                    main.post(() -> choosePartition(all));
+                }
             } catch (final IOException | RuntimeException e) {
                 main.post(() -> infoText.setText("Hata: " + e.getMessage()));
             }
         });
+    }
+
+    private void choosePartition(final List<CardVolume> all) {
+        if (isFinishing()) return;
+        String[] names = new String[all.size()];
+        for (int i = 0; i < names.length; i++) {
+            CardVolume v = all.get(i);
+            names[i] = v.name + "  •  " + v.type() + ", " + DiskOps.sizeText(v.totalBytes());
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Hangi bölüm açılsın?")
+                .setItems(names, (d, which) -> worker.execute(() -> loadVolume(all.get(which))))
+                .setOnCancelListener(d -> finish())
+                .show();
+    }
+
+    /** İş parçacığında çağrılır. */
+    private void loadVolume(final CardVolume v) {
+        try {
+            final long free = v.freeBytes();
+            final List<CardVolume.Entry> kids = sorted(v.list(v.root()));
+            main.post(() -> {
+                volume = v;
+                current = v.root();
+                showList(kids);
+                showInfo(free);
+            });
+        } catch (final IOException | RuntimeException e) {
+            main.post(() -> infoText.setText("Hata: " + e.getMessage()));
+        }
     }
 
     @Override
@@ -214,7 +241,8 @@ public class FilesActivity extends Activity {
     }
 
     private void showInfo(long free) {
-        String s = volume.type() + "  •  " + DiskOps.sizeText(free) + " boş / "
+        String s = (volume.name.equals("Kart") ? "" : volume.name + "  •  ")
+                + volume.type() + "  •  " + DiskOps.sizeText(free) + " boş / "
                 + DiskOps.sizeText(volume.totalBytes());
         if (!volume.writable()) s += "\nBu bölüm salt okunur açıldı.";
         infoText.setText(s);

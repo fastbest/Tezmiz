@@ -151,6 +151,39 @@
                 android:textSize="15sp" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/partsButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:alpha="0.5"
+                android:backgroundTint="#FFFFFF"
+                android:enabled="false"
+                android:text="Bölüm sihirbazı"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/ps2Button"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:alpha="0.5"
+                android:backgroundTint="#FFFFFF"
+                android:enabled="false"
+                android:text="PS2 oyunu ekle"
+                android:textAllCaps="false"
+                android:textColor="@color/text"
+                android:textSize="15sp" />
+        </LinearLayout>
+
         <Button
             android:id="@+id/windowsButton"
             android:layout_width="match_parent"

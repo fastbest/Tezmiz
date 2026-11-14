@@ -51,7 +51,11 @@ public final class DiskOps {
 
     /** Dosyanın ilk baytlarına bakarak sıkıştırılmış olup olmadığını söyler. */
     public static boolean isCompressed(byte[] m, int n) {
-        return isGzip(m, n) || isZip(m, n) || isXz(m, n);
+        return isGzip(m, n) || isZip(m, n) || isXz(m, n) || isBzip2(m, n);
+    }
+
+    private static boolean isBzip2(byte[] m, int n) {
+        return n >= 3 && m[0] == 'B' && m[1] == 'Z' && m[2] == 'h';
     }
 
     private static boolean isGzip(byte[] m, int n) {
@@ -67,10 +71,11 @@ public final class DiskOps {
                 && m[3] == 'X' && m[4] == 'Z' && m[5] == 0;
     }
 
-    /** Ham, .gz ya da .zip içindeki imajı okunabilir akışa çevirir. */
+    /** Ham, .gz, .xz, .bz2 ya da .zip içindeki imajı okunabilir akışa çevirir. */
     public static InputStream openImage(InputStream raw) throws IOException {
         BufferedInputStream in = new BufferedInputStream(raw, 65536);
         in.mark(16);
+        // .img.xz gibi iç içe değil, tek katman açılır
         byte[] m = new byte[6];
         int n = readFully(in, m, 0, 6);
         in.reset();
@@ -91,7 +96,12 @@ public final class DiskOps {
             throw new IOException("ZIP içinde .img ya da .iso dosyası bulunamadı");
         }
         if (isXz(m, n)) {
-            throw new IOException(".xz sıkıştırması desteklenmiyor; dosyayı önce açın");
+            return new BufferedInputStream(new org.tukaani.xz.XZInputStream(in, -1), 65536);
+        }
+        if (isBzip2(m, n)) {
+            return new BufferedInputStream(
+                    new org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream(
+                            in, true), 65536);
         }
         return in;
     }

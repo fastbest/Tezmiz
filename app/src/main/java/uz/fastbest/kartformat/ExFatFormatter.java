@@ -43,9 +43,12 @@ public final class ExFatFormatter {
         long usedClusters;
     }
 
-    private static Layout layout(long volSectors) throws IOException {
+    private static Layout layout(long volSectors, int spc) throws IOException {
         Layout l = new Layout();
-        l.spc = sectorsPerCluster(volSectors);
+        if (spc != 0 && (spc < 1 || spc > 65536 || (spc & (spc - 1)) != 0)) {
+            throw new IOException("Geçersiz küme boyutu");
+        }
+        l.spc = spc != 0 ? spc : sectorsPerCluster(volSectors);
         l.spcShift = Integer.numberOfTrailingZeros(l.spc);
         long estimate = (volSectors - FAT_OFFSET) / l.spc;
         l.fatLength = ceilDiv((estimate + 2) * 4, SECTOR);
@@ -67,16 +70,25 @@ public final class ExFatFormatter {
 
     static long estimateBlocks(long volSectors) {
         try {
-            Layout l = layout(volSectors);
-            return l.heapOffset + l.usedClusters * l.spc;
+            return estimateBlocks(volSectors, 0);
         } catch (IOException e) {
             return 1;
         }
     }
 
+    static long estimateBlocks(long volSectors, int spc) throws IOException {
+        Layout l = layout(volSectors, spc);
+        return l.heapOffset + l.usedClusters * l.spc;
+    }
+
     static void formatVolume(BlockDevice dev, long start, long volSectors, String label,
                              DiskFormatter.Tracker t) throws IOException {
-        Layout l = layout(volSectors);
+        formatVolume(dev, start, volSectors, label, t, 0);
+    }
+
+    static void formatVolume(BlockDevice dev, long start, long volSectors, String label,
+                             DiskFormatter.Tracker t, int spc) throws IOException {
+        Layout l = layout(volSectors, spc);
         long clusterSectors = l.spc;
 
         // 1) Önyükleme bölgeleri (ana + yedek) ve FAT'e kadar olan boşluk
