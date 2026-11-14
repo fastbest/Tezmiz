@@ -16,12 +16,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -31,6 +33,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.BufferedOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -47,6 +50,7 @@ public class MainActivity extends Activity {
     private static final String ACTION_USB_PERMISSION = "uz.fastbest.kartformat.USB_PERMISSION";
     private static final int REQ_OPEN_IMAGE = 1;
     private static final int REQ_CREATE_BACKUP = 2;
+    private static final int REQ_OPEN_ISO = 3;
 
     /** Uzun süren bir kart işlemi; sonuç metnini döndürür. */
     private interface Op {
@@ -113,7 +117,8 @@ public class MainActivity extends Activity {
         Button wipe = findViewById(R.id.wipeButton);
         Button bench = findViewById(R.id.benchButton);
         Button info = findViewById(R.id.infoButton);
-        tools = new Button[]{format, image, backup, wipe, bench, info};
+        Button windows = findViewById(R.id.windowsButton);
+        tools = new Button[]{format, image, backup, wipe, bench, info, windows};
 
         format.setOnClickListener(v -> askFormat());
         image.setOnClickListener(v -> pickImage());
@@ -121,6 +126,7 @@ public class MainActivity extends Activity {
         wipe.setOnClickListener(v -> askWipe());
         bench.setOnClickListener(v -> runOp("Hız ölçülüyor", (s, p, c) -> DiskOps.benchmark(s, p, c)));
         info.setOnClickListener(v -> showInfo());
+        windows.setOnClickListener(v -> pickIso());
         cancelButton.setOnClickListener(v -> {
             cancelled.set(true);
             cancelButton.setEnabled(false);
@@ -450,6 +456,8 @@ public class MainActivity extends Activity {
             inspectImage(uri);
         } else if (requestCode == REQ_CREATE_BACKUP) {
             startBackup(uri);
+        } else if (requestCode == REQ_OPEN_ISO) {
+            inspectIso(uri);
         }
     }
 
@@ -552,6 +560,167 @@ public class MainActivity extends Activity {
         InputStream in = cr.openInputStream(uri);
         if (in == null) throw new IOException("dosya okunamıyor");
         return in;
+    }
+
+    // ---------------------------------------------------------------- Windows USB
+
+    private void pickIso() {
+        if (storage == null || busy) return;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        try {
+            startActivityForResult(intent, REQ_OPEN_ISO);
+        } catch (RuntimeException e) {
+            result.setText("Dosya seçici açılamadı.");
+        }
+    }
+
+    /** Açık bir ISO dosyası; kapatılınca dosya tanımlayıcısı da kapanır. */
+    private static final class IsoFile implements java.io.Closeable {
+        final ParcelFileDescriptor pfd;
+        final FileInputStream in;
+        final RandomSource source;
+
+        IsoFile(ContentResolver cr, Uri uri) throws IOException {
+            pfd = cr.openFileDescriptor(uri, "r");
+            if (pfd == null) throw new IOException("dosya açılamadı");
+            in = new FileInputStream(pfd.getFileDescriptor());
+            source = new RandomSource.Channel(in.getChannel());
+            try {
+                source.size();
+            } catch (IOException e) {
+                close();
+                throw new IOException("Bu dosya doğrudan okunamıyor; ISO'yu önce telefon "
+                        + "belleğine (İndirilenler) kopyalayın");
+            }
+        }
+
+        @Override
+        public void close() {
+            try {
+                in.close();
+            } catch (IOException ignored) {
+            }
+            try {
+                pfd.close();
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    private void inspectIso(final Uri uri) {
+        if (storage == null || busy) return;
+        busy = true;
+        setToolsEnabled(false);
+        progressBar.setIndeterminate(true);
+        result.setText("ISO dosyası inceleniyor…");
+        final ContentResolver cr = getContentResolver();
+        worker.execute(() -> {
+            WindowsUsb.Info info = null;
+            String error = null;
+            try (IsoFile iso = new IsoFile(cr, uri)) {
+                info = WindowsUsb.inspect(iso.source);
+            } catch (IOException e) {
+                error = e.getMessage();
+            } catch (RuntimeException | OutOfMemoryError e) {
+                error = "ISO okunamadı: " + e;
+            }
+            final WindowsUsb.Info fInfo = info;
+            final String fError = error;
+            main.post(() -> {
+                busy = false;
+                progressBar.setIndeterminate(false);
+                if (storage != null) setToolsEnabled(true);
+                if (rescanAfter) {
+                    scan();
+                    return;
+                }
+                if (fError != null) {
+                    result.setText("Hata: " + fError);
+                    return;
+                }
+                result.setText("");
+                askWindowsOptions(uri, fInfo);
+            });
+        });
+    }
+
+    private void askWindowsOptions(final Uri uri, final WindowsUsb.Info info) {
+        if (storage == null || busy || isFinishing()) return;
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad / 2, pad, 0);
+
+        StringBuilder about = new StringBuilder();
+        about.append("ISO: ").append(info.label == null ? "Windows" : info.label)
+                .append(" (").append(info.arch).append(")\n")
+                .append("Dosyalar: ").append(DiskOps.sizeText(info.contentBytes))
+                .append("\nKart: ").append(cardSize());
+        if (info.split) {
+            about.append("\n\ninstall.wim 4 GB'tan büyük; ").append(info.parts)
+                    .append(" parçaya bölünecek.");
+        }
+        about.append("\n\nKart yalnızca UEFI ile açılır (2012 sonrası bilgisayarların çoğu). "
+                + "Eski BIOS'lu bilgisayarlarda açılmaz.");
+        TextView text = new TextView(this);
+        text.setText(about);
+        box.addView(text);
+
+        final CheckBox bypass = new CheckBox(this);
+        bypass.setText("Windows 11 denetimlerini atla (TPM, Güvenli Önyükleme, RAM)");
+        bypass.setChecked(true);
+        final CheckBox local = new CheckBox(this);
+        local.setText("Microsoft hesabı zorunluluğunu atla (yerel hesap)");
+        if (!info.hasUnattend) {
+            box.addView(bypass);
+            box.addView(local);
+        }
+
+        box.addView(caption("Bölüm tablosu"));
+        final RadioGroup tableGroup = new RadioGroup(this);
+        final RadioButton gpt = radio("GPT (Windows 11 ve yeni bilgisayarlar)");
+        final RadioButton mbr = radio("MBR (açılmazsa bunu deneyin)");
+        tableGroup.addView(gpt);
+        tableGroup.addView(mbr);
+        tableGroup.check(gpt.getId());
+        box.addView(tableGroup);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(box);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Windows kurulum kartı")
+                .setView(scroll)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Devam", (d, w) -> confirmWindows(uri, info, gpt.isChecked(),
+                        !info.hasUnattend && bypass.isChecked(),
+                        !info.hasUnattend && local.isChecked()))
+                .show();
+    }
+
+    private void confirmWindows(final Uri uri, final WindowsUsb.Info info, final boolean gpt,
+                                final boolean bypass, final boolean local) {
+        if (storage == null || busy) return;
+        new AlertDialog.Builder(this)
+                .setTitle("Windows kartı hazırlansın mı?")
+                .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
+                        + "Kart: " + cardSize() + "\n\nİşlem kartın hızına göre 10-40 dakika "
+                        + "sürebilir. Telefonu şarja takmanız önerilir.")
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil ve hazırla", (d, w) -> {
+                    final ContentResolver cr = getContentResolver();
+                    runOp("Windows kartı hazırlanıyor", (s, p, c) -> {
+                        try (IsoFile iso = new IsoFile(cr, uri)) {
+                            WindowsUsb.Info fresh = WindowsUsb.inspect(iso.source);
+                            final long bs = s.blockSize();
+                            return WindowsUsb.write(s, iso.source, fresh, gpt, bypass, local,
+                                    (done, total) -> p.onProgress(done * bs, total * bs), c);
+                        }
+                    });
+                })
+                .show();
     }
 
     // ---------------------------------------------------------------- yedekleme

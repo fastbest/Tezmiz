@@ -6,6 +6,8 @@ Android araç kutusu.
 - **Biçimlendir:** FAT32 ya da exFAT; MBR ya da GPT bölüm tablosu.
 - **İmaj yaz:** ISO / IMG dosyasını (ham, `.gz` ya da `.zip`) karta yazar ve doğrular.
 - **Yedek al:** kartın tamamını `.img.gz` dosyasına kopyalar; "İmaj yaz" ile geri yüklenir.
+- **Windows kurulum kartı:** Windows 10/11 ISO'sundan UEFI ile açılan FAT32 kurulum kartı;
+  4 GB'tan büyük install.wim otomatik bölünür, Windows 11 denetimleri isteğe bağlı atlanır.
 - **Sil:** hızlı ya da tam silme.
 - **Hız testi:** okuma/yazma hızını karttaki veriyi değiştirmeden ölçer.
 - **Kart bilgisi:** bölüm tablosu ve dosya sistemini gösterir.

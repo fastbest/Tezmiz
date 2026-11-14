@@ -16,8 +16,8 @@ public final class Fat32Formatter {
         void onProgress(long doneBlocks, long totalBlocks);
     }
 
-    private static final int RESERVED = 32;
-    private static final int NUM_FATS = 2;
+    static final int RESERVED = 32;
+    static final int NUM_FATS = 2;
 
     private Fat32Formatter() {
     }
@@ -64,7 +64,7 @@ public final class Fat32Formatter {
         // Ayrılmış bölge: önyükleme sektörü, FSInfo ve yedekleri
         byte[] reserved = new byte[RESERVED * SECTOR];
         byte[] boot = bootSector(start, partSectors, spc, fatSize, volumeId, label11);
-        byte[] fsInfo = fsInfo(clusters - 1);
+        byte[] fsInfo = fsInfo(clusters - 1, 3);
         byte[] third = new byte[SECTOR];
         third[510] = 0x55;
         third[511] = (byte) 0xAA;
@@ -94,7 +94,7 @@ public final class Fat32Formatter {
         DiskFormatter.writeData(dev, fatStart + NUM_FATS * fatSize, root, spc, t);
     }
 
-    private static byte[] bootSector(long hidden, long partSectors, int spc, long fatSize,
+    static byte[] bootSector(long hidden, long partSectors, int spc, long fatSize,
                                      int volumeId, byte[] label11) {
         byte[] b = new byte[SECTOR];
         b[0] = (byte) 0xEB;
@@ -126,12 +126,12 @@ public final class Fat32Formatter {
         return b;
     }
 
-    private static byte[] fsInfo(long freeClusters) {
+    static byte[] fsInfo(long freeClusters, long nextFree) {
         byte[] b = new byte[SECTOR];
         putInt(b, 0, 0x41615252);
         putInt(b, 484, 0x61417272);
         putInt(b, 488, (int) freeClusters);
-        putInt(b, 492, 3);             // sonraki boş küme
+        putInt(b, 492, (int) nextFree); // sonraki boş küme
         b[510] = 0x55;
         b[511] = (byte) 0xAA;
         return b;

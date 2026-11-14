@@ -50,8 +50,39 @@ public final class DiskFormatter {
     private DiskFormatter() {
     }
 
-    public static void format(BlockDevice dev, Fs fs, boolean gpt, String label,
+    /** Bir bölümün içini yazan nesne (dosya sistemi). */
+    interface VolumeWriter {
+        /** Bölüme yazılacak sektör sayısı; bölüm yetersizse hata verir. */
+        long estimateBlocks(long sectors) throws IOException;
+
+        void write(BlockDevice dev, long start, long sectors, Tracker t) throws IOException;
+    }
+
+    public static void format(BlockDevice dev, final Fs fs, boolean gpt, final String label,
                               Fat32Formatter.Progress progress) throws IOException {
+        VolumeWriter w = new VolumeWriter() {
+            @Override
+            public long estimateBlocks(long sectors) {
+                return fs == Fs.FAT32 ? Fat32Formatter.estimateBlocks(sectors)
+                        : ExFatFormatter.estimateBlocks(sectors);
+            }
+
+            @Override
+            public void write(BlockDevice d, long start, long sectors, Tracker t)
+                    throws IOException {
+                if (fs == Fs.FAT32) {
+                    Fat32Formatter.formatVolume(d, start, sectors, label, t);
+                } else {
+                    ExFatFormatter.formatVolume(d, start, sectors, label, t);
+                }
+            }
+        };
+        layout(dev, gpt, fs == Fs.FAT32 ? 0x0C : 0x07, label, w, progress);
+    }
+
+    /** Kartı temizler, tek bölümü verilen yazıcıyla doldurur ve bölüm tablosunu en son yazar. */
+    static void layout(BlockDevice dev, boolean gpt, int mbrType, String name, VolumeWriter w,
+                       Fat32Formatter.Progress progress) throws IOException {
         if (dev.blockSize() != SECTOR) {
             throw new IOException("Desteklenmeyen sektör boyutu: " + dev.blockSize());
         }
@@ -65,28 +96,21 @@ public final class DiskFormatter {
 
         Tracker t = new Tracker(progress);
         long tail = 64;  // yedek GPT'nin durduğu son 33 sektörü kapsar
-        t.total = PART_START + tail + (fs == Fs.FAT32
-                ? Fat32Formatter.estimateBlocks(partSectors)
-                : ExFatFormatter.estimateBlocks(partSectors));
+        t.total = PART_START + tail + w.estimateBlocks(partSectors);
 
         // 1) Kartın başını ve sonunu temizle (eski MBR/GPT ve dosya sistemi izleri)
         writeZeros(dev, 0, PART_START, t);
         writeZeros(dev, total - tail, tail, t);
 
         // 2) Dosya sistemi
-        if (fs == Fs.FAT32) {
-            Fat32Formatter.formatVolume(dev, partStart, partSectors, label, t);
-        } else {
-            ExFatFormatter.formatVolume(dev, partStart, partSectors, label, t);
-        }
+        w.write(dev, partStart, partSectors, t);
 
-        // 3) Bölüm tablosu en son yazılır; yarıda kalan biçimlendirme geçerli görünmez
-        int type = fs == Fs.FAT32 ? 0x0C : 0x07;
+        // 3) Bölüm tablosu en son yazılır; yarıda kalan işlem geçerli görünmez
         if (gpt) {
-            writeGpt(dev, partStart, partEnd, label);
+            writeGpt(dev, partStart, partEnd, name);
         } else {
             byte[] mbr = new byte[SECTOR];
-            mbrEntry(mbr, 0, type, partStart, partSectors);
+            mbrEntry(mbr, 0, mbrType, partStart, partSectors);
             putInt(mbr, 440, new SecureRandom().nextInt()); // disk imzası
             mbr[510] = 0x55;
             mbr[511] = (byte) 0xAA;
