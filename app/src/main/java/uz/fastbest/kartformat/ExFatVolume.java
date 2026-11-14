@@ -554,6 +554,65 @@ final class ExFatVolume extends CardVolume {
     }
 
     @Override
+    List<Long> fileClusters(Entry e) throws IOException {
+        return clusters(e.cluster, e.size, e.contiguous);
+    }
+
+    @Override
+    long clusterLbaOf(long c) {
+        return clusterLba(c);
+    }
+
+    @Override
+    int sectorsPerCluster() {
+        return spc;
+    }
+
+    @Override
+    public Entry rename(Entry e, String newName) throws IOException {
+        requireWritable();
+        if (e.parent == null) throw new IOException("Kök klasör yeniden adlandırılamaz");
+        newName = checkName(newName);
+        for (Entry k : list(e.parent)) {
+            if (fold(k.name).equals(fold(newName))
+                    && k.slots[0] != e.slots[0]) throw new IOException("Bu adda bir öğe zaten var");
+        }
+        byte[][] old = readSlots(e.slots);
+        byte[][] set = entrySet(newName, e.dir, e.cluster, e.size);
+        // Öznitelikler, zamanlar ve akış bilgileri korunur; yalnızca ad değişir
+        System.arraycopy(old[0], 4, set[0], 4, 28);
+        byte[] st = set[1];
+        byte[] ost = old[1];
+        st[1] = ost[1];
+        System.arraycopy(ost, 8, st, 8, 24);
+        DiskFormatter.putShort(set[0], 2, setChecksum(set));
+        long[] slots;
+        byte[][] del = new byte[old.length][];
+        for (int i = 0; i < old.length; i++) {
+            del[i] = old[i].clone();
+            del[i][0] = (byte) (del[i][0] & 0x7F);
+        }
+        writeSlots(e.slots, del);
+        try {
+            slots = freeSlots(e.parent, set.length);
+            writeSlots(slots, set);
+            commit();
+        } catch (IOException | RuntimeException ex) {
+            writeSlots(e.slots, old);
+            throw ex;
+        }
+        Entry n = new Entry();
+        n.name = newName;
+        n.dir = e.dir;
+        n.size = e.size;
+        n.cluster = e.cluster;
+        n.contiguous = e.contiguous;
+        n.parent = e.parent;
+        n.slots = slots;
+        return n;
+    }
+
+    @Override
     public int fragments(Entry e) throws IOException {
         if (!valid(e.cluster)) return 0;
         return countRuns(clusters(e.cluster, e.size, e.contiguous));

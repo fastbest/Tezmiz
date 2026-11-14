@@ -63,6 +63,63 @@ public abstract class CardVolume {
 
     public abstract void delete(Entry e, DiskOps.Cancel c) throws IOException;
 
+    /** Dosyanın kümeleri (sırasıyla). */
+    abstract List<Long> fileClusters(Entry e) throws IOException;
+
+    /** Kümenin bölüm içindeki ilk sektörü. */
+    abstract long clusterLbaOf(long c);
+
+    abstract int sectorsPerCluster();
+
+    /** Aynı klasörde adı değiştirir. */
+    public abstract Entry rename(Entry e, String newName) throws IOException;
+
+    /** Dosyayı akış olarak okur (ardışık kümeler toplu okunur). */
+    public java.io.InputStream openStream(final Entry e) throws IOException {
+        if (e.dir) throw new IOException("Klasör açılamaz");
+        final List<Long> cl = e.size == 0 ? new ArrayList<Long>() : fileClusters(e);
+        final int spc = sectorsPerCluster();
+        final long cb = spc * 512L;
+        if (cl.size() < (e.size + cb - 1) / cb) throw new IOException("Dosya zinciri eksik: " + e.name);
+        final int maxRun = (int) Math.max(1, (512 * 1024) / cb);
+        return new java.io.InputStream() {
+            private final byte[] buf = new byte[(int) (maxRun * cb)];
+            private int bufLen;
+            private int bufPos;
+            private int idx;
+            private long left = e.size;
+
+            private boolean fillBuf() throws IOException {
+                if (left <= 0 || idx >= cl.size()) return false;
+                int run = 1;
+                while (run < maxRun && idx + run < cl.size()
+                        && cl.get(idx + run) == cl.get(idx) + run && run * cb < left) run++;
+                dev.read(clusterLbaOf(cl.get(idx)), buf, run * spc);
+                bufLen = (int) Math.min(left, run * cb);
+                bufPos = 0;
+                left -= bufLen;
+                idx += run;
+                return true;
+            }
+
+            @Override
+            public int read() throws IOException {
+                byte[] one = new byte[1];
+                return read(one, 0, 1) < 0 ? -1 : one[0] & 0xFF;
+            }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                if (len == 0) return 0;
+                if (bufPos >= bufLen && !fillBuf()) return -1;
+                int n = Math.min(len, bufLen - bufPos);
+                System.arraycopy(buf, bufPos, b, off, n);
+                bufPos += n;
+                return n;
+            }
+        };
+    }
+
     /** Dosyanın kaç ayrı parçada durduğu (1 = ardışık). */
     public abstract int fragments(Entry e) throws IOException;
 

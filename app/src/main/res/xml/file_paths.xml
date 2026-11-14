@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-path name="dahili" path="." />
+    <cache-path name="onbellek" path="." />
+    <files-path name="dosyalar" path="." />
+    <root-path name="kok" path="." />
+</paths>

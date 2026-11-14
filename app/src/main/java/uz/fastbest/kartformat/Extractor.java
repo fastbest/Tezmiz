@@ -21,10 +21,61 @@ import java.util.Map;
 /** Arşivleri (zip, tar, tar.gz/bz2/xz, 7z) ve ISO görüntülerini karttaki bir klasöre açar. */
 final class Extractor {
 
-    private final CardVolume vol;
+    /** Açılan dosyaların yazılacağı yer (USB kart ya da herhangi bir Vfs). */
+    interface Target {
+        Object root();
+
+        /** {ad, klasör mü, nesne} */
+        List<Object[]> list(Object dir) throws IOException;
+
+        Object mkdir(Object dir, String name) throws IOException;
+
+        /** Oluşan dosyanın adını döndürür. */
+        String create(Object dir, String name, InputStream in, long size,
+                      Fat32Formatter.Progress p, DiskOps.Cancel c) throws IOException;
+
+        String fold(String name);
+    }
+
+    /** USB karttaki bir klasör. */
+    static Target card(final CardVolume vol, final CardVolume.Entry root) {
+        return new Target() {
+            @Override
+            public Object root() {
+                return root;
+            }
+
+            @Override
+            public List<Object[]> list(Object dir) throws IOException {
+                List<Object[]> out = new java.util.ArrayList<>();
+                for (CardVolume.Entry k : vol.list((CardVolume.Entry) dir)) {
+                    out.add(new Object[]{k.name, k.dir, k});
+                }
+                return out;
+            }
+
+            @Override
+            public Object mkdir(Object dir, String name) throws IOException {
+                return vol.mkdir((CardVolume.Entry) dir, name);
+            }
+
+            @Override
+            public String create(Object dir, String name, InputStream in, long size,
+                                 Fat32Formatter.Progress p, DiskOps.Cancel c) throws IOException {
+                return vol.create((CardVolume.Entry) dir, name, in, size, p, c).name;
+            }
+
+            @Override
+            public String fold(String name) {
+                return vol.fold(name);
+            }
+        };
+    }
+
+    private final Target vol;
     private final Fat32Formatter.Progress progress;
     private final DiskOps.Cancel cancel;
-    private final Map<CardVolume.Entry, Map<String, CardVolume.Entry>> dirCache = new HashMap<>();
+    private final Map<Object, Map<String, Object[]>> dirCache = new HashMap<>();
     private int files;
     private Status status;
 
@@ -34,7 +85,12 @@ final class Extractor {
 
     Extractor(CardVolume vol, Fat32Formatter.Progress progress, DiskOps.Cancel cancel,
               Status status) {
-        this.vol = vol;
+        this(card(vol, vol.root()), progress, cancel, status);
+    }
+
+    Extractor(Target target, Fat32Formatter.Progress progress, DiskOps.Cancel cancel,
+              Status status) {
+        this.vol = target;
         this.progress = progress;
         this.cancel = cancel;
         this.status = status;
@@ -74,8 +130,9 @@ final class Extractor {
     }
 
     /** Arşivi verilen klasörün içine açar. */
-    void extract(String type, RandomSource src, FileChannel channel, CardVolume.Entry target)
+    void extract(String type, RandomSource src, FileChannel channel, Object target)
             throws IOException {
+        if (target == null) target = vol.root();
         if (type.equals("iso")) {
             UdfReader.Volume v = IsoImage.open(src);
             long total = total(v.root);
@@ -175,7 +232,7 @@ final class Extractor {
         return s;
     }
 
-    private void extractIso(RandomSource src, UdfReader.Node node, CardVolume.Entry dir,
+    private void extractIso(RandomSource src, UdfReader.Node node, Object dir,
                             long total, long[] done, int depth) throws IOException {
         if (depth > 32) throw new IOException("Klasör yapısı çok derin");
         for (UdfReader.Node k : node.kids) {
@@ -200,41 +257,39 @@ final class Extractor {
         if (cancel != null && cancel.isCancelled()) throw new DiskOps.CancelledException();
     }
 
-    private void put(CardVolume.Entry root, String path, InputStream in, long size)
+    private void put(Object root, String path, InputStream in, long size)
             throws IOException {
         String[] parts = split(path);
         if (parts.length == 0) return;
-        CardVolume.Entry dir = root;
+        Object dir = root;
         for (int i = 0; i < parts.length - 1; i++) dir = child(dir, parts[i]);
         String name = parts[parts.length - 1];
         if (status != null) status.show(files + 1 + ": " + name);
-        CardVolume.Entry e = vol.create(dir, name, in, size, null, cancel);
-        Map<String, CardVolume.Entry> m = dirCache.get(dir);
-        if (m != null) m.put(vol.fold(e.name), e);
+        String made = vol.create(dir, name, in, size, null, cancel);
+        Map<String, Object[]> m = dirCache.get(dir);
+        if (m != null) m.put(vol.fold(made), new Object[]{made, false, null});
         files++;
     }
 
-    private CardVolume.Entry dirFor(CardVolume.Entry root, String path, boolean all)
-            throws IOException {
-        CardVolume.Entry dir = root;
+    private Object dirFor(Object root, String path, boolean all) throws IOException {
+        Object dir = root;
         for (String p : split(path)) dir = child(dir, p);
         return dir;
     }
 
     /** Klasörde aynı adlı klasör varsa onu, yoksa yenisini verir. */
-    private CardVolume.Entry child(CardVolume.Entry dir, String name) throws IOException {
-        Map<String, CardVolume.Entry> m = dirCache.get(dir);
+    private Object child(Object dir, String name) throws IOException {
+        Map<String, Object[]> m = dirCache.get(dir);
         if (m == null) {
             m = new HashMap<>();
-            List<CardVolume.Entry> kids = vol.list(dir);
-            for (CardVolume.Entry k : kids) m.put(vol.fold(k.name), k);
+            for (Object[] k : vol.list(dir)) m.put(vol.fold((String) k[0]), k);
             dirCache.put(dir, m);
         }
         String clean = CardVolume.checkName(name);
-        CardVolume.Entry e = m.get(vol.fold(clean));
-        if (e != null && e.dir) return e;
-        CardVolume.Entry made = vol.mkdir(dir, clean);
-        m.put(vol.fold(made.name), made);
+        Object[] e = m.get(vol.fold(clean));
+        if (e != null && (Boolean) e[1] && e[2] != null) return e[2];
+        Object made = vol.mkdir(dir, clean);
+        m.put(vol.fold(clean), new Object[]{clean, true, made});
         return made;
     }
 

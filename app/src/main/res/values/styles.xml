@@ -14,4 +14,12 @@
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
     </style>
+
+    <style name="ExplorerTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#4FC3F7</item>
+        <item name="android:colorPrimary">#1565C0</item>
+        <item name="android:windowBackground">#1E1F22</item>
+        <item name="android:statusBarColor">#111214</item>
+        <item name="android:navigationBarColor">#111214</item>
+    </style>
 </resources>

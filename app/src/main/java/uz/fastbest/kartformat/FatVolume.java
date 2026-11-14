@@ -543,6 +543,69 @@ final class FatVolume extends CardVolume {
     }
 
     @Override
+    List<Long> fileClusters(Entry e) throws IOException {
+        return valid(e.cluster) ? chain(e.cluster) : new ArrayList<Long>();
+    }
+
+    @Override
+    long clusterLbaOf(long c) {
+        return clusterLba(c);
+    }
+
+    @Override
+    int sectorsPerCluster() {
+        return spc;
+    }
+
+    @Override
+    public Entry rename(Entry e, String newName) throws IOException {
+        if (e.parent == null) throw new IOException("Kök klasör yeniden adlandırılamaz");
+        newName = checkName(newName);
+        for (Entry k : list(e.parent)) {
+            if (k != e && fold(k.name).equals(fold(newName)) && !sameSlots(k, e)) {
+                throw new IOException("Bu adda bir öğe zaten var");
+            }
+        }
+        byte[][] old = readSlots(e.slots);
+        byte[] oldShort = old[old.length - 1];
+        // Eski girdileri önce sil ki kısa ad çakışmasın; yenisi yazılamazsa geri yaz
+        byte[][] del = new byte[old.length][];
+        for (int i = 0; i < old.length; i++) {
+            del[i] = old[i].clone();
+            del[i][0] = (byte) 0xE5;
+        }
+        writeSlots(e.slots, del);
+        try {
+            byte[][] entries = makeEntries(e.parent, newName, oldShort[11] & 0xFF, e.cluster,
+                    e.dir ? 0 : e.size);
+            byte[] sh = entries[entries.length - 1];
+            System.arraycopy(oldShort, 12, sh, 12, 14);   // tarih ve saatler korunur
+            DiskFormatter.putShort(sh, 20, (int) (e.cluster >>> 16));
+            DiskFormatter.putShort(sh, 26, (int) e.cluster);
+            long[] slots = freeSlots(e.parent, entries.length);
+            fat.flush();
+            writeSlots(slots, entries);
+            commit();
+            Entry n = new Entry();
+            n.name = newName;
+            n.dir = e.dir;
+            n.size = e.size;
+            n.cluster = e.cluster;
+            n.parent = e.parent;
+            n.slots = slots;
+            return n;
+        } catch (IOException | RuntimeException ex) {
+            writeSlots(e.slots, old);
+            throw ex;
+        }
+    }
+
+    private static boolean sameSlots(Entry a, Entry b) {
+        return a.slots != null && b.slots != null
+                && a.slots[a.slots.length - 1] == b.slots[b.slots.length - 1];
+    }
+
+    @Override
     public int fragments(Entry e) throws IOException {
         return valid(e.cluster) ? countRuns(chain(e.cluster)) : 0;
     }

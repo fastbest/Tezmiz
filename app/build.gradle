@@ -10,8 +10,8 @@ android {
         applicationId 'uz.fastbest.kartformat'
         minSdk 21
         targetSdk 34
-        versionCode 7
-        versionName '3.1'
+        versionCode 8
+        versionName '4.0'
     }
 
     buildTypes {
@@ -45,4 +45,10 @@ dependencies {
     implementation 'org.tukaani:xz:1.10'
     // zip, tar, 7z, bzip2 (Apache-2.0)
     implementation 'org.apache.commons:commons-compress:1.24.0'
+    // FTP istemcisi (Apache-2.0)
+    implementation 'commons-net:commons-net:3.8.0'
+    // WiFi dosya paylaşımı için küçük web sunucusu (BSD)
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    // FileProvider (Apache-2.0)
+    implementation 'androidx.core:core:1.12.0'
 }

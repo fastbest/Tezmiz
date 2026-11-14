@@ -1,23 +1,27 @@
 # Kart Format
 
-OTG kart okuyucuyla takılan microSD kart ve USB bellekler için **root'suz**, reklamsız
-Android araç kutusu.
+X-plore benzeri **iki panelli dosya yöneticisi** ve OTG ile takılan microSD kart / USB bellekler
+için **root'suz**, reklamsız araç kutusu.
 
-- **Dosyalar:** göz atma, telefona dosya/klasör kaydetme, telefondan karta ekleme, silme,
-  klasör oluşturma; zip / 7z / tar(.gz/.xz/.bz2) arşivlerini ve ISO'ları karta açma
-  (FAT12/16/32 ve exFAT).
-- **Biçimlendir:** FAT32, exFAT, NTFS ya da ext4; MBR ya da GPT; küme boyutu seçimi.
-- **Bölüm sihirbazı:** en çok 4 bölüm, her biri ayrı dosya sistemiyle.
-- **İmaj yaz:** ISO / IMG dosyasını (ham, .gz, .xz, .bz2, .zip) karta yazar ve doğrular.
-- **Windows kurulum kartı:** Windows 10/11 ISO'sundan kurulum kartı (GPT: UEFI; MBR: UEFI +
-  eski BIOS); 4 GB'tan büyük install.wim otomatik bölünür, Windows 11 denetimleri isteğe bağlı atlanır.
-- **FreeDOS açılış kartı:** BIOS güncellemesi gibi işler için.
-- **PS2 oyunu ekle:** ISO'dan oyun kodunu okuyup OPL'nin beklediği adla `CD/` ya da `DVD/`
-  klasörüne kopyalar; parçalı kalırsa birleştirir.
-- **Birleştir (defrag):** parçalı dosyaları ardışık hale getirir (OPL için gerekli).
-- **Yedek al / Sil / Hız testi / Kart bilgisi.**
+## Dosya yöneticisi
+- İki panel (yatayda yan yana, dikeyde etkin panel geniş, diğeri kenarda şerit); paneller arası
+  kopyalama ve taşıma.
+- Konumlar: dahili depolama, SD kart, **USB kart (OTG, FAT/exFAT)**, ZIP içi, FTP sunucuları, şifreli Kasa.
+- İşlemler: çoklu seçim (uzun bas), yeni klasör, yeniden adlandır, kopyala, taşı, sil, ZIP oluştur,
+  arşiv aç (zip, 7z, tar, tar.gz/xz/bz2, ISO), paylaş, birlikte aç, özellikler, tümünü seç.
+- Sıralama (ad, boyut, tarih, tür), gizli dosyalar, arama, sık kullanılanlar, küçük resimler.
+- Son dosyalar, uygulama yöneticisi (aç, APK yedekle/paylaş, kaldır), disk analizi.
+- WiFi dosya paylaşımı: aynı ağdaki bilgisayardan tarayıcıyla indirme/yükleme (kodlu).
+- Kasa: AES-256 ile şifrelenmiş, parolalı dosya deposu.
+- Görüntüleyiciler: resim (yakınlaştırma, kaydırma), metin düzenleyici, hex.
 
-Telefonun kendi kart yuvasındaki kartla çalışmaz (Android buna root'suz izin vermez).
+## USB kart araçları
+- Biçimlendir (FAT32, exFAT, NTFS, ext4; MBR/GPT; küme boyutu), bölüm sihirbazı (en çok 4 bölüm).
+- İmaj yaz (ham, .gz, .xz, .bz2, .zip) ve doğrula; yedek al; sil; hız testi; kart bilgisi.
+- Windows kurulum kartı (UEFI; MBR'de eski BIOS da), FreeDOS açılış kartı, PS2 oyunu ekle (OPL),
+  birleştirme (defrag).
+
+Telefonun kendi kart yuvasındaki kartı biçimlendiremez (Android buna root'suz izin vermez).
 
 APK: bu deponun **Releases** bölümündeki `KartFormat.apk`.
 
@@ -25,7 +29,10 @@ APK: bu deponun **Releases** bölümündeki `KartFormat.apk`.
 
 | Yazılım | Ne için | Lisans |
 |---|---|---|
-| [ntfs-3g](https://github.com/tuxera/ntfs-3g) (`mkntfs`) | NTFS biçimlendirme; derleme sırasında `tools/build-mkntfs.sh` ile kaynaktan derlenir | GPL-2.0 |
+| [ntfs-3g](https://github.com/tuxera/ntfs-3g) (`mkntfs`) | NTFS biçimlendirme; derlemede `tools/build-mkntfs.sh` ile derlenir | GPL-2.0 |
+| [Rufus](https://github.com/pbatard/rufus) / ms-sys | BIOS açılış kodları ve FreeDOS; derlemede `tools/fetch-bootcode.sh` ile indirilir | GPL-3.0 / GPL-2.0 |
 | [Apache Commons Compress](https://commons.apache.org/proper/commons-compress/) | zip, tar, 7z, bzip2 | Apache-2.0 |
-| [Rufus](https://github.com/pbatard/rufus) / ms-sys | BIOS açılış kodları (MBR, FAT32) ve FreeDOS dosyaları; derleme sırasında `tools/fetch-bootcode.sh` ile indirilir | GPL-3.0 / GPL-2.0 |
-| [XZ for Java](https://tukaani.org/xz/java.html) | .xz | 0BSD / kamu malı |
+| [Apache Commons Net](https://commons.apache.org/proper/commons-net/) | FTP | Apache-2.0 |
+| [NanoHTTPD](https://github.com/NanoHttpd/nanohttpd) | WiFi dosya paylaşımı | BSD-3 |
+| [XZ for Java](https://tukaani.org/xz/java.html) | .xz | 0BSD |
+| [AndroidX Core](https://developer.android.com/jetpack/androidx) | FileProvider | Apache-2.0 |
