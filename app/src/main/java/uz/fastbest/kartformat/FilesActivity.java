@@ -51,6 +51,7 @@ public class FilesActivity extends Activity {
     private static final int REQ_IMPORT = 1;
     private static final int REQ_EXPORT_FILE = 2;
     private static final int REQ_EXPORT_DIR = 3;
+    private static final int REQ_ARCHIVE = 4;
 
     private interface Job {
         String run(Fat32Formatter.Progress p, DiskOps.Cancel c) throws IOException;
@@ -73,6 +74,7 @@ public class FilesActivity extends Activity {
     private Button upButton;
     private Button addButton;
     private Button folderButton;
+    private Button archiveButton;
     private ArrayAdapter<CardVolume.Entry> adapter;
 
     private final BroadcastReceiver detach = new BroadcastReceiver() {
@@ -97,6 +99,7 @@ public class FilesActivity extends Activity {
         upButton = findViewById(R.id.upButton);
         addButton = findViewById(R.id.addButton);
         folderButton = findViewById(R.id.folderButton);
+        archiveButton = findViewById(R.id.archiveButton);
         ListView list = findViewById(R.id.fileList);
 
         adapter = new ArrayAdapter<CardVolume.Entry>(this, android.R.layout.simple_list_item_2,
@@ -127,6 +130,7 @@ public class FilesActivity extends Activity {
         upButton.setOnClickListener(v -> goUp());
         addButton.setOnClickListener(v -> pickImport());
         folderButton.setOnClickListener(v -> askFolderName());
+        archiveButton.setOnClickListener(v -> pickArchive());
         cancelButton.setOnClickListener(v -> {
             cancelled.set(true);
             cancelButton.setEnabled(false);
@@ -219,6 +223,8 @@ public class FilesActivity extends Activity {
         upButton.setAlpha(upButton.isEnabled() ? 1f : 0.5f);
         addButton.setAlpha(write ? 1f : 0.5f);
         folderButton.setAlpha(write ? 1f : 0.5f);
+        archiveButton.setEnabled(write);
+        archiveButton.setAlpha(write ? 1f : 0.5f);
     }
 
     private static List<CardVolume.Entry> sorted(List<CardVolume.Entry> in) {
@@ -432,6 +438,8 @@ public class FilesActivity extends Activity {
             saveFile(pending, data.getData());
         } else if (requestCode == REQ_EXPORT_DIR && data.getData() != null && pending != null) {
             saveDir(pending, data.getData());
+        } else if (requestCode == REQ_ARCHIVE && data.getData() != null) {
+            extractArchive(data.getData());
         }
     }
 
@@ -464,6 +472,47 @@ public class FilesActivity extends Activity {
                 ok++;
             }
             return ok + " dosya karta kopyalandı.";
+        });
+    }
+
+    // ---------------------------------------------------------------- arşiv açma
+
+    private void pickArchive() {
+        if (busy || volume == null) return;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        try {
+            startActivityForResult(intent, REQ_ARCHIVE);
+        } catch (RuntimeException e) {
+            progressText.setText("Dosya seçici açılamadı.");
+        }
+    }
+
+    private void extractArchive(final Uri uri) {
+        final ContentResolver cr = getContentResolver();
+        final CardVolume.Entry dir = current;
+        run("Arşiv açılıyor", (p, c) -> {
+            try (PickedFile f = new PickedFile(cr, uri)) {
+                String type = Extractor.detect(f.source, f.name);
+                if (type == null) {
+                    throw new IOException("Bu dosya tanınan bir arşiv değil (zip, 7z, tar, "
+                            + "tar.gz, tar.xz, tar.bz2 ya da ISO olmalı)");
+                }
+                String base = f.name;
+                for (String ext : new String[]{".tar.gz", ".tar.xz", ".tar.bz2", ".tgz", ".txz",
+                        ".tbz2", ".zip", ".7z", ".tar", ".iso", ".img"}) {
+                    if (base.toLowerCase(Locale.ROOT).endsWith(ext)) {
+                        base = base.substring(0, base.length() - ext.length());
+                        break;
+                    }
+                }
+                if (base.trim().isEmpty()) base = "arsiv";
+                CardVolume.Entry target = volume.mkdir(dir, base);
+                Extractor x = new Extractor(volume, p, c, this::setProgressLater);
+                x.extract(type, f.source, f.channel, target);
+                return x.files() + " dosya \"" + target.name + "\" klasörüne açıldı.";
+            }
         });
     }
 

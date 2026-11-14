@@ -71,6 +71,15 @@
             android:textColor="@color/text" />
     </LinearLayout>
 
+    <Button
+        android:id="@+id/archiveButton"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:backgroundTint="#FFFFFF"
+        android:text="Arşiv / ISO aç (zip, 7z, tar, iso)"
+        android:textAllCaps="false"
+        android:textColor="@color/text" />
+
     <ListView
         android:id="@+id/fileList"
         android:layout_width="match_parent"

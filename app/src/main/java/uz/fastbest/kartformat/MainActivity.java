@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
     private static final int REQ_CREATE_BACKUP = 2;
     private static final int REQ_OPEN_ISO = 3;
     private static final int REQ_FILES = 4;
+    private static final int REQ_OPEN_PS2 = 5;
 
     /** Uzun süren bir kart işlemi; sonuç metnini döndürür. */
     private interface Op {
@@ -644,6 +645,8 @@ public class MainActivity extends Activity {
             startBackup(uri);
         } else if (requestCode == REQ_OPEN_ISO) {
             inspectIso(uri);
+        } else if (requestCode == REQ_OPEN_PS2) {
+            inspectPs2(uri);
         }
     }
 
@@ -751,7 +754,71 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- PS2
 
     private void pickPs2() {
-        result.setText("PS2 oyun ekleme hazırlanıyor.");
+        if (storage == null || busy) return;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        try {
+            startActivityForResult(intent, REQ_OPEN_PS2);
+        } catch (RuntimeException e) {
+            result.setText("Dosya seçici açılamadı.");
+        }
+    }
+
+    private void inspectPs2(final Uri uri) {
+        if (storage == null || busy) return;
+        busy = true;
+        setToolsEnabled(false);
+        progressBar.setIndeterminate(true);
+        result.setText("Oyun inceleniyor…");
+        final ContentResolver cr = getContentResolver();
+        worker.execute(() -> {
+            Ps2Games.Game game = null;
+            String error = null;
+            try (PickedFile f = new PickedFile(cr, uri)) {
+                game = Ps2Games.inspect(f.source, f.name);
+            } catch (IOException e) {
+                error = e.getMessage();
+            } catch (RuntimeException e) {
+                error = "Oyun okunamadı: " + e;
+            }
+            final Ps2Games.Game g = game;
+            final String err = error;
+            main.post(() -> {
+                busy = false;
+                progressBar.setIndeterminate(false);
+                if (storage != null) setToolsEnabled(true);
+                if (rescanAfter) {
+                    scan();
+                    return;
+                }
+                if (err != null) {
+                    result.setText("Hata: " + err);
+                    return;
+                }
+                result.setText("");
+                confirmPs2(uri, g);
+            });
+        });
+    }
+
+    private void confirmPs2(final Uri uri, final Ps2Games.Game g) {
+        if (storage == null || busy || isFinishing()) return;
+        new AlertDialog.Builder(this)
+                .setTitle("PS2 oyunu karta eklensin mi?")
+                .setMessage("Oyun kodu: " + g.id + "\nAd: " + g.title + "\nBoyut: "
+                        + DiskOps.sizeText(g.size) + "\nKlasör: " + (g.dvd ? "DVD" : "CD")
+                        + "\n\nKarttaki dosyalar silinmez; oyun OPL'nin okuyacağı adla eklenir.")
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Ekle", (d, w) -> {
+                    final ContentResolver cr = getContentResolver();
+                    runOp("Oyun kopyalanıyor", (s, p, c) -> {
+                        try (PickedFile f = new PickedFile(cr, uri)) {
+                            return Ps2Games.copy(s, f.source, g, p, c);
+                        }
+                    });
+                })
+                .show();
     }
 
     // ---------------------------------------------------------------- dosyalar
@@ -795,39 +862,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Açık bir ISO dosyası; kapatılınca dosya tanımlayıcısı da kapanır. */
-    private static final class IsoFile implements java.io.Closeable {
-        final ParcelFileDescriptor pfd;
-        final FileInputStream in;
-        final RandomSource source;
-
-        IsoFile(ContentResolver cr, Uri uri) throws IOException {
-            pfd = cr.openFileDescriptor(uri, "r");
-            if (pfd == null) throw new IOException("dosya açılamadı");
-            in = new FileInputStream(pfd.getFileDescriptor());
-            source = new RandomSource.Channel(in.getChannel());
-            try {
-                source.size();
-            } catch (IOException e) {
-                close();
-                throw new IOException("Bu dosya doğrudan okunamıyor; ISO'yu önce telefon "
-                        + "belleğine (İndirilenler) kopyalayın");
-            }
-        }
-
-        @Override
-        public void close() {
-            try {
-                in.close();
-            } catch (IOException ignored) {
-            }
-            try {
-                pfd.close();
-            } catch (IOException ignored) {
-            }
-        }
-    }
-
     private void inspectIso(final Uri uri) {
         if (storage == null || busy) return;
         busy = true;
@@ -838,7 +872,7 @@ public class MainActivity extends Activity {
         worker.execute(() -> {
             WindowsUsb.Info info = null;
             String error = null;
-            try (IsoFile iso = new IsoFile(cr, uri)) {
+            try (PickedFile iso = new PickedFile(cr, uri)) {
                 info = WindowsUsb.inspect(iso.source);
             } catch (IOException e) {
                 error = e.getMessage();
@@ -931,7 +965,7 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Sil ve hazırla", (d, w) -> {
                     final ContentResolver cr = getContentResolver();
                     runOp("Windows kartı hazırlanıyor", (s, p, c) -> {
-                        try (IsoFile iso = new IsoFile(cr, uri)) {
+                        try (PickedFile iso = new PickedFile(cr, uri)) {
                             WindowsUsb.Info fresh = WindowsUsb.inspect(iso.source);
                             final long bs = s.blockSize();
                             return WindowsUsb.write(s, iso.source, fresh, gpt, bypass, local,
