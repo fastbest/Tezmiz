@@ -80,7 +80,7 @@ public class FilesActivity extends Activity {
         public void onReceive(Context context, Intent intent) {
             cancelled.set(true);
             infoText.setText("Kart okuyucu çıkarıldı.");
-            setResult(RESULT_OK);
+            FilesActivity.this.setResult(RESULT_OK);
             finish();
         }
     };
