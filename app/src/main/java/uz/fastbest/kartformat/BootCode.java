@@ -28,11 +28,12 @@ final class BootCode {
     static void load(AssetManager assets) {
         mbr = read(assets, "mbr_win7.bin", 440, 512);
         jump = read(assets, "br_fat32_0x0.bin", 3, 11);
-        nt52 = read(assets, "br_fat32nt_0x52.bin", 8, 0x1FE - 0x52);
-        nt3f0 = read(assets, "br_fat32nt_0x3f0.bin", 2, 16);
+        // 0x52'den 0x3E8'e (FSInfo boş küme sayacına) ve 0x3F0'dan 0x600'e kadar
+        nt52 = read(assets, "br_fat32nt_0x52.bin", 8, 0x3E8 - 0x52);
+        nt3f0 = read(assets, "br_fat32nt_0x3f0.bin", 2, 0x600 - 0x3F0);
         nt1800 = read(assets, "br_fat32nt_0x1800.bin", 16, 512);
-        fd52 = read(assets, "br_fat32fd_0x52.bin", 8, 0x1FE - 0x52);
-        fd3f0 = read(assets, "br_fat32fd_0x3f0.bin", 2, 16);
+        fd52 = read(assets, "br_fat32fd_0x52.bin", 8, 0x3E8 - 0x52);
+        fd3f0 = read(assets, "br_fat32fd_0x3f0.bin", 2, 0x600 - 0x3F0);
         kernelSys = read(assets, "KERNEL.SYS", 1000, 4 * 1024 * 1024);
         commandCom = read(assets, "COMMAND.COM", 1000, 4 * 1024 * 1024);
     }
@@ -79,20 +80,24 @@ final class BootCode {
 
         byte[] code52 = freeDos ? fd52 : nt52;
         byte[] code3f0 = freeDos ? fd3f0 : nt3f0;
-        for (long copy : new long[]{0, 6}) {              // ana ve yedek açılış sektörü
-            byte[] b = new byte[1024];
-            dev.read(start + copy, b, 2);
+        for (long copy : new long[]{0, 6}) {              // ana ve yedek açılış bölgesi
+            byte[] b = new byte[1536];                    // sektör 0, 1 (FSInfo), 2
+            dev.read(start + copy, b, 3);
             if (!new String(b, 82, 5, java.nio.charset.StandardCharsets.US_ASCII).equals("FAT32")) {
                 throw new IOException("Bölüm FAT32 değil");
             }
-            System.arraycopy(jump, 0, b, 0, 3);           // yalnızca atlama komutu
-            System.arraycopy(code52, 0, b, 0x52, Math.min(code52.length, 0x1FE - 0x52));
-            b[510] = 0x55;
-            b[511] = (byte) 0xAA;
-            System.arraycopy(code3f0, 0, b, 0x3F0, Math.min(code3f0.length, 16));
-            b[1022] = 0x55;
-            b[1023] = (byte) 0xAA;
-            dev.write(start + copy, b, 2);
+            byte[] keep = java.util.Arrays.copyOfRange(b, 0x3E4, 0x3F0); // FSInfo imza + sayaçlar
+            byte[] lead = java.util.Arrays.copyOfRange(b, 0x200, 0x204);
+            System.arraycopy(jump, 0, b, 0, Math.min(11, jump.length));   // atlama + OEM adı
+            System.arraycopy(code52, 0, b, 0x52, Math.min(code52.length, 0x3E8 - 0x52));
+            System.arraycopy(code3f0, 0, b, 0x3F0, Math.min(code3f0.length, 0x600 - 0x3F0));
+            System.arraycopy(keep, 0, b, 0x3E4, keep.length);
+            System.arraycopy(lead, 0, b, 0x200, 4);
+            for (int sec = 0; sec < 3; sec++) {
+                b[sec * 512 + 510] = 0x55;
+                b[sec * 512 + 511] = (byte) 0xAA;
+            }
+            dev.write(start + copy, b, 3);
         }
         if (!freeDos) {
             byte[] s12 = new byte[512];
