@@ -284,7 +284,13 @@ final class Fat32Builder implements DiskFormatter.VolumeWriter {
     }
 
     static void makeNames(Node n, Set<String> used) throws IOException {
-        String name = n.name;
+        byte[][] r = fatNames(n.name, used);
+        n.shortName = r[0];
+        n.lfn = r[1];
+    }
+
+    /** FAT kısa adı (11 bayt) ve gerekirse uzun ad girdileri; kısa ad "used" kümesine eklenir. */
+    static byte[][] fatNames(String name, Set<String> used) throws IOException {
         if (name.isEmpty() || name.length() > 255) throw new IOException("Geçersiz dosya adı");
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
@@ -323,8 +329,9 @@ final class Fat32Builder implements DiskFormatter.VolumeWriter {
             }
             if (chosen == null) throw new IOException("Klasörde çok fazla dosya var");
         }
-        n.shortName = chosen.getBytes(StandardCharsets.US_ASCII);
-        n.lfn = exact && name.equals(upper) ? new byte[0] : lfnEntries(name, n.shortName);
+        byte[] shortName = chosen.getBytes(StandardCharsets.US_ASCII);
+        byte[] lfn = exact && name.equals(upper) ? new byte[0] : lfnEntries(name, shortName);
+        return new byte[][]{shortName, lfn};
     }
 
     private static String clean(String s) {

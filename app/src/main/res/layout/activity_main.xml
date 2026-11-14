@@ -40,6 +40,18 @@
             android:textColor="@color/text"
             android:textSize="16sp" />
 
+        <Button
+            android:id="@+id/filesButton"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:alpha="0.5"
+            android:backgroundTint="@color/accent"
+            android:enabled="false"
+            android:text="📁  Dosyalar"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -51,8 +63,8 @@
                 android:layout_width="0dp"
                 android:layout_height="60dp"
                 android:layout_weight="1"
-                android:backgroundTint="@color/accent"
-                android:textColor="#FFFFFF"
+                android:backgroundTint="#FFFFFF"
+                android:textColor="@color/text"
                 android:alpha="0.5"
                 android:enabled="false"
                 android:text="Biçimlendir"

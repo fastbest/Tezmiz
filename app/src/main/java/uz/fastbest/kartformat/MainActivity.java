@@ -51,6 +51,7 @@ public class MainActivity extends Activity {
     private static final int REQ_OPEN_IMAGE = 1;
     private static final int REQ_CREATE_BACKUP = 2;
     private static final int REQ_OPEN_ISO = 3;
+    private static final int REQ_FILES = 4;
 
     /** Uzun süren bir kart işlemi; sonuç metnini döndürür. */
     private interface Op {
@@ -118,7 +119,8 @@ public class MainActivity extends Activity {
         Button bench = findViewById(R.id.benchButton);
         Button info = findViewById(R.id.infoButton);
         Button windows = findViewById(R.id.windowsButton);
-        tools = new Button[]{format, image, backup, wipe, bench, info, windows};
+        Button files = findViewById(R.id.filesButton);
+        tools = new Button[]{files, format, image, backup, wipe, bench, info, windows};
 
         format.setOnClickListener(v -> askFormat());
         image.setOnClickListener(v -> pickImage());
@@ -127,6 +129,7 @@ public class MainActivity extends Activity {
         bench.setOnClickListener(v -> runOp("Hız ölçülüyor", (s, p, c) -> DiskOps.benchmark(s, p, c)));
         info.setOnClickListener(v -> showInfo());
         windows.setOnClickListener(v -> pickIso());
+        files.setOnClickListener(v -> openFiles());
         cancelButton.setOnClickListener(v -> {
             cancelled.set(true);
             cancelButton.setEnabled(false);
@@ -450,6 +453,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_FILES) {
+            filesClosed();
+            return;
+        }
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         if (requestCode == REQ_OPEN_IMAGE) {
@@ -560,6 +567,33 @@ public class MainActivity extends Activity {
         InputStream in = cr.openInputStream(uri);
         if (in == null) throw new IOException("dosya okunamıyor");
         return in;
+    }
+
+    // ---------------------------------------------------------------- dosyalar
+
+    private void openFiles() {
+        if (storage == null || busy) return;
+        busy = true;
+        setToolsEnabled(false);
+        FilesActivity.storage = storage;
+        FilesActivity.worker = worker;
+        try {
+            startActivityForResult(new Intent(this, FilesActivity.class), REQ_FILES);
+        } catch (RuntimeException e) {
+            filesClosed();
+            result.setText("Dosya ekranı açılamadı.");
+        }
+    }
+
+    private void filesClosed() {
+        FilesActivity.storage = null;
+        FilesActivity.worker = null;
+        busy = false;
+        if (rescanAfter) {
+            scan();
+        } else if (storage != null) {
+            setToolsEnabled(true);
+        }
     }
 
     // ---------------------------------------------------------------- Windows USB
