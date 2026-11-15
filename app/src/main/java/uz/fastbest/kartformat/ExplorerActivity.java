@@ -1140,7 +1140,23 @@ public class ExplorerActivity extends Activity {
             frame.setStrokeWidth(dp(2));
         }
 
+        private ValueAnimator fade;
+
         void set(TNode n, TNode current, boolean in, boolean first, boolean last) {
+            boolean appear = in && !(inFrame && node == n && cur == current);
+            if (fade != null) fade.cancel();
+            if (appear && cur != current) {
+                frame.setAlpha(0);
+                fade = ValueAnimator.ofInt(0, 255);
+                fade.setDuration(160);
+                fade.addUpdateListener(a -> {
+                    frame.setAlpha((Integer) a.getAnimatedValue());
+                    invalidate();
+                });
+                fade.start();
+            } else {
+                frame.setAlpha(255);
+            }
             node = n;
             cur = current;
             inFrame = in;

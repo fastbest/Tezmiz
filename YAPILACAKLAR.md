@@ -1,5 +1,11 @@
 # Kart Format — X-plore'a göre eksikler ve yapılış planı
 
+## Durum (sürüm 5.9)
+Yapıldı: A1–A5, B1–B9 (açık tema hariç), C1–C6, C7 (yalnız WebDAV), C8–C14.
+Kalan: açık tema (renk sabitleri `final`, yüzlerce sabit renk var — ayrı iş);
+Google Drive / Dropbox / OneDrive (API anahtarı ve kullanıcı onayı gerekir);
+C15 root (yapılmayacak). Hepsi derlendi, telefonda denenmedi.
+
 Bu dosya bir iş listesidir. Kaynağı: kullanıcının gönderdiği X-plore videosu ve ekran
 görüntüleri ile X-plore hakkında genel bilgi. X-plore burada çalıştırılıp tek tek
 doğrulanmadı; "isteğe bağlı" yazan maddeler kesin değildir.
