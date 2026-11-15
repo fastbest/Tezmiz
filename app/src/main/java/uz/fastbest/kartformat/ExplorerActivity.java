@@ -151,6 +151,7 @@ public class ExplorerActivity extends Activity {
         ApplicationInfo app;
         Runnable action;
         Runnable onLong;
+        int loadToken;
         String group;
         boolean temp;
         int dirs = -1;
@@ -344,6 +345,7 @@ public class ExplorerActivity extends Activity {
         io.execute(() -> usb.close());
         io.shutdown();
         thumbs.shutdownNow();
+        counter.shutdownNow();
         clearOpenCache();
         super.onDestroy();
     }
@@ -917,9 +919,9 @@ public class ExplorerActivity extends Activity {
             list.setVerticalScrollBarEnabled(true);
             list.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
             DefaultItemAnimator anim = new DefaultItemAnimator();
-            anim.setAddDuration(180);
-            anim.setRemoveDuration(150);
-            anim.setMoveDuration(180);
+            anim.setAddDuration(120);
+            anim.setRemoveDuration(100);
+            anim.setMoveDuration(140);
             anim.setChangeDuration(0);
             anim.setSupportsChangeAnimations(false);
             list.setItemAnimator(anim);
@@ -962,7 +964,10 @@ public class ExplorerActivity extends Activity {
                 DiffUtil.calculateDiff(new DiffUtil.Callback() {
                     @Override public int getOldListSize() { return old.size(); }
                     @Override public int getNewListSize() { return now.size(); }
-                    @Override public boolean areItemsTheSame(int o, int n) { return old.get(o) == now.get(n); }
+                    @Override public boolean areItemsTheSame(int o, int n) {
+                        TNode a = old.get(o), b = now.get(n);
+                        return a == b || (a.key != null && a.key.equals(b.key) && a.depth == b.depth);
+                    }
                     @Override public boolean areContentsTheSame(int o, int n) { return false; }
                     @Override public Object getChangePayload(int o, int n) { return "bind"; }
                 }, false).dispatchUpdatesTo(adapter);
@@ -1434,6 +1439,7 @@ public class ExplorerActivity extends Activity {
                 File f = n.node.fs.localFile(n.node);
                 if (f != null && prefs.getBoolean("thumbs", true)) loadThumb(icon, f);
             }
+            if (n.kind == K_DIR && n.dirs < 0 && !n.expanded) requestCount(pane, n);
             int bdg = n.kind == K_DIR && n.depth == 1 ? badgeFor(n.title) : 0;
             if (bdg != 0) {
                 badge.setImageResource(bdg);
@@ -1487,6 +1493,50 @@ public class ExplorerActivity extends Activity {
                         android.content.res.ColorStateList.valueOf(0x33FFFFFF),
                         new android.graphics.drawable.ColorDrawable(bgc), null));
             }
+        }
+    }
+
+    private final ExecutorService counter = Executors.newSingleThreadExecutor();
+    private final Set<TNode> counting = new HashSet<>();
+    private final LruCache<String, int[]> countCache = new LruCache<>(4000);
+
+    /** Kapalı klasörün içindeki klasör/dosya sayısını arka planda sayar, satırı sessizce günceller. */
+    private void requestCount(final Pane pane, final TNode n) {
+        if (n.node == null || !(n.node.fs instanceof LocalFs) || counting.contains(n)) return;
+        final File f = n.node.fs.localFile(n.node);
+        if (f == null) return;
+        final String key = f.getAbsolutePath() + ":" + f.lastModified();
+        int[] c = countCache.get(key);
+        if (c != null) {
+            n.dirs = c[0];
+            n.files = c[1];
+            return;
+        }
+        counting.add(n);
+        final boolean hidden = prefs.getBoolean("hidden", false);
+        try {
+            counter.execute(() -> {
+                int d = 0, fl = 0;
+                File[] kids = f.listFiles();
+                if (kids != null) {
+                    for (File k : kids) {
+                        if (!hidden && k.getName().startsWith(".")) continue;
+                        if (k.isDirectory()) d++; else fl++;
+                    }
+                }
+                final int[] r = kids == null ? null : new int[]{d, fl};
+                main.post(() -> {
+                    counting.remove(n);
+                    if (r == null) return;
+                    countCache.put(key, r);
+                    n.dirs = r[0];
+                    n.files = r[1];
+                    int pos = pane.visible.indexOf(n);
+                    if (pos >= 0) pane.adapter.notifyItemChanged(pos, "count");
+                });
+            });
+        } catch (RuntimeException e) {
+            counting.remove(n);
         }
     }
 
@@ -1930,9 +1980,17 @@ public class ExplorerActivity extends Activity {
             p.refresh();
             return;
         }
+        final int token = ++n.loadToken;
         if (oldKids.isEmpty()) {
             n.children = new ArrayList<>();
-            n.children.add(info(n, "Yükleniyor…", "loading"));
+            // Hızlı açılan klasörlerde "Yükleniyor…" satırı hiç görünmesin
+            main.postDelayed(() -> {
+                if (n.expanded && n.loadToken == token && n.children.isEmpty()) {
+                    n.children = new ArrayList<>();
+                    n.children.add(info(n, "Yükleniyor…", "loading"));
+                    p.refresh();
+                }
+            }, 350);
         }
         p.refresh();
         io.execute(() -> {
@@ -1947,6 +2005,7 @@ public class ExplorerActivity extends Activity {
             final List<TNode> fk = kids;
             final String fe = error;
             main.post(() -> {
+                n.loadToken++;
                 if (!n.expanded) return;
                 // Açık alt klasörler açık kalsın
                 Map<String, TNode> prev = new HashMap<>();
@@ -2072,25 +2131,7 @@ public class ExplorerActivity extends Activity {
         parent.dirs = dirs;
         parent.files = files;
         List<TNode> out = new ArrayList<>();
-        int counted = 0;
-        for (VNode k : sorted) {
-            TNode t = fileNode(parent, k);
-            if (k.dir && counted < 400 && k.fs instanceof LocalFs) {
-                File f = k.fs.localFile(k);
-                String[] names = f == null ? null : f.list();
-                if (names != null) {
-                    counted++;
-                    int d = 0, fl = 0;
-                    for (String nm : names) {
-                        if (!hidden && nm.startsWith(".")) continue;
-                        if (new File(f, nm).isDirectory()) d++; else fl++;
-                    }
-                    t.dirs = d;
-                    t.files = fl;
-                }
-            }
-            out.add(t);
-        }
+        for (VNode k : sorted) out.add(fileNode(parent, k));
         return out;
     }
 

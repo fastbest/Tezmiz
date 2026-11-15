@@ -10,8 +10,8 @@ android {
         applicationId 'uz.fastbest.kartformat'
         minSdk 21
         targetSdk 34
-        versionCode 27
-        versionName '5.9'
+        versionCode 28
+        versionName '6.0'
     }
 
     signingConfigs {
