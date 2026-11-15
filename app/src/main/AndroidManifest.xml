@@ -62,6 +62,18 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".MusicActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/ExplorerTheme" />
+
+        <activity
+            android:name=".VideoActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/ExplorerTheme" />
+
+        <activity
             android:name=".HexViewerActivity"
             android:exported="false"
             android:theme="@style/ExplorerTheme" />

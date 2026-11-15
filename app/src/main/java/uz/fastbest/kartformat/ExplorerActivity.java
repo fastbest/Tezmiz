@@ -1800,9 +1800,63 @@ public class ExplorerActivity extends Activity {
             return;
         }
         if (n.fileish()) {
-            if (!p.selected.remove(n)) p.selected.add(n);
-            p.refresh();
+            final boolean wasSel = p.selected.contains(n);
+            final VNode dir = n.node != null && n.node.dir ? n.node : null;
+            List<String> items = new ArrayList<>();
+            final List<Runnable> acts = new ArrayList<>();
+            items.add(wasSel ? "Seçimi kaldır" : "Seç");
+            acts.add(() -> {
+                if (!p.selected.remove(n)) p.selected.add(n);
+                p.refresh();
+            });
+            items.add("Panoya kopyala");
+            acts.add(() -> toClipboard(p, n, false));
+            if (n.node != null && n.node.fs.writable()) {
+                items.add("Panoya kes");
+                acts.add(() -> toClipboard(p, n, true));
+            }
+            if (!clip.isEmpty() && dir != null && dir.fs.writable()) {
+                items.add("Buraya yapıştır (" + clip.size() + " öğe)");
+                acts.add(() -> paste(dir));
+            }
+            new AlertDialog.Builder(this).setTitle(n.title)
+                    .setItems(items.toArray(new String[0]), (d, w) -> acts.get(w).run()).show();
         }
+    }
+
+    private final List<VNode> clip = new ArrayList<>();
+    private boolean clipCut;
+
+    private void toClipboard(Pane p, TNode n, boolean cut) {
+        clip.clear();
+        if (p.selected.isEmpty() || !p.selected.contains(n)) {
+            clip.add(n.node);
+        } else {
+            for (TNode s : p.selected) if (s.node != null) clip.add(s.node);
+        }
+        clipCut = cut;
+        p.selected.clear();
+        p.refresh();
+        toast(clip.size() + " öğe panoya " + (cut ? "kesildi" : "kopyalandı")
+                + ". Hedef klasöre uzun basıp \"Yapıştır\" seçin.");
+    }
+
+    private void paste(final VNode dest) {
+        if (clip.isEmpty()) return;
+        for (VNode v : clip) {
+            if (dest.inside(v)) {
+                toast("Klasör kendi içine yapıştırılamaz");
+                return;
+            }
+        }
+        final List<VNode> items = new ArrayList<>(clip);
+        final boolean cut = clipCut;
+        runOp(cut ? "Taşınıyor" : "Kopyalanıyor",
+                (pr, c) -> new FileOps(pr, c, this::status).copy(items, dest, cut),
+                () -> {
+                    if (cut) clip.clear();
+                    reloadAll();
+                });
     }
 
     private void toggle(Pane p, TNode n) {
@@ -2092,6 +2146,49 @@ public class ExplorerActivity extends Activity {
                         .setPositiveButton("Buraya çıkar", (d, w) -> extract(f, f.parent))
                         .show();
             }
+            return;
+        }
+        if ((e.equals("7z") || e.equals("rar")) && local != null) {
+            final File lf = local;
+            runOp("Arşiv okunuyor", (pr, c) -> {
+                final ArchiveFs a = new ArchiveFs(lf, getCacheDir());
+                main.post(() -> {
+                    final TNode g = special("arc:" + lf.getAbsolutePath(), K_VOLUME,
+                            R.drawable.ic_file_archive, a.title(), e.toUpperCase(Locale.ROOT) + " içi • uzun bas: kapat");
+                    g.node = a.root();
+                    g.temp = true;
+                    g.onLong = () -> {
+                        a.close();
+                        for (Pane q : panes) {
+                            q.roots.remove(g);
+                            q.refresh();
+                        }
+                    };
+                    addTempGroup(p, g);
+                    expand(p, g);
+                });
+                return null;
+            }, null);
+            return;
+        }
+        if ((AUDIO.contains(e) || VIDEO.contains(e)) && local != null) {
+            boolean audio = AUDIO.contains(e);
+            Set<String> kind = audio ? AUDIO : VIDEO;
+            ArrayList<String> paths = new ArrayList<>();
+            int index = 0;
+            if (t.parent != null) {
+                for (TNode s : t.parent.children) {
+                    if (s.kind != K_FILE || s.node == null || !kind.contains(s.node.ext())) continue;
+                    File sf = s.node.fs.localFile(s.node);
+                    if (sf == null) continue;
+                    if (s == t) index = paths.size();
+                    paths.add(sf.getAbsolutePath());
+                }
+            }
+            if (paths.isEmpty()) paths.add(local.getAbsolutePath());
+            startActivity(new Intent(this, audio ? MusicActivity.class : VideoActivity.class)
+                    .putStringArrayListExtra("paths", paths).putExtra("index", index));
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             return;
         }
         if (ARCHIVES.contains(e) && !e.equals("zip") && !e.equals("jar")) {
@@ -2769,6 +2866,7 @@ public class ExplorerActivity extends Activity {
         final boolean hidden = prefs.getBoolean("hidden", false);
         String[] opts = {
                 "Ayarlar",
+                clip.isEmpty() ? "Pano boş" : "Yapıştır (" + clip.size() + " öğe)",
                 "Panelleri değiştir",
                 "WiFi dosya paylaşımı",
                 "USB kart araçları",
@@ -2780,16 +2878,23 @@ public class ExplorerActivity extends Activity {
                 case 0:
                     showSettings();
                     break;
-                case 1:
+                case 1: {
+                    VNode dir = dirOf(panes[active].current);
+                    if (clip.isEmpty()) toast("Pano boş: bir öğeye uzun basıp \"Panoya kopyala\" seçin");
+                    else if (dir == null || !dir.fs.writable()) toast("Önce yazılabilir bir klasöre dokunun");
+                    else paste(dir);
+                    break;
+                }
+                case 2:
                     setActive(1 - active);
                     break;
-                case 2:
+                case 3:
                     toggleWifi();
                     break;
-                case 3:
+                case 4:
                     openTools();
                     break;
-                case 4:
+                case 5:
                     clearOpenCache();
                     thumbCache.evictAll();
                     toast("Önbellek temizlendi");
