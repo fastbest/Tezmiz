@@ -227,6 +227,30 @@ public final class UsbMassStorage implements BlockDevice {
         return cb;
     }
 
+    /**
+     * Okuyucudaki kart değişti mi? Okuyucu takılı kalıp yalnız kart değiştirildiğinde
+     * USB bağlantısı kopmaz; bunu "unit attention", "kart yok" ya da farklı boyuttan anlarız.
+     */
+    public synchronized boolean mediaChanged() {
+        try {
+            if (command(new byte[6], null, 0, false) != 0) {
+                byte[] sense = requestSense();
+                if (sense == null) return true;
+                int key = sense[2] & 0x0F;
+                int asc = sense[12] & 0xFF;
+                if (key == 6 || asc == 0x28 || asc == 0x3A || key == 2) return true;
+            }
+            byte[] cap = new byte[8];
+            byte[] cb = new byte[10];
+            cb[0] = 0x25;
+            if (command(cb, cap, 8, true) != 0) return true;
+            long count = be32(cap, 0) + 1;
+            return count != blockCount;
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
     private boolean testUnitReady() {
         try {
             if (command(new byte[6], null, 0, false) == 0) return true;
@@ -261,7 +285,7 @@ public final class UsbMassStorage implements BlockDevice {
     }
 
     /** Bir SCSI komutu yollar; CSW durum baytını döndürür (0 = başarılı). */
-    private int command(byte[] cb, byte[] data, int len, boolean dirIn) throws IOException {
+    private synchronized int command(byte[] cb, byte[] data, int len, boolean dirIn) throws IOException {
         if (closed) throw new IOException("Bağlantı kapalı");
         int myTag = tag++;
         byte[] cbw = new byte[31];

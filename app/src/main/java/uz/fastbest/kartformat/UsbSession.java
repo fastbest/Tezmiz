@@ -21,6 +21,9 @@ final class UsbSession {
     private UsbMassStorage storage;
     private final List<CardFs> volumes = new ArrayList<>();
     private String error;
+    private byte[] sector0;
+    /** Her yeni kart açılışında artar; gezgin bunu düğüm anahtarlarına katar. */
+    int generation;
 
     UsbSession(Context ctx) {
         this.ctx = ctx;
@@ -68,6 +71,8 @@ final class UsbSession {
         UsbDevice d = device();
         if (d == null) throw new IOException("Kart okuyucu bulunamadı");
         storage = UsbMassStorage.open(usb, d);
+        generation++;
+        sector0 = readSector0();
         try {
             List<CardVolume> vols = CardVolume.openAll(storage);
             for (CardVolume v : vols) {
@@ -79,6 +84,36 @@ final class UsbSession {
             error = e.getMessage();
             // Kart açık kalır; araçlar (biçimlendirme) için okuyucu kullanılabilir
         }
+    }
+
+    private byte[] readSector0() {
+        try {
+            byte[] b = new byte[storage.blockSize()];
+            storage.read(0, b, 1);
+            return b;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * İş parçacığında çağrılır. Okuyucudaki kart değiştiyse kartı yeniden açar ve true döner.
+     */
+    synchronized boolean checkMedia() {
+        if (storage == null) return false;
+        boolean changed = storage.mediaChanged();
+        if (!changed) {
+            byte[] now = readSector0();
+            changed = now == null || sector0 == null || !java.util.Arrays.equals(now, sector0);
+        }
+        if (!changed) return false;
+        try {
+            open();
+        } catch (IOException e) {
+            close();
+            error = e.getMessage();
+        }
+        return true;
     }
 
     void close() {

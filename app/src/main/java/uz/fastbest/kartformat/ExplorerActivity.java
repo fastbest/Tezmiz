@@ -372,6 +372,36 @@ public class ExplorerActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshRoots();
+        if (usb.isOpen()) {
+            io.execute(() -> {
+                if (usb.checkMedia()) main.post(this::onCardChanged);
+            });
+        }
+    }
+
+    /** Okuyucudaki kart değiştirildi: eski kartın listeleri atılır, yenisi açılır. */
+    private void onCardChanged() {
+        for (Pane q : panes) {
+            if (q.current != null) {
+                TNode r = q.current;
+                while (r.parent != null) r = r.parent;
+                if (r.key != null && r.key.startsWith("usbv")) q.current = null;
+            }
+            for (int i = q.roots.size() - 1; i >= 0; i--) {
+                TNode r = q.roots.get(i);
+                if (r.temp && "analysis".equals(r.key)) q.roots.remove(i);
+            }
+        }
+        refreshRoots();
+        toast(usb.volumes().isEmpty() ? "Okuyucudaki kart çıkarıldı" : "Yeni kart okundu");
+        Pane p = panes[active];
+        for (TNode r : p.roots) {
+            if (r.key != null && r.key.startsWith("usbv") && !r.expanded) {
+                p.current = r;
+                expand(p, r);
+                break;
+            }
+        }
     }
 
     @Override
@@ -1882,7 +1912,7 @@ public class ExplorerActivity extends Activity {
         }
         if (usb.isOpen() && !usb.volumes().isEmpty()) {
             for (CardFs c : usb.volumes()) {
-                out.add(volumeNode(c, R.drawable.ic_usb, "usb:" + c.title(),
+                out.add(volumeNode(c, R.drawable.ic_usb, "usbv" + usb.generation + ":" + c.title(),
                         usb.readerName() + " • " + c.volume().type()));
             }
         } else if (usb.device() != null) {
@@ -2228,6 +2258,10 @@ public class ExplorerActivity extends Activity {
         }
         p.refresh();
         io.execute(() -> {
+            if (n.depth == 0 && n.node != null && n.node.fs instanceof CardFs && usb.checkMedia()) {
+                main.post(this::onCardChanged);
+                return;
+            }
             List<TNode> kids;
             String error = null;
             try {
@@ -3543,7 +3577,7 @@ public class ExplorerActivity extends Activity {
             refreshRoots();
             Pane p = panes[active];
             for (TNode r : p.roots) {
-                if (r.key != null && r.key.startsWith("usb:") && !r.expanded) {
+                if (r.key != null && r.key.startsWith("usbv") && !r.expanded) {
                     p.current = r;
                     expand(p, r);
                     break;
@@ -3597,31 +3631,95 @@ public class ExplorerActivity extends Activity {
             toast("Önce bir klasöre dokunun");
             return;
         }
-        final List<Object[]> res = new ArrayList<>();
+        final DiskMap.Node[] res = new DiskMap.Node[1];
+        final boolean[] changed = {false};
         runOp("Disk analizi: " + dir.name, (pr, c) -> {
-            res.addAll(new FileOps(pr, c, this::status).analyze(dir));
+            if (dir.fs instanceof CardFs && usb.checkMedia()) {
+                changed[0] = true;
+                return null;
+            }
+            long free = dir.parent == null ? dir.fs.freeBytes() : -1;
+            final int[] n = {0};
+            res[0] = DiskMap.build(dir, free, name -> {
+                if (c.isCancelled()) throw new DiskOps.CancelledException();
+                if ((++n[0] & 15) == 0) status(L.t("İnceleniyor: ") + name);
+            });
             return null;
         }, () -> {
-            Collections.sort(res, (a, b) -> Long.compare((Long) b[1], (Long) a[1]));
-            long total = 0;
-            for (Object[] o : res) total += (Long) o[1];
-            TNode g = special("analysis", K_GROUP, R.drawable.ic_t_analysis,
-                    "Disk analizi: " + dir.name, DiskOps.sizeText(total) + " • uzun bas: kapat");
-            g.temp = true;
-            g.expanded = true;
-            for (Object[] o : res) {
-                VNode n = (VNode) o[0];
-                long bytes = (Long) o[1];
-                TNode t = fileNode(g, n);
-                t.sub = null;
-                t.right1 = String.format(Locale.ROOT, "%%%.1f", total > 0 ? bytes * 100.0 / total : 0);
-                t.right2 = DiskOps.sizeText(bytes);
-                t.bar = total > 0 ? (float) bytes / total : 0;
-                g.children.add(t);
+            if (changed[0]) {
+                onCardChanged();
+                toast("Kart değişmiş; yeni kartta Disk analizine tekrar basın");
+                return;
             }
-            if (g.children.isEmpty()) g.children.add(info(g, "(boş)", "empty"));
-            addTempGroup(p, g);
+            if (res[0] != null) showDiskMap(dir, res[0]);
         });
+    }
+
+    /** Tam ekran disk haritası. */
+    private void showDiskMap(final VNode dir, final DiskMap.Node root) {
+        final android.app.Dialog dlg = new android.app.Dialog(this, android.R.style.Theme_Black_NoTitleBar);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setBackgroundColor(0xFF2A2B2F);
+        final TextView info = label("", 13, TEXT);
+        info.setSingleLine(true);
+        info.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        info.setPadding(dp(12), dp(8), dp(12), dp(8));
+        info.setBackgroundColor(0xFF1F2023);
+        final DiskMap.MapView[] mv = new DiskMap.MapView[1];
+        final Runnable showInfo = () -> {
+            DiskMap.Node n = mv[0].selected();
+            if (n == null) return;
+            long parent = n.parent != null ? n.parent.size : n.size;
+            String pct = parent > 0 ? String.format(Locale.ROOT, "  •  %%%.1f", n.size * 100.0 / parent) : "";
+            String name = n.type == DiskMap.T_FREE ? L.t("Boş") : n.name;
+            info.setText(name + "  •  " + DiskOps.sizeText(n.size) + pct);
+        };
+        mv[0] = new DiskMap.MapView(this, root, new DiskMap.Listener() {
+            @Override
+            public void onSelect(DiskMap.Node n) {
+                showInfo.run();
+            }
+
+            @Override
+            public void onOpen(DiskMap.Node n) {
+                File f = n.vnode == null ? null : n.vnode.fs.localFile(n.vnode);
+                if (f == null) {
+                    toast("Yalnız telefondaki dosyalar için");
+                    return;
+                }
+                dlg.dismiss();
+                startReveal(panes[active], n.vnode.dir ? f.getAbsolutePath() : f.getParent());
+            }
+        });
+        col.addView(info);
+        col.addView(mv[0], new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        LinearLayout bar = new LinearLayout(this);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setBackgroundColor(0xFF1F2023);
+        bar.setPadding(dp(6), dp(4), dp(6), dp(4));
+        TextView close = label("✕", 20, TEXT);
+        close.setPadding(dp(12), dp(6), dp(12), dp(6));
+        close.setOnClickListener(v -> dlg.dismiss());
+        TextView up = label("⤒ " + L.t("Üst klasör"), 14, TEXT);
+        up.setPadding(dp(12), dp(6), dp(12), dp(6));
+        up.setOnClickListener(v -> mv[0].zoomOut());
+        TextView hint = label("Dokun: yakınlaş • İki parmak: büyüt • Uzun bas: klasörü aç", 11, MUTED);
+        hint.setPadding(dp(8), 0, dp(8), 0);
+        bar.addView(close);
+        bar.addView(up);
+        bar.addView(hint, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        col.addView(bar);
+        dlg.setContentView(col);
+        dlg.setOnKeyListener((d, code, ev) -> {
+            if (code == android.view.KeyEvent.KEYCODE_BACK && ev.getAction() == android.view.KeyEvent.ACTION_UP) {
+                if (!mv[0].zoomOut()) d.dismiss();
+                return true;
+            }
+            return code == android.view.KeyEvent.KEYCODE_BACK;
+        });
+        dlg.show();
+        showInfo.run();
     }
 
     // ---------------------------------------------------------------- uygulama yöneticisi
