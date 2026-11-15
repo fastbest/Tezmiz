@@ -170,6 +170,8 @@ public class ExplorerActivity extends Activity {
         Runnable action;
         Runnable onLong;
         int loadToken;
+        /** Kullanıcı açtıysa yüklenince görünür alana kaydırılır (yenilemelerde kaydırılmaz). */
+        boolean scrollOnLoad;
         String group;
         boolean temp;
         int dirs = -1;
@@ -2224,6 +2226,7 @@ public class ExplorerActivity extends Activity {
                     s.expanded = false;
                 }
             }
+            n.scrollOnLoad = true;
             expand(p, n);
         }
     }
@@ -2332,9 +2335,10 @@ public class ExplorerActivity extends Activity {
                 }
                 n.children = fk;
                 p.refresh();
-                if (p.current == n && n.parent != null && revealTarget[p.index] == null) {
+                if (n.scrollOnLoad && p.current == n && n.parent != null && revealTarget[p.index] == null) {
                     p.list.post(() -> scrollToTop(p, n));
                 }
+                n.scrollOnLoad = false;
                 for (TNode k : reopen) expand(p, k);
                 continueReveal(p, n);
             });
