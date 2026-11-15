@@ -1954,18 +1954,19 @@ public class ExplorerActivity extends Activity {
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
         sv.addView(list);
-        col.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        col.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         final AlertDialog dlg = new AlertDialog.Builder(this).setView(col).create();
         for (final Object[] it : items) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(16), dp(10), dp(16), dp(10));
-            row.setMinimumHeight(dp(52));
+            row.setPadding(dp(14), dp(6), dp(14), dp(6));
+            row.setMinimumHeight(dp(48));
             row.setBackgroundResource(themeRes(android.R.attr.selectableItemBackground));
-            ImageView ic = iconView((Integer) it[0], 30);
+            ImageView ic = iconView((Integer) it[0], 28);
             row.addView(ic);
-            TextView tv = label((String) it[1], 16, TEXT);
-            tv.setPadding(dp(18), 0, 0, 0);
+            TextView tv = label((String) it[1], 15.5f, TEXT);
+            tv.setPadding(dp(16), 0, 0, 0);
             row.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
             row.setOnClickListener(x -> {
                 dlg.dismiss();
@@ -1975,7 +1976,12 @@ public class ExplorerActivity extends Activity {
         }
         dlg.show();
         if (dlg.getWindow() != null) {
-            dlg.getWindow().setBackgroundDrawable(round(0xFF232427, 0, 0, dp(10)));
+            dlg.getWindow().setBackgroundDrawable(round(0xFF232427, 0xFF3A3D44, dp(1), dp(6)));
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            int w = Math.min(dp(330), (int) (dm.widthPixels * 0.66f));
+            int want = dp(50) + items.size() * dp(48);
+            int h = Math.min(want, (int) (dm.heightPixels * 0.88f));
+            dlg.getWindow().setLayout(w, h);
         }
     }
 
@@ -2049,7 +2055,28 @@ public class ExplorerActivity extends Activity {
                 }
             }
             expand(p, n);
+            scrollToTop(p, n);
         }
+    }
+
+    /** Açılan klasörü listenin en üstüne yumuşakça getirir. */
+    private void scrollToTop(Pane p, TNode n) {
+        final int pos = p.visible.indexOf(n);
+        if (pos < 0) return;
+        androidx.recyclerview.widget.LinearSmoothScroller sc =
+                new androidx.recyclerview.widget.LinearSmoothScroller(this) {
+                    @Override
+                    protected int getVerticalSnapPreference() {
+                        return SNAP_TO_START;
+                    }
+
+                    @Override
+                    protected float calculateSpeedPerPixel(android.util.DisplayMetrics dm) {
+                        return 45f / dm.densityDpi;
+                    }
+                };
+        sc.setTargetPosition(pos);
+        p.lm.startSmoothScroll(sc);
     }
 
     private TNode info(TNode parent, String text, String kind) {
@@ -2127,6 +2154,9 @@ public class ExplorerActivity extends Activity {
                 }
                 n.children = fk;
                 p.refresh();
+                if (p.current == n && n.parent != null && revealTarget[p.index] == null) {
+                    p.list.post(() -> scrollToTop(p, n));
+                }
                 for (TNode k : reopen) expand(p, k);
                 continueReveal(p, n);
             });
