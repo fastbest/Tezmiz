@@ -1886,29 +1886,118 @@ public class ExplorerActivity extends Activity {
             p.refresh();
             return;
         }
-        if (n.fileish()) {
-            final boolean wasSel = p.selected.contains(n);
-            final VNode dir = n.node != null && n.node.dir ? n.node : null;
-            List<String> items = new ArrayList<>();
-            final List<Runnable> acts = new ArrayList<>();
-            items.add(wasSel ? "Seçimi kaldır" : "Seç");
-            acts.add(() -> {
-                if (!p.selected.remove(n)) p.selected.add(n);
-                p.refresh();
-            });
-            items.add("Panoya kopyala");
-            acts.add(() -> toClipboard(p, n, false));
-            if (n.node != null && n.node.fs.writable()) {
-                items.add("Panoya kes");
-                acts.add(() -> toClipboard(p, n, true));
-            }
-            if (!clip.isEmpty() && dir != null && dir.fs.writable()) {
-                items.add("Buraya yapıştır (" + clip.size() + " öğe)");
-                acts.add(() -> paste(dir));
-            }
-            new AlertDialog.Builder(this).setTitle(n.title)
-                    .setItems(items.toArray(new String[0]), (d, w) -> acts.get(w).run()).show();
+        if (n.fileish()) showItemMenu(p, n);
+    }
+
+    /** Öğeye basılı tutunca açılan, simgeli işlem penceresi. */
+    private void showItemMenu(final Pane p, final TNode n) {
+        if (!p.selected.contains(n)) p.selected.clear();
+        p.current = n;
+        p.refresh();
+        final VNode v = n.node;
+        final boolean writable = v != null && v.fs.writable();
+        final String e = v == null ? "" : v.ext();
+        final boolean multi = p.selected.size() > 1;
+        final List<Object[]> items = new ArrayList<>();
+        items.add(new Object[]{R.drawable.ic_t_info, "Özellikler", (Runnable) this::showProperties});
+        if (v != null && !multi) {
+            items.add(new Object[]{R.drawable.ic_m_panes, active == 0 ? "Sağda göster" : "Solda göster",
+                    (Runnable) () -> showInOther(n)});
         }
+        if (writable) items.add(new Object[]{R.drawable.ic_t_rename, multi ? "Toplu yeniden adlandır" : "Yeniden adlandır", (Runnable) this::askRename});
+        items.add(new Object[]{R.drawable.ic_t_copy, "Kopyala (diğer panele)", (Runnable) () -> copySelected(false)});
+        items.add(new Object[]{R.drawable.ic_t_selectall, "Panoya kopyala", (Runnable) () -> toClipboard(p, n, false)});
+        if (writable) {
+            items.add(new Object[]{R.drawable.ic_t_move, "Taşı (diğer panele)", (Runnable) () -> copySelected(true)});
+            items.add(new Object[]{R.drawable.ic_t_move, "Panoya kes", (Runnable) () -> toClipboard(p, n, true)});
+        }
+        if (!clip.isEmpty() && v != null && v.dir && writable) {
+            items.add(new Object[]{R.drawable.ic_t_extract, "Buraya yapıştır (" + clip.size() + ")", (Runnable) () -> paste(v)});
+        }
+        if (writable) items.add(new Object[]{R.drawable.ic_t_delete, "Sil", (Runnable) this::askDelete});
+        if (v != null && !v.dir && !multi) {
+            if (AUDIO.contains(e) || VIDEO.contains(e)) {
+                items.add(new Object[]{AUDIO.contains(e) ? R.drawable.ic_file_audio : R.drawable.ic_file_video,
+                        "Çal", (Runnable) () -> openFile(n)});
+            }
+            if (ARCHIVES.contains(e)) {
+                items.add(new Object[]{R.drawable.ic_file_archive, "Arşivin içine bak", (Runnable) () -> openFile(n)});
+                items.add(new Object[]{R.drawable.ic_t_extract, "Arşivi çıkar", (Runnable) this::extractSelected});
+            }
+        }
+        items.add(new Object[]{R.drawable.ic_t_share, "Paylaş", (Runnable) this::shareSelected});
+        if (v != null && !v.dir && !multi && writable && v.parent != null) {
+            items.add(new Object[]{R.drawable.ic_t_copy, "Kopyasını oluştur", (Runnable) () -> duplicate(v)});
+        }
+        items.add(new Object[]{R.drawable.ic_t_zip, "ZIP oluştur", (Runnable) this::askZip});
+        items.add(new Object[]{R.drawable.ic_check, p.selected.contains(n) ? "İşareti kaldır" : "İşaretle", (Runnable) () -> {
+            if (!p.selected.remove(n)) p.selected.add(n);
+            p.refresh();
+        }});
+        if (v != null && !v.dir && !multi) {
+            items.add(new Object[]{R.drawable.ic_t_openwith, "Şununla aç…", (Runnable) this::openWithSelected});
+        }
+        if (v != null && v.dir) {
+            items.add(new Object[]{R.drawable.ic_t_star, "Sık kullanılanlara ekle", (Runnable) this::addFavorite});
+        }
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setBackgroundColor(0xFF232427);
+        TextView head = label(multi ? p.selected.size() + " öğe" : n.title, 17, TEXT);
+        head.setSingleLine(true);
+        head.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        head.setPadding(dp(18), dp(14), dp(18), dp(14));
+        head.setBackgroundColor(0xFF2E3035);
+        col.addView(head);
+        ScrollView sv = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(list);
+        col.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        final AlertDialog dlg = new AlertDialog.Builder(this).setView(col).create();
+        for (final Object[] it : items) {
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(16), dp(10), dp(16), dp(10));
+            row.setMinimumHeight(dp(52));
+            row.setBackgroundResource(themeRes(android.R.attr.selectableItemBackground));
+            ImageView ic = iconView((Integer) it[0], 30);
+            row.addView(ic);
+            TextView tv = label((String) it[1], 16, TEXT);
+            tv.setPadding(dp(18), 0, 0, 0);
+            row.addView(tv, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            row.setOnClickListener(x -> {
+                dlg.dismiss();
+                ((Runnable) it[2]).run();
+            });
+            list.addView(row);
+        }
+        dlg.show();
+        if (dlg.getWindow() != null) {
+            dlg.getWindow().setBackgroundDrawable(round(0xFF232427, 0, 0, dp(10)));
+        }
+    }
+
+    /** Öğeyi diğer panelde, klasörü açılmış olarak gösterir. */
+    private void showInOther(TNode n) {
+        File f = n.node == null ? null : n.node.fs.localFile(n.node);
+        if (f == null) {
+            toast("Yalnız telefondaki dosyalar için");
+            return;
+        }
+        Pane o = other();
+        startReveal(o, n.node.dir ? f.getAbsolutePath() : f.getParent());
+        setActive(o.index);
+    }
+
+    private void duplicate(final VNode v) {
+        runOp("Kopyası oluşturuluyor", (pr, c) -> {
+            try (InputStream in = v.fs.open(v)) {
+                v.fs.create(v.parent, v.name, in, v.size, pr, c);
+            }
+            return null;
+        }, this::reloadAll);
     }
 
     private final List<VNode> clip = new ArrayList<>();
@@ -1952,6 +2041,13 @@ public class ExplorerActivity extends Activity {
             n.expanded = false;
             p.refresh();
         } else {
+            // Aynı seviyedeki başka açık klasörler kapansın
+            List<TNode> sibs = n.parent != null ? n.parent.children : p.roots;
+            for (TNode s : sibs) {
+                if (s != n && s.expanded && (s.kind == K_DIR || (s.kind == K_VOLUME && n.parent != null))) {
+                    s.expanded = false;
+                }
+            }
             expand(p, n);
         }
     }
