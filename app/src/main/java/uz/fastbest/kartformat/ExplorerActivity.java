@@ -72,6 +72,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -736,7 +737,7 @@ public class ExplorerActivity extends Activity {
         on[T_STAR] = dir != null && dir.fs instanceof LocalFs;
         on[T_REFRESH] = true;
         for (int i = 0; i < toolViews.size() && i < on.length; i++) {
-            toolViews.get(i)[1].setAlpha(on[i] ? 1f : 0.28f);
+            toolViews.get(i)[1].setAlpha(on[i] ? 1f : 0.42f);
             toolViews.get(i)[2].setAlpha(on[i] ? 1f : 0.4f);
         }
     }
@@ -854,6 +855,17 @@ public class ExplorerActivity extends Activity {
         });
         paneAnim.start();
         updateToolbar();
+        Pane tp = panes[target];
+        int pos = tp.current == null ? -1 : tp.visible.indexOf(tp.current);
+        if (pos >= 0 && (pos < tp.lm.findFirstVisibleItemPosition() || pos > tp.lm.findLastVisibleItemPosition())) {
+            tp.scrollTo(pos - 2);
+        }
+    }
+
+    @Override
+    public void startActivity(Intent intent) {
+        super.startActivity(intent);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
     }
 
     private void toast(String s) {
@@ -1727,6 +1739,14 @@ public class ExplorerActivity extends Activity {
                 "Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…");
         tools.action = this::openTools;
         out.add(tools);
+        Set<String> hiddenRoots = new HashSet<>(Arrays.asList(prefs.getString("hiddenRoots", "").split(",")));
+        for (int i = out.size() - 1; i >= 0; i--) {
+            String k = out.get(i).key;
+            if (k != null && hiddenRoots.contains(k.equals("vaultopen") ? "vault" : k)) out.remove(i);
+        }
+        TNode show = special("show", K_ACTION, R.drawable.ic_t_tools, "Göster", "Listede görünecek bölümler");
+        show.action = this::askShownRoots;
+        out.add(show);
 
         // Eski düğümlerin durumunu taşı
         Map<String, TNode> old = new HashMap<>();
@@ -2415,6 +2435,24 @@ public class ExplorerActivity extends Activity {
         return box;
     }
 
+    private void askShownRoots() {
+        final String[] keys = {"fav", "recent", "apps", "ftp", "wifi", "vault", "tools"};
+        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "FTP sunucuları",
+                "WiFi dosya paylaşımı", "Kasa", "USB kart araçları"};
+        final Set<String> hid = new HashSet<>(Arrays.asList(prefs.getString("hiddenRoots", "").split(",")));
+        final boolean[] on = new boolean[keys.length];
+        for (int i = 0; i < keys.length; i++) on[i] = !hid.contains(keys[i]);
+        new AlertDialog.Builder(this).setTitle("Göster")
+                .setMultiChoiceItems(names, on, (d, w, c) -> on[w] = c)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Tamam", (d, w) -> {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < keys.length; i++) if (!on[i]) sb.append(keys[i]).append(',');
+                    prefs.edit().putString("hiddenRoots", sb.toString()).apply();
+                    refreshRoots();
+                }).show();
+    }
+
     private void askNewFolder() {
         final VNode dir = dirOf(panes[active].current);
         if (dir == null) {
@@ -2425,10 +2463,20 @@ public class ExplorerActivity extends Activity {
             toast("Bu konum salt okunur");
             return;
         }
-        final EditText e = input("", "Klasör adı");
-        new AlertDialog.Builder(this).setTitle("Yeni klasör: " + dir.name).setView(padded(e))
+        final EditText e = input("", "Ad");
+        new AlertDialog.Builder(this).setTitle("Yeni: " + dir.name).setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
-                .setPositiveButton("Oluştur", (d, w) -> {
+                .setNeutralButton("Metin dosyası", (d, w) -> {
+                    String name = e.getText().toString().trim();
+                    if (name.isEmpty()) name = "yeni";
+                    if (!name.contains(".")) name += ".txt";
+                    final String fn = name;
+                    runOp("Dosya oluşturuluyor", (pr, c) -> {
+                        dir.fs.create(dir, fn, new java.io.ByteArrayInputStream(new byte[0]), 0, pr, c);
+                        return null;
+                    }, this::reloadAll);
+                })
+                .setPositiveButton("Klasör", (d, w) -> {
                     final String name = e.getText().toString();
                     runOp("Klasör oluşturuluyor", (pr, c) -> {
                         dir.fs.mkdir(dir, name);
@@ -2437,11 +2485,66 @@ public class ExplorerActivity extends Activity {
                 }).show();
     }
 
+    /** Çoklu seçimde kalıpla ad değiştirme: # işaretleri sıra numarası olur, * eski ad. */
+    private void askBulkRename(final List<VNode> sel) {
+        if (!sel.get(0).fs.writable()) {
+            toast("Bu konum salt okunur");
+            return;
+        }
+        final EditText e = input("*_##", "Kalıp");
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        TextView help = label("# → sıra numarası (## = 01, 02…)\n* → eski ad (uzantısız)\nUzantılar korunur.", 13, MUTED);
+        help.setPadding(dp(20), dp(4), dp(20), 0);
+        box.addView(padded(e));
+        box.addView(help);
+        new AlertDialog.Builder(this).setTitle(sel.size() + " öğeyi yeniden adlandır").setView(box)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Tamam", (d, w) -> {
+                    final String pat = e.getText().toString();
+                    if (pat.trim().isEmpty()) return;
+                    runOp("Yeniden adlandırılıyor", (pr, c) -> {
+                        int i = 1;
+                        for (VNode n : sel) {
+                            if (c.isCancelled()) break;
+                            String base = n.name, ext = "";
+                            int dot = n.name.lastIndexOf('.');
+                            if (!n.dir && dot > 0) {
+                                base = n.name.substring(0, dot);
+                                ext = n.name.substring(dot);
+                            }
+                            StringBuilder out = new StringBuilder();
+                            for (int k = 0; k < pat.length(); ) {
+                                char ch = pat.charAt(k);
+                                if (ch == '#') {
+                                    int w2 = 0;
+                                    while (k < pat.length() && pat.charAt(k) == '#') { w2++; k++; }
+                                    out.append(String.format(Locale.ROOT, "%0" + w2 + "d", i));
+                                } else if (ch == '*') {
+                                    out.append(base);
+                                    k++;
+                                } else {
+                                    out.append(ch);
+                                    k++;
+                                }
+                            }
+                            String nn = out.toString() + ext;
+                            if (!nn.equals(n.name)) n.fs.rename(n, nn);
+                            i++;
+                        }
+                        return null;
+                    }, () -> {
+                        panes[active].selected.clear();
+                        reloadAll();
+                    });
+                }).show();
+    }
+
     private void askRename() {
         final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
-        if (sel.size() != 1) {
-            toast("Yeniden adlandırmak için tek öğe seçin");
+        if (sel.size() > 1) {
+            askBulkRename(sel);
             return;
         }
         final VNode n = sel.get(0);
@@ -2603,6 +2706,46 @@ public class ExplorerActivity extends Activity {
         });
     }
 
+    private void checksum(final VNode n) {
+        final String[] res = new String[1];
+        runOp("Sağlama toplamı", (pr, c) -> {
+            java.security.MessageDigest md5 = java.security.MessageDigest.getInstance("MD5");
+            java.security.MessageDigest sha1 = java.security.MessageDigest.getInstance("SHA-1");
+            java.security.MessageDigest sha256 = java.security.MessageDigest.getInstance("SHA-256");
+            long done = 0;
+            try (InputStream in = n.fs.open(n)) {
+                byte[] buf = new byte[1 << 16];
+                int r;
+                while ((r = in.read(buf)) > 0) {
+                    if (c.isCancelled()) return null;
+                    md5.update(buf, 0, r);
+                    sha1.update(buf, 0, r);
+                    sha256.update(buf, 0, r);
+                    done += r;
+                    if (n.size > 0) pr.onProgress(done, n.size);
+                }
+            }
+            res[0] = "MD5:\n" + hex(md5.digest()) + "\n\nSHA-1:\n" + hex(sha1.digest())
+                    + "\n\nSHA-256:\n" + hex(sha256.digest());
+            return null;
+        }, () -> {
+            if (res[0] == null) return;
+            new AlertDialog.Builder(this).setTitle(n.name).setMessage(res[0])
+                    .setNeutralButton("Kopyala", (d, w) -> {
+                        android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                                getSystemService(CLIPBOARD_SERVICE);
+                        if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("checksum", res[0]));
+                    })
+                    .setPositiveButton("Tamam", null).show();
+        });
+    }
+
+    private static String hex(byte[] b) {
+        StringBuilder sb = new StringBuilder();
+        for (byte x : b) sb.append(String.format(Locale.ROOT, "%02x", x));
+        return sb.toString();
+    }
+
     private void showProperties() {
         Pane p = panes[active];
         List<VNode> sel = targets(p);
@@ -2645,8 +2788,12 @@ public class ExplorerActivity extends Activity {
                     .append(String.format(Locale.ROOT, "%,d", r[0][0])).append(" bayt)\n");
             sb.append("İçerik: ").append(r[0][1]).append(" dosya, ")
                     .append(Math.max(0, r[0][2] - dirsSel)).append(" klasör");
-            new AlertDialog.Builder(this).setTitle("Özellikler").setMessage(sb)
-                    .setPositiveButton("Tamam", null).show();
+            AlertDialog.Builder b = new AlertDialog.Builder(this).setTitle("Özellikler").setMessage(sb)
+                    .setPositiveButton("Tamam", null);
+            if (nodes.size() == 1 && !nodes.get(0).dir) {
+                b.setNeutralButton("Sağlama toplamı", (d, w) -> checksum(nodes.get(0)));
+            }
+            b.show();
         });
     }
 
