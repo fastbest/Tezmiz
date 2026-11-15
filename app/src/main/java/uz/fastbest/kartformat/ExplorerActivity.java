@@ -3661,23 +3661,7 @@ public class ExplorerActivity extends Activity {
     }
 
     private void openTools() {
-        List<Object[]> items = new ArrayList<>();
-        Object[][] list = {
-                {R.drawable.ic_tool_format, "Biçimlendir", "format"},
-                {R.drawable.ic_tool_write, "İmaj yaz", "image"},
-                {R.drawable.ic_tool_backup, "Yedek al", "backup"},
-                {R.drawable.ic_tool_wipe, "Kartı sil", "wipe"},
-                {R.drawable.ic_tool_parts, "Bölüm sihirbazı", "parts"},
-                {R.drawable.ic_tool_setup, "Windows kurulum kartı (ISO)", "windows"},
-                {R.drawable.ic_tool_game, "PS2 oyunu ekle", "ps2"},
-                {R.drawable.ic_tool_speed, "Hız testi", "bench"},
-                {R.drawable.ic_t_info, "Kart bilgisi", "info"},
-                {R.drawable.ic_usb_tools, "Tüm araçlar", null},
-        };
-        for (final Object[] o : list) {
-            items.add(new Object[]{o[0], o[1], (Runnable) () -> launchTool((String) o[2])});
-        }
-        showIconMenu(L.t("USB kart araçları"), items);
+        launchTool(null);
     }
 
     private void launchTool(String tool) {
