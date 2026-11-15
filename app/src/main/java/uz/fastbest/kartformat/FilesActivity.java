@@ -81,7 +81,7 @@ public class FilesActivity extends Activity {
         @Override
         public void onReceive(Context context, Intent intent) {
             cancelled.set(true);
-            infoText.setText("Kart okuyucu çıkarıldı.");
+            infoText.setText(L.t("Kart okuyucu çıkarıldı."));
             FilesActivity.this.setResult(RESULT_OK);
             finish();
         }
@@ -90,7 +90,9 @@ public class FilesActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         setContentView(R.layout.activity_files);
+        L.tree(findViewById(android.R.id.content));
         pathText = findViewById(R.id.pathText);
         infoText = findViewById(R.id.infoText);
         progressText = findViewById(R.id.filesProgressText);
@@ -110,8 +112,8 @@ public class FilesActivity extends Activity {
                 CardVolume.Entry e = getItem(position);
                 TextView t1 = v.findViewById(android.R.id.text1);
                 TextView t2 = v.findViewById(android.R.id.text2);
-                t1.setText((e.dir ? "📁  " : "📄  ") + e.name);
-                t2.setText(e.dir ? "Klasör" : DiskOps.sizeText(e.size));
+                t1.setText(L.t((e.dir ? "📁  " : "📄  ") + e.name));
+                t2.setText(L.t(e.dir ? "Klasör" : DiskOps.sizeText(e.size)));
                 return v;
             }
         };
@@ -148,7 +150,7 @@ public class FilesActivity extends Activity {
             return;
         }
         setButtons(false);
-        infoText.setText("Kart açılıyor…");
+        infoText.setText(L.t("Kart açılıyor…"));
         final UsbMassStorage s = storage;
         worker.execute(() -> {
             try {
@@ -159,7 +161,7 @@ public class FilesActivity extends Activity {
                     main.post(() -> choosePartition(all));
                 }
             } catch (final IOException | RuntimeException e) {
-                main.post(() -> infoText.setText("Hata: " + e.getMessage()));
+                main.post(() -> infoText.setText(L.t("Hata: " + e.getMessage())));
             }
         });
     }
@@ -171,7 +173,7 @@ public class FilesActivity extends Activity {
             CardVolume v = all.get(i);
             names[i] = v.name + "  •  " + v.type() + ", " + DiskOps.sizeText(v.totalBytes());
         }
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Hangi bölüm açılsın?")
                 .setItems(names, (d, which) -> worker.execute(() -> loadVolume(all.get(which))))
                 .setOnCancelListener(d -> finish())
@@ -190,7 +192,7 @@ public class FilesActivity extends Activity {
                 showInfo(free);
             });
         } catch (final IOException | RuntimeException e) {
-            main.post(() -> infoText.setText("Hata: " + e.getMessage()));
+            main.post(() -> infoText.setText(L.t("Hata: " + e.getMessage())));
         }
     }
 
@@ -242,8 +244,8 @@ public class FilesActivity extends Activity {
         adapter.notifyDataSetChanged();
         pathText.setText(current.path());
         setButtons(true);
-        if (kids.isEmpty()) progressText.setText("Bu klasör boş.");
-        else progressText.setText(kids.size() + " öğe");
+        if (kids.isEmpty()) progressText.setText(L.t("Bu klasör boş."));
+        else progressText.setText(L.t(kids.size() + " öğe"));
     }
 
     private void showInfo(long free) {
@@ -276,7 +278,7 @@ public class FilesActivity extends Activity {
         cancelled.set(false);
         setButtons(false);
         if (title != null) {
-            progressText.setText(title + "…");
+            progressText.setText(L.t(title + "…"));
             progressBar.setVisibility(View.VISIBLE);
             progressBar.setIndeterminate(true);
             cancelButton.setVisibility(View.VISIBLE);
@@ -348,7 +350,7 @@ public class FilesActivity extends Activity {
         boolean w = volume.writable();
         String[] opts = w ? new String[]{"Telefona kaydet", "Sil", "Birleştir (defrag)"}
                 : new String[]{"Telefona kaydet"};
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(e.name + "  (" + DiskOps.sizeText(e.size) + ")")
                 .setItems(opts, (d, which) -> {
                     if (which == 0) exportFile(e);
@@ -362,7 +364,7 @@ public class FilesActivity extends Activity {
         boolean w = volume.writable();
         String[] opts = w ? new String[]{"Aç", "Telefona kaydet", "Sil",
                 "İçindekileri birleştir (defrag)"} : new String[]{"Aç", "Telefona kaydet"};
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(e.name)
                 .setItems(opts, (d, which) -> {
                     if (which == 0) open(e);
@@ -406,7 +408,7 @@ public class FilesActivity extends Activity {
     }
 
     private void confirmDelete(final CardVolume.Entry e) {
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Silinsin mi?")
                 .setMessage(e.name + (e.dir ? "\n\nKlasörün içindeki her şey de silinecek." : "")
                         + "\n\nSilinen dosyalar geri getirilemez.")
@@ -422,12 +424,12 @@ public class FilesActivity extends Activity {
         if (busy || volume == null) return;
         final EditText input = new EditText(this);
         input.setSingleLine(true);
-        input.setHint("Klasör adı");
+        input.setHint(L.t("Klasör adı"));
         FrameLayout box = new FrameLayout(this);
         int pad = (int) (20 * getResources().getDisplayMetrics().density);
         box.setPadding(pad, pad / 2, pad, 0);
         box.addView(input);
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Yeni klasör")
                 .setView(box)
                 .setNegativeButton("Vazgeç", null)
@@ -453,7 +455,7 @@ public class FilesActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_IMPORT);
         } catch (RuntimeException e) {
-            progressText.setText("Dosya seçici açılamadı.");
+            progressText.setText(L.t("Dosya seçici açılamadı."));
         }
     }
 
@@ -521,7 +523,7 @@ public class FilesActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_ARCHIVE);
         } catch (RuntimeException e) {
-            progressText.setText("Dosya seçici açılamadı.");
+            progressText.setText(L.t("Dosya seçici açılamadı."));
         }
     }
 
@@ -573,7 +575,7 @@ public class FilesActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_EXPORT_FILE);
         } catch (RuntimeException ex) {
-            progressText.setText("Dosya kaydetme ekranı açılamadı.");
+            progressText.setText(L.t("Dosya kaydetme ekranı açılamadı."));
         }
     }
 
@@ -582,7 +584,7 @@ public class FilesActivity extends Activity {
         try {
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQ_EXPORT_DIR);
         } catch (RuntimeException ex) {
-            progressText.setText("Klasör seçme ekranı açılamadı.");
+            progressText.setText(L.t("Klasör seçme ekranı açılamadı."));
         }
     }
 

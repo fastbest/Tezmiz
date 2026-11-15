@@ -1,0 +1,485 @@
+   kod: 	   code: 
+   kullanıcı: kart   parola: 	   user: kart   password: 
+  (açılamadı)	  (could not open)
+  (ilk 4 MB, salt okunur)	  (first 4 MB, read-only)
+  (salt okunur)	  (read-only)
+ (en çok 200 satır)	 (at most 200 rows)
+ açılamadı	 could not be opened
+ bayt)\n	 bytes)\n
+ boş / 	 free / 
+ boş)	 free)
+ bölüm oluşturuldu.\n\n	 partitions created.\n\n
+ dosya "	 file "
+ dosya birleştirildi.	 files defragmented.
+ dosya birleştirilemedi: 	 files could not be defragmented: 
+ dosya incelendi, 	 files checked, 
+ dosya karta kopyalandı.	 files copied to the card.
+ dosya kopyalandı.	 files copied.
+ dosya).	 files).
+ dosya, 	 files, 
+ gerekli, 	 required, 
+ içi • uzun bas: kapat	 contents • long press: close
+ için boyut girin.	 enter a size.
+ kart, sıkıştırılmış 	 card, compressed 
+ klasör	 folders
+ klasörü kaydedildi (	 folder saved (
+ klasörü oluşturulamadı	 folder could not be created
+ olarak biçimlendirildi.\n\n	 formatted as\n\n
+ olarak biçimlendirilsin mi?	 — format now?
+ oluşturulamadı	 could not be created
+ oluşturuldu (	 created (
+ oluşturuldu.	 created.
+ parçaya bölünecek.	 parts will be created.
+ satır)	 rows)
+ silindi.	 deleted.
+ sonuç • uzun bas: kapat	 results • long press: close
+ tablo	 tables
+ telefona kaydedildi.	 saved to the phone.
+ yazıldı ve doğrulandı.\n\nOkuyucuyu çıkarabilirsiniz.	 written and verified.\n\nYou can remove the reader.
+ öğe	 items
+ öğe daha\n	 more items\n
+ öğe panoya 	 items to clipboard: 
+ öğe seçili\n	 items selected\n
+ öğe silindi	 items deleted
+ öğe silinsin mi?	 items — delete?
+ öğe taşındı.	 items moved.
+ öğe çöp kutusuna taşındı	 items moved to the recycle bin
+ öğe)	 items)
+ öğe\n→ 	 items\n→ 
+ öğeyi yeniden adlandır	 items — rename
+ • uzun bas: kapat	 • long press: close
+# → sıra numarası (## = 01, 02…)\n* → eski ad (uzantısız)\nUzantılar korunur.	# → sequence number (## = 01, 02…)\n* → old name (without extension)\nExtensions are kept.
+(GPL), Apache Commons Compress ve Net (Apache-2.0), 	(GPL), Apache Commons Compress and Net (Apache-2.0), 
+(boş)	(empty)
+(geri) 	(restored) 
++ Dosya ekle	+ Add file
++ Klasör	+ Folder
+. Hedef klasöre uzun basıp "Yapıştır" seçin.	. Long press the target folder and choose "Paste".
+.img.gz dosyası).\n\nGeri yüklemek için "İmaj yaz" ile bu dosyayı 	.img.gz file).\n\nTo restore, write this file with "Write image" 
+APK kopyalanıyor	Copying APK
+APK paylaş	Share APK
+APK'yı paylaş	Share APK
+APK'yı yedekle (İndirilenler/APK)	Back up APK (Downloads/APK)
+Ad	Name
+Ad (ör. Bilgisayarım)	Name (e.g. My computer)
+Ad değiştir	Rename
+Ad: 	Name: 
+Ada göre	By name
+Adres (ör. 192.168.1.10)	Address (e.g. 192.168.1.10)
+Adres (ör. https://webdav.yandex.ru)	Address (e.g. https://webdav.yandex.ru)
+Adres gerekli	Address required
+Ara	Search
+Ara: 	Search: 
+Arama: "	Search: "
+Aranıyor	Searching
+Aranıyor: 	Searching: 
+Araç çubuğu yazıları	Toolbar labels
+Artan sırala	Sort ascending
+Arşiv / ISO aç (zip, 7z, tar, iso)	Open archive / ISO (zip, 7z, tar, iso)
+Arşiv açılıyor	Opening archive
+Arşiv hazırlanıyor…	Preparing archive…
+Arşiv okunuyor	Reading archive
+Arşivi aç	Extract
+Arşivi bir klasöre çıkarmayı deneyin.	Try extracting the archive to a folder.
+Arşivi çıkar	Extract archive
+Arşivin içine bak	Browse archive
+Ayarlar	Settings
+Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n	On a computer on the same WiFi, open a browser and go to:\n\n
+Azalan sırala	Sort descending
+Aç	Open
+Açmak için dokunun	Tap to open
+Açık	On
+Açık kaynak bileşenler: ntfs-3g (GPL-2.0), Rufus/ms-sys 	Open source components: ntfs-3g (GPL-2.0), Rufus/ms-sys 
+Açık • uzun bas: kilitle	Open • long press: lock
+Açılamadı: 	Could not open: 
+Açılışta son klasörler	Restore last folders on start
+Ağaç çizgileri	Tree lines
+Başka uygulamayla aç	Open with another app
+Başlangıç klasörü	Start folder
+Beklenmeyen hata: 	Unexpected error: 
+Bilgisayardan (Windows Gezgini adres çubuğu ya da FileZilla) bağlanın:\n\n	Connect from a computer (Windows Explorer address bar or FileZilla):\n\n
+Bir arşiv dosyası seçin	Choose an archive file
+Bir dosyaya dokunun	Tap a file
+Bir işlem sürüyor	An operation is running
+Bir klasör kendi içine kopyalanamaz: 	A folder cannot be copied into itself: 
+Bir klasöre dokunup ⭐ ile ekleyebilirsiniz	Tap a folder and add it with ⭐
+Birleştir (defrag)	Defragment
+Birleştiriliyor	Defragmenting
+Birleştiriliyor: 	Defragmenting: 
+Birlikte aç	Open with
+Biçimlendir	Format
+Biçimlendir  •  	Format  •  
+Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…	Format, write image, Windows / FreeDOS, PS2…
+Biçimlendiriliyor	Formatting
+Biçimlendirme, imaj yazma ve silme karttaki bütün dosyaları siler. Önce yedek alın.	Formatting, writing an image and wiping erase all files on the card. Make a backup first.
+Boyut: 	Size: 
+Boyuta göre	By size
+Boş	Free
+Bu dosya tanınan bir arşiv değil	This file is not a recognized archive
+Bu dosya tanınan bir arşiv değil (zip, 7z, tar, 	This file is not a recognized archive (zip, 7z, tar, 
+Bu dosyayı açacak uygulama yok	No app can open this file
+Bu klasör boş.	This folder is empty.
+Bu klasöre çıkar	Extract here
+Bu konum salt okunur	This location is read-only
+Bu uygulamanın açılacak ekranı yok	This app has no screen to open
+Bu video oynatılamıyor; başka uygulamayla açmayı deneyin	This video cannot be played; try another app
+Bulunamadı	Not found
+Bulunan kart: 	Card found: 
+Buraya yapıştır (	Paste here (
+Buraya çıkar	Extract here
+Bölüm 	Partition 
+Bölüm sayısı	Number of partitions
+Bölüm sihirbazı	Partition wizard
+Bölüm sihirbazı  •  	Partition wizard  •  
+Bölüm tablosu	Partition table
+Bölümler oluşturulsun mu?	Create the partitions?
+Bölümler oluşturuluyor	Creating partitions
+Büyük	Large
+Cihaz ekle	Add device
+Dahili depolama	Internal storage
+Devam	Continue
+Devre dışı	Disabled
+Değişiklikler kaydedilsin mi?	Save changes?
+Değiştirilme: 	Modified: 
+Disk analizi	Disk analysis
+Disk analizi: 	Disk analysis: 
+Diğer panelde hedef klasöre dokunun	Tap the target folder in the other panel
+Diğer paneldeki klasöre çıkar	Extract to the folder in the other panel
+Dosya adı	File name
+Dosya adı (bir kısmı)	File name (or part of it)
+Dosya açılamadı: 	Could not open file: 
+Dosya ekranı açılamadı.	Could not open the file screen.
+Dosya erişim izni	File access permission
+Dosya erişim izni gerekli	File access permission required
+Dosya erişim izni ver	Grant file access
+Dosya hazırlanıyor: 	Preparing file: 
+Dosya inceleniyor…	Inspecting file…
+Dosya kaydetme ekranı açılamadı.	Could not open the save screen.
+Dosya oluşturuluyor	Creating file
+Dosya seçici açılamadı.	Could not open the file picker.
+Dosya sistemi	File system
+Dosya yöneticisinin telefondaki dosyaları gösterebilmesi için 	For the file manager to show the files on your phone, 
+Dosya: 	File: 
+Dosyalar	Files
+Dosyalar: 	Files: 
+Düzenle	Edit
+Ekle	Add
+FAT32 (her cihaz okur, tek dosya en çok 4 GB)	FAT32 (readable by every device, max 4 GB per file)
+FTP sunucusu açık	FTP server is on
+FTP sunucusu başlatılamadı	Could not start the FTP server
+FTP sunucusu kapatıldı	FTP server stopped
+FTP ya da SFTP (SSH) sunucusu	FTP or SFTP (SSH) server
+FreeDOS açılış kartı hazırlansın mı?	Prepare a FreeDOS boot card?
+FreeDOS ile açılabilir yap (BIOS güncellemesi için; FAT32 + MBR)	Make bootable with FreeDOS (for BIOS updates; FAT32 + MBR)
+FreeDOS kartı hazırlanıyor	Preparing FreeDOS card
+GPT (yalnızca UEFI)	GPT (UEFI only)
+GPT (yeni bilgisayarlar için)	GPT (for newer computers)
+Geniş	Wide
+Geri yükle	Restore
+Geri yüklendi: 	Restored: 
+Geri yüklenemedi	Could not restore
+Gizli dosyaları göster	Show hidden files
+Göster	Show
+Hakkında	About
+Hangi bölüm açılsın?	Which partition should be opened?
+Hata: 	Error: 
+Hedef dosya açılamadı	Could not open the target file
+Hedef salt okunur	Target is read-only
+Hedefte yeterli yer yok (	Not enough space at the target (
+Hesaplanıyor	Calculating
+Hex görüntüleyici	Hex viewer
+Hız testi	Speed test
+Hız ölçülüyor	Measuring speed
+Hızlı sil (birkaç saniye; bölüm tablosunu ve dosya sistemini siler)	Quick wipe (a few seconds; erases partition table and file system)
+Hızlı silme	Quick wipe
+ISO dosyası inceleniyor…	Inspecting ISO file…
+ISO okunamadı: 	Could not read ISO: 
+Kaldır	Uninstall
+Kalıcı sil	Delete permanently
+Kalıp	Pattern
+Kapalı	Off
+Kapat	Close
+Kart	Card
+Kart Format açık başka bir telefon (adres ve kod)	Another phone running this app (address and code)
+Kart adı (isteğe bağlı)	Card name (optional)
+Kart açılıyor…	Opening card…
+Kart bilgisi	Card info
+Kart bilgisi okunuyor	Reading card info
+Kart okunuyor…	Reading card…
+Kart okuyucu bulunamadı	No card reader found
+Kart okuyucu bulunamadı.\n\nKartı OTG kart okuyucuya takıp 	No card reader found.\n\nInsert the card into an OTG card reader and 
+Kart okuyucu çıkarıldı	Card reader removed
+Kart okuyucu çıkarıldı.	Card reader removed.
+Kart okuyucu: 	Card reader: 
+Kart silindi. Kullanmak için "Biçimlendir"e basın.	Card wiped. Press "Format" to use it.
+Kart siliniyor	Wiping card
+Kart yedekleniyor	Backing up card
+Kart: 	Card: 
+Karta kopyalanıyor	Copying to card
+Kartta açılabilen bölüm yok	No partition on the card can be opened
+Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n	ALL files on the card will be erased and cannot be recovered.\n\n
+Kartı sil	Wipe card
+Kasa	Vault
+Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.	Vault is open. Copy or move files from the other panel to add them.
+Kasa açılıyor	Opening vault
+Kasa kilitlendi	Vault locked
+Kasa parolası belirle	Set vault password
+Kasayı aç	Open vault
+Kaydedildi	Saved
+Kaydedildi: İndirilenler/APK/	Saved: Downloads/APK/
+Kaydedilemedi: 	Could not save: 
+Kaydediliyor: 	Saving: 
+Kaydet	Save
+Kaydetme	Don't save
+Kaynak salt okunur; taşınamaz, kopyalayın	Source is read-only; copy instead of moving
+Klasör	Folder
+Klasör adı	Folder name
+Klasör kendi içine yapıştırılamaz	A folder cannot be pasted into itself
+Klasör oluşturulamadı	Could not create folder
+Klasör oluşturuluyor	Creating folder
+Klasör seçme ekranı açılamadı.	Could not open the folder picker.
+Klasör telefona kaydediliyor	Saving folder to phone
+Klasör yapısı çok derin	Folder structure is too deep
+Klasörler paylaşılamaz; önce ZIP yapın	Folders cannot be shared; make a ZIP first
+Klasörler önce	Folders first
+Kopyala	Copy
+Kopyala (diğer panele)	Copy (to other panel)
+Kopyalanıyor	Copying
+Kopyası oluşturuluyor	Creating copy
+Kopyasını oluştur	Duplicate
+Kullanıcı adı	User name
+Küme boyutu (FAT32 / exFAT / NTFS)	Cluster size (FAT32 / exFAT / NTFS)
+Küçük	Small
+Küçük resimler	Thumbnails
+Listede görünecek bölümler	Sections shown in the list
+MBR (UEFI + eski BIOS; eski bilgisayarlar için)	MBR (UEFI + legacy BIOS; for older computers)
+MBR (açılmazsa bunu deneyin)	MBR (try this if it doesn't boot)
+MBR (önerilen; telefonlar ve kameralar için)	MBR (recommended; for phones and cameras)
+Metin dosyası	Text file
+Metin olarak	As text
+Microsoft hesabı zorunluluğunu atla (yerel hesap)	Skip Microsoft account requirement (local account)
+NTFS (Windows bilgisayarlar için)	NTFS (for Windows computers)
+Not: telefonlar ve kameralar çoğunlukla yalnızca ilk bölümü görür.	Note: phones and cameras usually see only the first partition.
+OTG ile takılan kart ve USB bellek araçları. Root gerekmez.	Tools for cards and USB drives attached via OTG. No root required.
+Okunamadı: 	Could not read: 
+Okuyucuyu çıkarıp kartı kullanabilirsiniz.	You can remove the reader and use the card.
+Oluştur	Create
+Orta	Medium
+Otomatik	Automatic
+Oyun inceleniyor…	Inspecting game…
+Oyun kodu: 	Game code: 
+Oyun kopyalanıyor	Copying game
+Oyun okunamadı: 	Could not read game: 
+PDF açılamadı: 	Could not open PDF: 
+PS2 oyunu ekle	Add PS2 game
+PS2 oyunu karta eklensin mi?	Add the PS2 game to the card?
+Panelleri değiştir	Swap panels
+Pano boş	Clipboard empty
+Pano boş: bir öğeye uzun basıp "Panoya kopyala" seçin	Clipboard is empty: long press an item and choose "Copy to clipboard"
+Panoya kes	Cut to clipboard
+Panoya kopyala	Copy to clipboard
+Parola	Password
+Parola (tekrar)	Password (again)
+Parola en az 4 karakter olmalı	Password must be at least 4 characters
+Parola yanlış	Wrong password
+Parolalar aynı değil	Passwords do not match
+Parolayı unutursanız kasadaki dosyalar açılamaz.	If you forget the password, the files in the vault cannot be opened.
+Paylaş	Share
+Paylaşılamadı: 	Could not share: 
+Paylaşım adı ve klasör (ör. /Belgeler)	Share name and folder (e.g. /Documents)
+Paylaşım hazırlanıyor	Preparing to share
+Resim olarak	As image
+SD kart	SD card
+Satır yüksekliği	Row height
+Sağda göster	Show on the right
+Sağlama toplamı	Checksum
+Seri no: 	Serial no: 
+Ses olarak	As audio
+Sil	Delete
+Sil ve biçimlendir	Wipe and format
+Sil ve hazırla	Wipe and prepare
+Sil ve oluştur	Wipe and create
+Sil ve yaz	Wipe and write
+Silerken çöp kutusu kullan	Use recycle bin when deleting
+Siliniyor	Deleting
+Siliniyor: 	Deleting: 
+Silinsin mi?	Delete?
+Sistem	System
+Solda göster	Show on the left
+Son dosyalar	Recent files
+Sonra	Later
+Sunucu	Server
+Sunucu başlatılamadı	Could not start the server
+Sunucu başlatılamadı: 	Could not start the server: 
+Sunucu ekle	Add server
+Sunucuyu düzenle	Edit server
+Sık kullan.	Favorites
+Sık kullanılanlar	Favorites
+Sık kullanılanlara ekle	Add to favorites
+Sık kullanılanlara eklendi	Added to favorites
+Sık kullanılanlardan çıkarıldı	Removed from favorites
+Sıkı	Compact
+Sıkıştırılıyor	Compressing
+Sıkıştırılıyor: 	Compressing: 
+Sıralama	Sort
+Tam ekran	Full screen
+Tam sil (kartın tamamını sıfırla doldurur; uzun sürer)	Full wipe (fills the whole card with zeros; takes long)
+Tam silme	Full wipe
+Tamam	OK
+Tamamlandı. 	Done. 
+Tamamlandı. Kart 	Done. Card 
+Tarihe göre	By date
+Taşı	Move
+Taşı (diğer panele)	Move (to other panel)
+Taşınıyor	Moving
+Telefon	Phone
+Telefon belleğinde bir klasöre dokunun	Tap a folder in phone storage
+Telefona kaydediliyor	Saving to phone
+Telefona kaydet	Save to phone
+Telefondaki dosyaları görmek için gerekli	Required to see the files on your phone
+Toplu yeniden adlandır	Batch rename
+Tümünü seç	Select all
+Türe göre	By type
+USB depolama	USB storage
+USB izni bekleniyor…	Waiting for USB permission…
+USB izni verilmedi	USB permission denied
+USB izni verilmedi. "Yenile"ye basıp izin verin.	USB permission denied. Press "Refresh" and allow it.
+USB kart	USB card
+USB kart (OTG)	USB card (OTG)
+USB kart araçları	USB card tools
+USB kart açılıyor	Opening USB card
+USB kart – 	USB card – 
+USB kimliği: %04X:%04X\n	USB ID: %04X:%04X\n
+Uygulama bilgisi	App info
+Uygulama yöneticisi	App manager
+Uygulamadan çıkılsın mı?	Exit the app?
+Uzun bas: geri yükle	Long press: restore
+Vazgeç	Cancel
+Veritabanı açılamadı: 	Could not open database: 
+Video olarak	As video
+Web depolama	Web storage
+WiFi dosya paylaşımı	WiFi file sharing
+WiFi dosya paylaşımı açık	WiFi file sharing is on
+WiFi paylaşımı kapatıldı	WiFi sharing stopped
+WiFi'ye bağlı değilsiniz	You are not connected to WiFi
+WiFi'ye bağlı değilsiniz (ya da erişim noktası kapalı)	You are not connected to WiFi (or the hotspot is off)
+Windows 11 denetimlerini atla (TPM, Güvenli Önyükleme, RAM)	Skip Windows 11 checks (TPM, Secure Boot, RAM)
+Windows kartı hazırlansın mı?	Prepare the Windows card?
+Windows kartı hazırlanıyor	Preparing Windows card
+Windows kurulum kartı	Windows setup card
+Windows kurulum kartı (ISO)	Windows setup card (ISO)
+Windows paylaşımı ya da NAS (SMB)	Windows share or NAS (SMB)
+Yalnız telefondaki dosyalar için	Only for files on the phone
+Yapıştır (	Paste (
+Yazı boyutu	Text size
+Yazılan veri doğrulanamadı; kart bozuk ya da sahte olabilir	Written data could not be verified; the card may be damaged or fake
+Yazılan veri doğrulanıyor… Kartı çıkarmayın.	Verifying written data… Do not remove the card.
+Yazılırsa bilgisayar bu karttan açılmayabilir.	If written, the computer may not boot from this card.
+Yedek al	Back up
+Yedek alındı (	Backup done (
+Yedek dosyası oluşturulamadı	Could not create backup file
+Yeni ad	New name
+Yeni klasör	New folder
+Yeni: 	New: 
+Yeniden adlandır	Rename
+Yeniden adlandırılıyor	Renaming
+Yenile	Refresh
+Yer: 	Location: 
+Yükleniyor…	Loading…
+Yüklü	Installed
+ZIP içi • uzun bas: kapat	Inside ZIP • long press: close
+ZIP içine göz atılamadı (	Could not browse the ZIP (
+ZIP oluştur	Create ZIP
+ZIP yap	ZIP
+ZIP'in kaydedileceği klasörü açın	Open the folder where the ZIP will be saved
+" klasörüne açıldı	" extracted to folder
+" klasörüne açıldı.	" extracted to folder.
+"Tüm dosyalara erişim" izni gerekiyor. Açılan ekranda izni verin.	"All files access" permission is required. Grant it on the screen that opens.
+\n(Bu uygulama parçalı APK kullanıyor; yalnızca ana parça kaydedildi)	\n(This app uses split APKs; only the base part was saved)
+\nAd: 	\nName: 
+\nBoyut: 	\nSize: 
+\nBu bölüm salt okunur açıldı.	\nThis partition was opened read-only.
+\nBölüm tablosu: 	\nPartition table: 
+\nKart: 	\nCard: 
+\nKarttaki BÜTÜN dosyalar silinecek ve geri 	\nALL files on the card will be erased and cannot 
+\nKlasör: 	\nFolder: 
+\nKüme: 	\nCluster: 
+\nSilinen dosyalar geri getirilemez.	\nDeleted files cannot be recovered.
+\n\nDosya indirip yükleyebilirsiniz. Uygulama açıkken çalışır; işiniz 	\n\nYou can download and upload files. Works while the app is open; turn it off 
+\n\nGPT seçilirse kart yalnızca UEFI ile, MBR seçilirse eski BIOS'lu 	\n\nWith GPT the card boots only via UEFI; with MBR it also boots on legacy BIOS 
+\n\nKart yalnızca UEFI ile açılır (2012 sonrası bilgisayarların çoğu).	\n\nThe card boots only via UEFI (most computers after 2012).
+\n\nKarttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.	\n\nALL files on the card will be erased and cannot be recovered.
+\n\nKarttaki dosyalar silinmez; oyun OPL'nin okuyacağı adla eklenir.	\n\nFiles on the card are kept; the game is added under the name OPL reads.
+\n\nKlasörün içindeki her şey de silinecek.	\n\nEverything inside the folder will be deleted too.
+\n\nKod: 	\n\nCode: 
+\n\nKullanıcı: kart\nParola: 	\n\nUser: kart\nPassword: 
+\n\nSildikten sonra kartı kullanmak için 	\n\nAfter wiping, to use the card 
+\n\nSilinen dosyalar geri getirilemez.	\n\nDeleted files cannot be recovered.
+\n\nUyarı: bu dosya doğrudan yazılmaya uygun bir disk imajına 	\n\nWarning: this file does not look like a disk image 
+\n\nUygulama açıkken çalışır; işiniz bitince kapatın.	\n\nWorks while the app is open; turn it off when done.
+\n\ninstall.wim 4 GB'tan büyük; 	\n\ninstall.wim is larger than 4 GB; 
+\n\nİşlem kartın hızına göre 10-40 dakika 	\n\nDepending on the card speed this may take 10-40 minutes 
+\nÇöp kutusuna taşınanlar 30 gün içinde geri yüklenebilir.	\nItems moved to the recycle bin can be restored within 30 days.
+benzemiyor (örneğin Windows kurulum ISO'ları bu yöntemle çalışmaz). 	that can be written directly (e.g. Windows setup ISOs do not work this way). 
+bilgisayarlarda da açılır.	computers too.
+bitince kapatın.	when done.
+biçimlendirin.	format it.
+biçimlendirmeniz gerekir.	you need to format it.
+exFAT (4 GB'tan büyük dosyalar, 64 GB+ kartlar)	exFAT (files over 4 GB, 64 GB+ cards)
+ext4 (Linux, Raspberry Pi, bazı Android cihazlar)	ext4 (Linux, Raspberry Pi, some Android devices)
+kalan alan	free space
+kopyalandı	copied
+okunur 	readable 
+okuyucuyu telefona bağlayın.	connect the reader to the phone.
+seçin.	choose.
+sürebilir. Telefonu şarja takmanız önerilir.	. Charging the phone is recommended.
+tar.gz, tar.xz, tar.bz2 ya da ISO olmalı)	tar.gz, tar.xz, tar.bz2 or ISO)
+taşınamadı	could not be moved
+yazılır 	writable 
+Çal	Play
+Çalınamadı: 	Could not play: 
+Çöp kutusu	Recycle bin
+Çöp kutusuna	To recycle bin
+Çöp kutusuna taşınıyor	Moving to recycle bin
+Çık	Exit
+Çıkarken onay sor	Ask before exit
+Çıkarılacak yazılabilir bir klasör açın	Open a writable folder to extract into
+Çıkmak için tekrar basın	Press again to exit
+Önbellek oluşturulamadı	Could not create cache
+Önbellek temizlendi	Cache cleared
+Önbelleği temizle	Clear cache
+Önce bir klasör açın	Open a folder first
+Önce bir klasöre dokunun	Tap a folder first
+Önce bir öğeye dokunun	Tap an item first
+Önce bir öğeye dokunun ya da uzun basıp seçin	Tap an item first, or long press to select
+Önce yazılabilir bir klasöre dokunun	Tap a writable folder first
+Özellikler	Properties
+Üretici: 	Manufacturer: 
+Ürün: 	Product: 
+Üst klasör	Up
+İki panelli dosya yöneticisi ve USB kart araçları.\n\n	Two-panel file manager and USB card tools.\n\n
+İmaj karta yazılsın mı?	Write the image to the card?
+İmaj yaz	Write image
+İmaj yazılıyor	Writing image
+İnceleniyor: 	Inspecting: 
+İptal	Cancel
+İptal edildi	Cancelled
+İptal edildi.	Cancelled.
+İptal edildi. Yazma işlemi yarıda kaldıysa kartı kullanmadan önce 	Cancelled. If writing stopped halfway, before using the card 
+İptal ediliyor…	Cancelling…
+İzin ver	Allow
+İzinler: 	Permissions: 
+İçerik: 	Contents: 
+İçindekileri birleştir (defrag)	Defragment contents
+İşareti kaldır	Unmark
+İşaretle	Mark
+Şifreli dosyalar	Encrypted files
+Şununla aç…	Open with…
+… Kartı çıkarmayın, uygulamayı kapatmayın.	… Do not remove the card or close the app.
+… ve 	… and 
+⬆ Yukarı	⬆ Up
+💾 Kaydet	💾 Save
+📁  Dosyalar	📁  Files
+Dil	Language
+Sistem dili	System language
+Bir dosya seçin	Choose a file

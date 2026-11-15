@@ -1,0 +1,482 @@
+   kullanıcı: kart   parola: 	   foydalanuvchi: kart   parol: 
+  (açılamadı)	  (ochilmadi)
+  (ilk 4 MB, salt okunur)	  (birinchi 4 MB, faqat o'qish)
+  (salt okunur)	  (faqat o'qish)
+ (en çok 200 satır)	 (ko'pi bilan 200 qator)
+ açılamadı	 ochilmadi
+ boş / 	 bo'sh / 
+ boş)	 bo'sh)
+ bölüm oluşturuldu.\n\n	 ta bo'lim yaratildi.\n\n
+ dosya "	 fayl "
+ dosya birleştirildi.	 ta fayl defragmentatsiya qilindi.
+ dosya birleştirilemedi: 	 ta faylni defragmentatsiya qilib bo'lmadi: 
+ dosya incelendi, 	 ta fayl tekshirildi, 
+ dosya karta kopyalandı.	 ta fayl kartaga nusxalandi.
+ dosya kopyalandı.	 ta fayl nusxalandi.
+ dosya).	 ta fayl).
+ dosya, 	 ta fayl, 
+ gerekli, 	 kerak, 
+ içi • uzun bas: kapat	 ichi • uzoq bosing: yopish
+ için boyut girin.	 uchun hajm kiriting.
+ kart, sıkıştırılmış 	 karta, siqilgan 
+ klasör	 ta papka
+ klasörü kaydedildi (	 papkasi saqlandi (
+ klasörü oluşturulamadı	 papkasini yaratib bo'lmadi
+ olarak biçimlendirildi.\n\n	 sifatida formatlandi.\n\n
+ olarak biçimlendirilsin mi?	 sifatida formatlansinmi?
+ oluşturulamadı	 yaratib bo'lmadi
+ oluşturuldu (	 yaratildi (
+ oluşturuldu.	 yaratildi.
+ parçaya bölünecek.	 qismga bo'linadi.
+ satır)	 qator)
+ silindi.	 o'chirildi.
+ sonuç • uzun bas: kapat	 natija • uzoq bosing: yopish
+ tablo	 jadval
+ telefona kaydedildi.	 telefonga saqlandi.
+ yazıldı ve doğrulandı.\n\nOkuyucuyu çıkarabilirsiniz.	 yozildi va tekshirildi.\n\nKartriderni chiqarishingiz mumkin.
+ öğe	 ta element
+ öğe daha\n	 ta element yana\n
+ öğe panoya 	 ta element buferga 
+ öğe seçili\n	 ta element tanlangan\n
+ öğe silindi	 ta element o'chirildi
+ öğe silinsin mi?	 ta element o'chirilsinmi?
+ öğe taşındı.	 ta element ko'chirildi.
+ öğe çöp kutusuna taşındı	 ta element savatga ko'chirildi
+ öğe)	 ta element)
+ öğe\n→ 	 ta element\n→ 
+ öğeyi yeniden adlandır	 ta elementni qayta nomlash
+ • uzun bas: kapat	 • uzoq bosing: yopish
+# → sıra numarası (## = 01, 02…)\n* → eski ad (uzantısız)\nUzantılar korunur.	# → tartib raqami (## = 01, 02…)\n* → eski nom (kengaytmasiz)\nKengaytmalar saqlanadi.
+(GPL), Apache Commons Compress ve Net (Apache-2.0), 	(GPL), Apache Commons Compress va Net (Apache-2.0), 
+(boş)	(bo'sh)
+(geri) 	(tiklangan) 
++ Dosya ekle	+ Fayl qo'shish
++ Klasör	+ Papka
+. Hedef klasöre uzun basıp "Yapıştır" seçin.	. Kerakli papkani uzoq bosib "Joylash"ni tanlang.
+.img.gz dosyası).\n\nGeri yüklemek için "İmaj yaz" ile bu dosyayı 	.img.gz fayli).\n\nTiklash uchun bu faylni "Obraz yozish" bilan 
+APK kopyalanıyor	APK nusxalanmoqda
+APK paylaş	APK ulashish
+APK'yı paylaş	APK ulashish
+APK'yı yedekle (İndirilenler/APK)	APK zaxiralash (Yuklanmalar/APK)
+Ad	Nomi
+Ad (ör. Bilgisayarım)	Nomi (masalan: Kompyuterim)
+Ad değiştir	Nomini o'zgartirish
+Ad: 	Nomi: 
+Ada göre	Nomi bo'yicha
+Adres (ör. 192.168.1.10)	Manzil (masalan: 192.168.1.10)
+Adres (ör. https://webdav.yandex.ru)	Manzil (masalan: https://webdav.yandex.ru)
+Adres gerekli	Manzil kerak
+Ara	Qidirish
+Ara: 	Qidirish: 
+Arama: "	Qidiruv: "
+Aranıyor	Qidirilmoqda
+Aranıyor: 	Qidirilmoqda: 
+Araç çubuğu yazıları	Asboblar paneli yozuvlari
+Artan sırala	O'sish tartibida
+Arşiv / ISO aç (zip, 7z, tar, iso)	Arxiv / ISO ochish (zip, 7z, tar, iso)
+Arşiv açılıyor	Arxiv ochilmoqda
+Arşiv hazırlanıyor…	Arxiv tayyorlanmoqda…
+Arşiv okunuyor	Arxiv o'qilmoqda
+Arşivi aç	Arxivni ochish
+Arşivi bir klasöre çıkarmayı deneyin.	Arxivni papkaga chiqarib ko'ring.
+Arşivi çıkar	Arxivni chiqarish
+Arşivin içine bak	Arxiv ichini ko'rish
+Ayarlar	Sozlamalar
+Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n	Shu WiFi'dagi kompyuterda brauzerni ochib quyidagi manzilga kiring:\n\n
+Azalan sırala	Kamayish tartibida
+Aç	Ochish
+Açmak için dokunun	Ochish uchun bosing
+Açık	Yoqilgan
+Açık kaynak bileşenler: ntfs-3g (GPL-2.0), Rufus/ms-sys 	Ochiq kodli qismlar: ntfs-3g (GPL-2.0), Rufus/ms-sys 
+Açık • uzun bas: kilitle	Ochiq • uzoq bosing: qulflash
+Açılamadı: 	Ochilmadi: 
+Açılışta son klasörler	Ochilishda oxirgi papkalar
+Ağaç çizgileri	Daraxt chiziqlari
+Başka uygulamayla aç	Boshqa ilovada ochish
+Başlangıç klasörü	Boshlang'ich papka
+Beklenmeyen hata: 	Kutilmagan xato: 
+Bilgisayardan (Windows Gezgini adres çubuğu ya da FileZilla) bağlanın:\n\n	Kompyuterdan ulaning (Windows Explorer manzil satri yoki FileZilla):\n\n
+Bir arşiv dosyası seçin	Arxiv faylini tanlang
+Bir dosyaya dokunun	Faylni bosing
+Bir işlem sürüyor	Jarayon davom etmoqda
+Bir klasör kendi içine kopyalanamaz: 	Papkani o'z ichiga nusxalab bo'lmaydi: 
+Bir klasöre dokunup ⭐ ile ekleyebilirsiniz	Papkani bosib ⭐ bilan qo'shishingiz mumkin
+Birleştir (defrag)	Defragmentatsiya
+Birleştiriliyor	Defragmentatsiya qilinmoqda
+Birleştiriliyor: 	Defragmentatsiya: 
+Birlikte aç	Bilan ochish
+Biçimlendir	Formatlash
+Biçimlendir  •  	Formatlash  •  
+Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…	Formatlash, obraz yozish, Windows / FreeDOS, PS2…
+Biçimlendiriliyor	Formatlanmoqda
+Biçimlendirme, imaj yazma ve silme karttaki bütün dosyaları siler. Önce yedek alın.	Formatlash, obraz yozish va tozalash kartadagi barcha fayllarni o'chiradi. Avval zaxira oling.
+Boyut: 	Hajmi: 
+Boyuta göre	Hajmi bo'yicha
+Boş	Bo'sh
+Bu dosya tanınan bir arşiv değil	Bu fayl tanilgan arxiv emas
+Bu dosya tanınan bir arşiv değil (zip, 7z, tar, 	Bu fayl tanilgan arxiv emas (zip, 7z, tar, 
+Bu dosyayı açacak uygulama yok	Bu faylni ochadigan ilova yo'q
+Bu klasör boş.	Bu papka bo'sh.
+Bu klasöre çıkar	Shu yerga chiqarish
+Bu konum salt okunur	Bu joy faqat o'qish uchun
+Bu uygulamanın açılacak ekranı yok	Bu ilovaning ochiladigan oynasi yo'q
+Bu video oynatılamıyor; başka uygulamayla açmayı deneyin	Bu videoni ijro etib bo'lmaydi; boshqa ilovada ochib ko'ring
+Bulunamadı	Topilmadi
+Bulunan kart: 	Topilgan karta: 
+Buraya yapıştır (	Shu yerga joylash (
+Buraya çıkar	Shu yerga chiqarish
+Bölüm 	Bo'lim 
+Bölüm sayısı	Bo'limlar soni
+Bölüm sihirbazı	Bo'limlar ustasi
+Bölüm sihirbazı  •  	Bo'limlar ustasi  •  
+Bölüm tablosu	Bo'limlar jadvali
+Bölümler oluşturulsun mu?	Bo'limlar yaratilsinmi?
+Bölümler oluşturuluyor	Bo'limlar yaratilmoqda
+Büyük	Katta
+Cihaz ekle	Qurilma qo'shish
+Dahili depolama	Ichki xotira
+Devam	Davom etish
+Devre dışı	O'chirilgan
+Değişiklikler kaydedilsin mi?	O'zgarishlar saqlansinmi?
+Değiştirilme: 	O'zgartirilgan: 
+Disk analizi	Disk tahlili
+Disk analizi: 	Disk tahlili: 
+Diğer panelde hedef klasöre dokunun	Boshqa paneldagi kerakli papkani bosing
+Diğer paneldeki klasöre çıkar	Boshqa paneldagi papkaga chiqarish
+Dosya adı	Fayl nomi
+Dosya adı (bir kısmı)	Fayl nomi (bir qismi)
+Dosya açılamadı: 	Faylni ochib bo'lmadi: 
+Dosya ekranı açılamadı.	Fayllar oynasini ochib bo'lmadi.
+Dosya erişim izni	Fayllarga ruxsat
+Dosya erişim izni gerekli	Fayllarga ruxsat kerak
+Dosya erişim izni ver	Fayllarga ruxsat berish
+Dosya hazırlanıyor: 	Fayl tayyorlanmoqda: 
+Dosya inceleniyor…	Fayl tekshirilmoqda…
+Dosya kaydetme ekranı açılamadı.	Saqlash oynasini ochib bo'lmadi.
+Dosya oluşturuluyor	Fayl yaratilmoqda
+Dosya seçici açılamadı.	Fayl tanlash oynasini ochib bo'lmadi.
+Dosya sistemi	Fayl tizimi
+Dosya yöneticisinin telefondaki dosyaları gösterebilmesi için 	Fayl menejeri telefondagi fayllarni ko'rsatishi uchun 
+Dosya: 	Fayl: 
+Dosyalar	Fayllar
+Dosyalar: 	Fayllar: 
+Düzenle	Tahrirlash
+Ekle	Qo'shish
+FAT32 (her cihaz okur, tek dosya en çok 4 GB)	FAT32 (har qanday qurilma o'qiydi, bitta fayl ko'pi bilan 4 GB)
+FTP sunucusu açık	FTP server yoqilgan
+FTP sunucusu başlatılamadı	FTP serverni ishga tushirib bo'lmadi
+FTP sunucusu kapatıldı	FTP server o'chirildi
+FTP ya da SFTP (SSH) sunucusu	FTP yoki SFTP (SSH) server
+FreeDOS açılış kartı hazırlansın mı?	FreeDOS yuklash kartasi tayyorlansinmi?
+FreeDOS ile açılabilir yap (BIOS güncellemesi için; FAT32 + MBR)	FreeDOS bilan yuklanadigan qilish (BIOS yangilash uchun; FAT32 + MBR)
+FreeDOS kartı hazırlanıyor	FreeDOS kartasi tayyorlanmoqda
+GPT (yalnızca UEFI)	GPT (faqat UEFI)
+GPT (yeni bilgisayarlar için)	GPT (yangi kompyuterlar uchun)
+Geniş	Keng
+Geri yükle	Tiklash
+Geri yüklendi: 	Tiklandi: 
+Geri yüklenemedi	Tiklab bo'lmadi
+Gizli dosyaları göster	Yashirin fayllarni ko'rsatish
+Göster	Ko'rsatish
+Hakkında	Ilova haqida
+Hangi bölüm açılsın?	Qaysi bo'lim ochilsin?
+Hata: 	Xato: 
+Hedef dosya açılamadı	Maqsad faylni ochib bo'lmadi
+Hedef salt okunur	Maqsad faqat o'qish uchun
+Hedefte yeterli yer yok (	Maqsadda joy yetarli emas (
+Hesaplanıyor	Hisoblanmoqda
+Hex görüntüleyici	Hex ko'ruvchi
+Hız testi	Tezlik sinovi
+Hız ölçülüyor	Tezlik o'lchanmoqda
+Hızlı sil (birkaç saniye; bölüm tablosunu ve dosya sistemini siler)	Tez tozalash (bir necha soniya; bo'limlar jadvali va fayl tizimini o'chiradi)
+Hızlı silme	Tez tozalash
+ISO dosyası inceleniyor…	ISO fayli tekshirilmoqda…
+ISO okunamadı: 	ISO o'qilmadi: 
+Kaldır	O'chirib tashlash
+Kalıcı sil	Butunlay o'chirish
+Kalıp	Andoza
+Kapalı	O'chiq
+Kapat	Yopish
+Kart	Karta
+Kart Format açık başka bir telefon (adres ve kod)	Bu ilova ochiq boshqa telefon (manzil va kod)
+Kart adı (isteğe bağlı)	Karta nomi (ixtiyoriy)
+Kart açılıyor…	Karta ochilmoqda…
+Kart bilgisi	Karta ma'lumoti
+Kart bilgisi okunuyor	Karta ma'lumoti o'qilmoqda
+Kart okunuyor…	Karta o'qilmoqda…
+Kart okuyucu bulunamadı	Kartrider topilmadi
+Kart okuyucu bulunamadı.\n\nKartı OTG kart okuyucuya takıp 	Kartrider topilmadi.\n\nKartani OTG kartriderga qo'yib 
+Kart okuyucu çıkarıldı	Kartrider chiqarildi
+Kart okuyucu çıkarıldı.	Kartrider chiqarildi.
+Kart okuyucu: 	Kartrider: 
+Kart silindi. Kullanmak için "Biçimlendir"e basın.	Karta tozalandi. Foydalanish uchun "Formatlash"ni bosing.
+Kart siliniyor	Karta tozalanmoqda
+Kart yedekleniyor	Karta zaxiralanmoqda
+Kart: 	Karta: 
+Karta kopyalanıyor	Kartaga nusxalanmoqda
+Kartta açılabilen bölüm yok	Kartada ochiladigan bo'lim yo'q
+Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n	Kartadagi BARCHA fayllar o'chiriladi va qaytarib bo'lmaydi.\n\n
+Kartı sil	Kartani tozalash
+Kasa	Seyf
+Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.	Seyf ochiq. Fayl qo'shish uchun boshqa paneldan nusxalang yoki ko'chiring.
+Kasa açılıyor	Seyf ochilmoqda
+Kasa kilitlendi	Seyf qulflandi
+Kasa parolası belirle	Seyf parolini o'rnating
+Kasayı aç	Seyfni ochish
+Kaydedildi	Saqlandi
+Kaydedildi: İndirilenler/APK/	Saqlandi: Yuklanmalar/APK/
+Kaydedilemedi: 	Saqlab bo'lmadi: 
+Kaydediliyor: 	Saqlanmoqda: 
+Kaydet	Saqlash
+Kaydetme	Saqlamaslik
+Kaynak salt okunur; taşınamaz, kopyalayın	Manba faqat o'qish uchun; ko'chirib bo'lmaydi, nusxalang
+Klasör	Papka
+Klasör adı	Papka nomi
+Klasör kendi içine yapıştırılamaz	Papkani o'z ichiga joylab bo'lmaydi
+Klasör oluşturulamadı	Papka yaratib bo'lmadi
+Klasör oluşturuluyor	Papka yaratilmoqda
+Klasör seçme ekranı açılamadı.	Papka tanlash oynasini ochib bo'lmadi.
+Klasör telefona kaydediliyor	Papka telefonga saqlanmoqda
+Klasör yapısı çok derin	Papkalar tuzilmasi juda chuqur
+Klasörler paylaşılamaz; önce ZIP yapın	Papkalarni ulashib bo'lmaydi; avval ZIP qiling
+Klasörler önce	Avval papkalar
+Kopyala	Nusxalash
+Kopyala (diğer panele)	Nusxalash (boshqa panelga)
+Kopyalanıyor	Nusxalanmoqda
+Kopyası oluşturuluyor	Nusxa yaratilmoqda
+Kopyasını oluştur	Nusxasini yaratish
+Kullanıcı adı	Foydalanuvchi nomi
+Küme boyutu (FAT32 / exFAT / NTFS)	Klaster hajmi (FAT32 / exFAT / NTFS)
+Küçük	Kichik
+Küçük resimler	Kichik rasmlar
+Listede görünecek bölümler	Ro'yxatda ko'rinadigan bo'limlar
+MBR (UEFI + eski BIOS; eski bilgisayarlar için)	MBR (UEFI + eski BIOS; eski kompyuterlar uchun)
+MBR (açılmazsa bunu deneyin)	MBR (yuklanmasa buni sinab ko'ring)
+MBR (önerilen; telefonlar ve kameralar için)	MBR (tavsiya etiladi; telefon va kameralar uchun)
+Metin dosyası	Matn fayli
+Metin olarak	Matn sifatida
+Microsoft hesabı zorunluluğunu atla (yerel hesap)	Microsoft hisobi talabini o'tkazib yuborish (mahalliy hisob)
+NTFS (Windows bilgisayarlar için)	NTFS (Windows kompyuterlar uchun)
+Normal	Oddiy
+Not: telefonlar ve kameralar çoğunlukla yalnızca ilk bölümü görür.	Eslatma: telefon va kameralar odatda faqat birinchi bo'limni ko'radi.
+OTG ile takılan kart ve USB bellek araçları. Root gerekmez.	OTG orqali ulangan karta va USB xotira uchun asboblar. Root kerak emas.
+Okunamadı: 	O'qib bo'lmadi: 
+Okuyucuyu çıkarıp kartı kullanabilirsiniz.	Kartriderni chiqarib kartadan foydalanishingiz mumkin.
+Oluştur	Yaratish
+Orta	O'rta
+Otomatik	Avtomatik
+Oyun inceleniyor…	O'yin tekshirilmoqda…
+Oyun kodu: 	O'yin kodi: 
+Oyun kopyalanıyor	O'yin nusxalanmoqda
+Oyun okunamadı: 	O'yinni o'qib bo'lmadi: 
+PDF açılamadı: 	PDF ochilmadi: 
+PS2 oyunu ekle	PS2 o'yini qo'shish
+PS2 oyunu karta eklensin mi?	PS2 o'yini kartaga qo'shilsinmi?
+Panelleri değiştir	Panellarni almashtirish
+Pano boş	Bufer bo'sh
+Pano boş: bir öğeye uzun basıp "Panoya kopyala" seçin	Bufer bo'sh: elementni uzoq bosib "Buferga nusxalash"ni tanlang
+Panoya kes	Buferga kesish
+Panoya kopyala	Buferga nusxalash
+Parola	Parol
+Parola (tekrar)	Parol (qayta)
+Parola en az 4 karakter olmalı	Parol kamida 4 belgidan iborat bo'lsin
+Parola yanlış	Parol noto'g'ri
+Parolalar aynı değil	Parollar bir xil emas
+Parolayı unutursanız kasadaki dosyalar açılamaz.	Parolni unutsangiz, seyfdagi fayllarni ochib bo'lmaydi.
+Paylaş	Ulashish
+Paylaşılamadı: 	Ulashib bo'lmadi: 
+Paylaşım adı ve klasör (ör. /Belgeler)	Ulashilgan papka nomi (masalan: /Hujjatlar)
+Paylaşım hazırlanıyor	Ulashishga tayyorlanmoqda
+Resim olarak	Rasm sifatida
+SD kart	SD karta
+Satır yüksekliği	Qator balandligi
+Sağda göster	O'ngda ko'rsatish
+Sağlama toplamı	Nazorat summasi
+Seri no: 	Seriya raqami: 
+Ses olarak	Audio sifatida
+Sil	O'chirish
+Sil ve biçimlendir	Tozalash va formatlash
+Sil ve hazırla	Tozalash va tayyorlash
+Sil ve oluştur	Tozalash va yaratish
+Sil ve yaz	Tozalash va yozish
+Silerken çöp kutusu kullan	O'chirishda savatdan foydalanish
+Siliniyor	O'chirilmoqda
+Siliniyor: 	O'chirilmoqda: 
+Silinsin mi?	O'chirilsinmi?
+Sistem	Tizim
+Solda göster	Chapda ko'rsatish
+Son dosyalar	Oxirgi fayllar
+Sonra	Keyinroq
+Sunucu	Server
+Sunucu başlatılamadı	Serverni ishga tushirib bo'lmadi
+Sunucu başlatılamadı: 	Serverni ishga tushirib bo'lmadi: 
+Sunucu ekle	Server qo'shish
+Sunucuyu düzenle	Serverni tahrirlash
+Sık kullan.	Sevimlilar
+Sık kullanılanlar	Sevimlilar
+Sık kullanılanlara ekle	Sevimlilarga qo'shish
+Sık kullanılanlara eklendi	Sevimlilarga qo'shildi
+Sık kullanılanlardan çıkarıldı	Sevimlilardan olib tashlandi
+Sıkı	Zich
+Sıkıştırılıyor	Siqilmoqda
+Sıkıştırılıyor: 	Siqilmoqda: 
+Sıralama	Saralash
+Tam ekran	To'liq ekran
+Tam sil (kartın tamamını sıfırla doldurur; uzun sürer)	To'liq tozalash (butun kartani nol bilan to'ldiradi; uzoq davom etadi)
+Tam silme	To'liq tozalash
+Tamam	OK
+Tamamlandı. 	Tayyor. 
+Tamamlandı. Kart 	Tayyor. Karta 
+Tarihe göre	Sanasi bo'yicha
+Taşı	Ko'chirish
+Taşı (diğer panele)	Ko'chirish (boshqa panelga)
+Taşınıyor	Ko'chirilmoqda
+Telefon belleğinde bir klasöre dokunun	Telefon xotirasidagi papkani bosing
+Telefona kaydediliyor	Telefonga saqlanmoqda
+Telefona kaydet	Telefonga saqlash
+Telefondaki dosyaları görmek için gerekli	Telefondagi fayllarni ko'rish uchun kerak
+Toplu yeniden adlandır	Ommaviy qayta nomlash
+Tümünü seç	Hammasini tanlash
+Türe göre	Turi bo'yicha
+USB depolama	USB xotira
+USB izni bekleniyor…	USB ruxsati kutilmoqda…
+USB izni verilmedi	USB ruxsati berilmadi
+USB izni verilmedi. "Yenile"ye basıp izin verin.	USB ruxsati berilmadi. "Yangilash"ni bosib ruxsat bering.
+USB kart	USB karta
+USB kart (OTG)	USB karta (OTG)
+USB kart araçları	USB karta asboblari
+USB kart açılıyor	USB karta ochilmoqda
+USB kart – 	USB karta – 
+USB kimliği: %04X:%04X\n	USB ID: %04X:%04X\n
+Uygulama bilgisi	Ilova ma'lumoti
+Uygulama yöneticisi	Ilovalar menejeri
+Uygulamadan çıkılsın mı?	Ilovadan chiqilsinmi?
+Uzun bas: geri yükle	Uzoq bosing: tiklash
+Vazgeç	Bekor qilish
+Veritabanı açılamadı: 	Ma'lumotlar bazasini ochib bo'lmadi: 
+Video olarak	Video sifatida
+Web depolama	Veb xotira
+WiFi dosya paylaşımı	WiFi orqali fayl almashish
+WiFi dosya paylaşımı açık	WiFi orqali fayl almashish yoqildi
+WiFi paylaşımı kapatıldı	WiFi almashish o'chirildi
+WiFi'ye bağlı değilsiniz	WiFi'ga ulanmagansiz
+WiFi'ye bağlı değilsiniz (ya da erişim noktası kapalı)	WiFi'ga ulanmagansiz (yoki ulanish nuqtasi o'chiq)
+Windows 11 denetimlerini atla (TPM, Güvenli Önyükleme, RAM)	Windows 11 tekshiruvlarini o'tkazib yuborish (TPM, Secure Boot, RAM)
+Windows kartı hazırlansın mı?	Windows kartasi tayyorlansinmi?
+Windows kartı hazırlanıyor	Windows kartasi tayyorlanmoqda
+Windows kurulum kartı	Windows o'rnatish kartasi
+Windows kurulum kartı (ISO)	Windows o'rnatish kartasi (ISO)
+Windows paylaşımı ya da NAS (SMB)	Windows ulashilgan papkasi yoki NAS (SMB)
+Yalnız telefondaki dosyalar için	Faqat telefondagi fayllar uchun
+Yapıştır (	Joylash (
+Yazı boyutu	Yozuv o'lchami
+Yazılan veri doğrulanamadı; kart bozuk ya da sahte olabilir	Yozilgan ma'lumotni tekshirib bo'lmadi; karta buzilgan yoki soxta bo'lishi mumkin
+Yazılan veri doğrulanıyor… Kartı çıkarmayın.	Yozilgan ma'lumot tekshirilmoqda… Kartani chiqarmang.
+Yazılırsa bilgisayar bu karttan açılmayabilir.	Yozilsa, kompyuter bu kartadan yuklanmasligi mumkin.
+Yedek al	Zaxira olish
+Yedek alındı (	Zaxira olindi (
+Yedek dosyası oluşturulamadı	Zaxira faylini yaratib bo'lmadi
+Yeni ad	Yangi nom
+Yeni klasör	Yangi papka
+Yeni: 	Yangi: 
+Yeniden adlandır	Qayta nomlash
+Yeniden adlandırılıyor	Qayta nomlanmoqda
+Yenile	Yangilash
+Yer: 	Joyi: 
+Yükleniyor…	Yuklanmoqda…
+Yüklü	O'rnatilgan
+ZIP içi • uzun bas: kapat	ZIP ichi • uzoq bosing: yopish
+ZIP içine göz atılamadı (	ZIP ichini ko'rib bo'lmadi (
+ZIP oluştur	ZIP yaratish
+ZIP yap	ZIP
+ZIP'in kaydedileceği klasörü açın	ZIP saqlanadigan papkani oching
+" klasörüne açıldı	" papkasiga chiqarildi
+" klasörüne açıldı.	" papkasiga chiqarildi.
+"Tüm dosyalara erişim" izni gerekiyor. Açılan ekranda izni verin.	"Barcha fayllarga ruxsat" kerak. Ochilgan oynada ruxsat bering.
+\n(Bu uygulama parçalı APK kullanıyor; yalnızca ana parça kaydedildi)	\n(Bu ilova bo'lingan APK ishlatadi; faqat asosiy qism saqlandi)
+\nAd: 	\nNomi: 
+\nBoyut: 	\nHajmi: 
+\nBu bölüm salt okunur açıldı.	\nBu bo'lim faqat o'qish uchun ochildi.
+\nBölüm tablosu: 	\nBo'limlar jadvali: 
+\nKart: 	\nKarta: 
+\nKarttaki BÜTÜN dosyalar silinecek ve geri 	\nKartadagi BARCHA fayllar o'chiriladi va qaytarib 
+\nKlasör: 	\nPapka: 
+\nKüme: 	\nKlaster: 
+\nSilinen dosyalar geri getirilemez.	\nO'chirilgan fayllarni qaytarib bo'lmaydi.
+\n\nDosya indirip yükleyebilirsiniz. Uygulama açıkken çalışır; işiniz 	\n\nFayl yuklab olish va yuklash mumkin. Ilova ochiq paytda ishlaydi; ishingiz 
+\n\nGPT seçilirse kart yalnızca UEFI ile, MBR seçilirse eski BIOS'lu 	\n\nGPT tanlansa karta faqat UEFI bilan, MBR tanlansa eski BIOS'li 
+\n\nKart yalnızca UEFI ile açılır (2012 sonrası bilgisayarların çoğu).	\n\nKarta faqat UEFI bilan yuklanadi (2012 yildan keyingi ko'p kompyuterlar).
+\n\nKarttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.	\n\nKartadagi BARCHA fayllar o'chiriladi va qaytarib bo'lmaydi.
+\n\nKarttaki dosyalar silinmez; oyun OPL'nin okuyacağı adla eklenir.	\n\nKartadagi fayllar o'chirilmaydi; o'yin OPL o'qiydigan nom bilan qo'shiladi.
+\n\nKlasörün içindeki her şey de silinecek.	\n\nPapka ichidagi hamma narsa ham o'chiriladi.
+\n\nKullanıcı: kart\nParola: 	\n\nFoydalanuvchi: kart\nParol: 
+\n\nSildikten sonra kartı kullanmak için 	\n\nTozalagandan keyin kartadan foydalanish uchun 
+\n\nSilinen dosyalar geri getirilemez.	\n\nO'chirilgan fayllarni qaytarib bo'lmaydi.
+\n\nUyarı: bu dosya doğrudan yazılmaya uygun bir disk imajına 	\n\nOgohlantirish: bu fayl to'g'ridan-to'g'ri yoziladigan disk obraziga 
+\n\nUygulama açıkken çalışır; işiniz bitince kapatın.	\n\nIlova ochiq paytda ishlaydi; ishingiz tugagach o'chiring.
+\n\ninstall.wim 4 GB'tan büyük; 	\n\ninstall.wim 4 GB'dan katta; 
+\n\nİşlem kartın hızına göre 10-40 dakika 	\n\nJarayon karta tezligiga qarab 10-40 daqiqa 
+\nÇöp kutusuna taşınanlar 30 gün içinde geri yüklenebilir.	\nSavatga ko'chirilganlarni 30 kun ichida tiklash mumkin.
+benzemiyor (örneğin Windows kurulum ISO'ları bu yöntemle çalışmaz). 	o'xshamaydi (masalan Windows o'rnatish ISO'lari bu usulda ishlamaydi). 
+bilgisayarlarda da açılır.	kompyuterlarda ham yuklanadi.
+bitince kapatın.	tugagach o'chiring.
+biçimlendirin.	formatlang.
+biçimlendirmeniz gerekir.	formatlashingiz kerak.
+exFAT (4 GB'tan büyük dosyalar, 64 GB+ kartlar)	exFAT (4 GB'dan katta fayllar, 64 GB+ kartalar)
+ext4 (Linux, Raspberry Pi, bazı Android cihazlar)	ext4 (Linux, Raspberry Pi, ba'zi Android qurilmalar)
+kalan alan	bo'sh joy
+kopyalandı	nusxalandi
+okunur 	o'qiladi 
+okuyucuyu telefona bağlayın.	kartriderni telefonga ulang.
+seçin.	tanlang.
+sürebilir. Telefonu şarja takmanız önerilir.	davom etishi mumkin. Telefonni quvvatga ulash tavsiya etiladi.
+tar.gz, tar.xz, tar.bz2 ya da ISO olmalı)	tar.gz, tar.xz, tar.bz2 yoki ISO bo'lishi kerak)
+taşınamadı	ko'chirib bo'lmadi
+yazılır 	yoziladi 
+Çal	Ijro etish
+Çalınamadı: 	Ijro etib bo'lmadi: 
+Çöp kutusu	Savat
+Çöp kutusuna	Savatga
+Çöp kutusuna taşınıyor	Savatga ko'chirilmoqda
+Çık	Chiqish
+Çıkarken onay sor	Chiqishda so'rash
+Çıkarılacak yazılabilir bir klasör açın	Chiqarish uchun yoziladigan papkani oching
+Çıkmak için tekrar basın	Chiqish uchun yana bosing
+Önbellek oluşturulamadı	Kesh yaratib bo'lmadi
+Önbellek temizlendi	Kesh tozalandi
+Önbelleği temizle	Keshni tozalash
+Önce bir klasör açın	Avval papkani oching
+Önce bir klasöre dokunun	Avval papkani bosing
+Önce bir öğeye dokunun	Avval elementni bosing
+Önce bir öğeye dokunun ya da uzun basıp seçin	Avval elementni bosing yoki uzoq bosib tanlang
+Önce yazılabilir bir klasöre dokunun	Avval yoziladigan papkani bosing
+Özellikler	Xususiyatlar
+Üretici: 	Ishlab chiqaruvchi: 
+Ürün: 	Mahsulot: 
+Üst klasör	Yuqori papka
+İki panelli dosya yöneticisi ve USB kart araçları.\n\n	Ikki panelli fayl menejeri va USB karta asboblari.\n\n
+İmaj karta yazılsın mı?	Obraz kartaga yozilsinmi?
+İmaj yaz	Obraz yozish
+İmaj yazılıyor	Obraz yozilmoqda
+İnceleniyor: 	Tekshirilmoqda: 
+İptal	Bekor qilish
+İptal edildi	Bekor qilindi
+İptal edildi.	Bekor qilindi.
+İptal edildi. Yazma işlemi yarıda kaldıysa kartı kullanmadan önce 	Bekor qilindi. Yozish yarim qolgan bo'lsa, kartadan foydalanishdan oldin 
+İptal ediliyor…	Bekor qilinmoqda…
+İzin ver	Ruxsat berish
+İzinler: 	Ruxsatlar: 
+İçerik: 	Tarkibi: 
+İçindekileri birleştir (defrag)	Ichidagilarni defragmentatsiya qilish
+İşareti kaldır	Belgini olib tashlash
+İşaretle	Belgilash
+Şifreli dosyalar	Shifrlangan fayllar
+Şununla aç…	Bilan ochish…
+… Kartı çıkarmayın, uygulamayı kapatmayın.	… Kartani chiqarmang, ilovani yopmang.
+… ve 	… va yana 
+⬆ Yukarı	⬆ Yuqoriga
+💾 Kaydet	💾 Saqlash
+📁  Dosyalar	📁  Fayllar
+Dil	Til
+Sistem dili	Tizim tili
+Bir dosya seçin	Fayl tanlang

@@ -48,6 +48,7 @@ public class ImageViewerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         paths = getIntent().getStringArrayListExtra("paths");
         index = getIntent().getIntExtra("index", 0);
         if (paths == null || paths.isEmpty()) {

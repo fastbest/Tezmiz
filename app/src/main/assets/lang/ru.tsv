@@ -1,0 +1,488 @@
+   kod: 	   код: 
+   kullanıcı: kart   parola: 	   пользователь: kart   пароль: 
+  (açılamadı)	  (не удалось открыть)
+  (ilk 4 MB, salt okunur)	  (первые 4 МБ, только чтение)
+  (salt okunur)	  (только чтение)
+ (en çok 200 satır)	 (не более 200 строк)
+ açılamadı	 не удалось открыть
+ bayt)\n	 байт)\n
+ boş / 	 свободно / 
+ boş)	 свободно)
+ bölüm oluşturuldu.\n\n	 разделов создано.\n\n
+ dosya "	 файл "
+ dosya birleştirildi.	 файлов дефрагментировано.
+ dosya birleştirilemedi: 	 файлов не удалось дефрагментировать: 
+ dosya incelendi, 	 файлов проверено, 
+ dosya karta kopyalandı.	 файлов скопировано на карту.
+ dosya kopyalandı.	 файлов скопировано.
+ dosya).	 файлов).
+ dosya, 	 файлов, 
+ gerekli, 	 требуется, 
+ içi • uzun bas: kapat	 содержимое • долгое нажатие: закрыть
+ için boyut girin.	 укажите размер.
+ kart, sıkıştırılmış 	 карта, сжатый 
+ klasör	 папок
+ klasörü kaydedildi (	 папка сохранена (
+ klasörü oluşturulamadı	 не удалось создать папку
+ olarak biçimlendirildi.\n\n	 отформатирована как\n\n
+ olarak biçimlendirilsin mi?	 — форматировать?
+ oluşturulamadı	 не удалось создать
+ oluşturuldu (	 создан (
+ oluşturuldu.	 создан.
+ parçaya bölünecek.	 частей будет создано.
+ satır)	 строк)
+ silindi.	 удалено.
+ sonuç • uzun bas: kapat	 результатов • долгое нажатие: закрыть
+ tablo	 таблиц
+ telefona kaydedildi.	 сохранено в телефон.
+ yazıldı ve doğrulandı.\n\nOkuyucuyu çıkarabilirsiniz.	 записан и проверен.\n\nМожно извлечь картридер.
+ öğe	 объектов
+ öğe daha\n	 ещё объектов\n
+ öğe panoya 	 объектов в буфер: 
+ öğe seçili\n	 объектов выбрано\n
+ öğe silindi	 объектов удалено
+ öğe silinsin mi?	 объектов — удалить?
+ öğe taşındı.	 объектов перемещено.
+ öğe çöp kutusuna taşındı	 объектов перемещено в корзину
+ öğe)	 объектов)
+ öğe\n→ 	 объектов\n→ 
+ öğeyi yeniden adlandır	 объектов — переименовать
+ • uzun bas: kapat	 • долгое нажатие: закрыть
+# → sıra numarası (## = 01, 02…)\n* → eski ad (uzantısız)\nUzantılar korunur.	# → порядковый номер (## = 01, 02…)\n* → старое имя (без расширения)\nРасширения сохраняются.
+(GPL), Apache Commons Compress ve Net (Apache-2.0), 	(GPL), Apache Commons Compress и Net (Apache-2.0), 
+(boş)	(пусто)
+(geri) 	(восстановлено) 
++ Dosya ekle	+ Добавить файл
++ Klasör	+ Папка
+. Hedef klasöre uzun basıp "Yapıştır" seçin.	. Долго нажмите на целевую папку и выберите «Вставить».
+.img.gz dosyası).\n\nGeri yüklemek için "İmaj yaz" ile bu dosyayı 	.img.gz).\n\nДля восстановления запишите этот файл через «Записать образ» 
+APK kopyalanıyor	Копирование APK
+APK paylaş	Поделиться APK
+APK'yı paylaş	Поделиться APK
+APK'yı yedekle (İndirilenler/APK)	Сохранить APK (Загрузки/APK)
+Ad	Имя
+Ad (ör. Bilgisayarım)	Имя (напр. Мой компьютер)
+Ad değiştir	Переименовать
+Ad: 	Имя: 
+Ada göre	По имени
+Adres (ör. 192.168.1.10)	Адрес (напр. 192.168.1.10)
+Adres (ör. https://webdav.yandex.ru)	Адрес (напр. https://webdav.yandex.ru)
+Adres gerekli	Нужен адрес
+Ara	Поиск
+Ara: 	Поиск: 
+Arama: "	Поиск: "
+Aranıyor	Поиск
+Aranıyor: 	Поиск: 
+Araç çubuğu yazıları	Подписи панели инструментов
+Artan sırala	По возрастанию
+Arşiv / ISO aç (zip, 7z, tar, iso)	Открыть архив / ISO (zip, 7z, tar, iso)
+Arşiv açılıyor	Открытие архива
+Arşiv hazırlanıyor…	Подготовка архива…
+Arşiv okunuyor	Чтение архива
+Arşivi aç	Распаковать
+Arşivi bir klasöre çıkarmayı deneyin.	Попробуйте распаковать архив в папку.
+Arşivi çıkar	Распаковать архив
+Arşivin içine bak	Просмотреть архив
+Ayarlar	Настройки
+Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n	На компьютере в той же сети WiFi откройте браузер и перейдите по адресу:\n\n
+Azalan sırala	По убыванию
+Aç	Открыть
+Açmak için dokunun	Нажмите, чтобы открыть
+Açık	Вкл
+Açık kaynak bileşenler: ntfs-3g (GPL-2.0), Rufus/ms-sys 	Компоненты с открытым кодом: ntfs-3g (GPL-2.0), Rufus/ms-sys 
+Açık • uzun bas: kilitle	Открыто • долгое нажатие: заблокировать
+Açılamadı: 	Не удалось открыть: 
+Açılışta son klasörler	Открывать последние папки при запуске
+Ağaç çizgileri	Линии дерева
+Başka uygulamayla aç	Открыть в другом приложении
+Başlangıç klasörü	Начальная папка
+Beklenmeyen hata: 	Непредвиденная ошибка: 
+Bilgisayardan (Windows Gezgini adres çubuğu ya da FileZilla) bağlanın:\n\n	Подключитесь с компьютера (адресная строка Проводника или FileZilla):\n\n
+Bir arşiv dosyası seçin	Выберите файл архива
+Bir dosyaya dokunun	Нажмите на файл
+Bir işlem sürüyor	Выполняется операция
+Bir klasör kendi içine kopyalanamaz: 	Папку нельзя скопировать в саму себя: 
+Bir klasöre dokunup ⭐ ile ekleyebilirsiniz	Нажмите на папку и добавьте её через ⭐
+Birleştir (defrag)	Дефрагментация
+Birleştiriliyor	Дефрагментация
+Birleştiriliyor: 	Дефрагментация: 
+Birlikte aç	Открыть с помощью
+Biçimlendir	Форматировать
+Biçimlendir  •  	Форматировать  •  
+Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…	Форматирование, запись образа, Windows / FreeDOS, PS2…
+Biçimlendiriliyor	Форматирование
+Biçimlendirme, imaj yazma ve silme karttaki bütün dosyaları siler. Önce yedek alın.	Форматирование, запись образа и очистка удаляют все файлы на карте. Сначала сделайте копию.
+Boyut: 	Размер: 
+Boyuta göre	По размеру
+Boş	Свободно
+Bu dosya tanınan bir arşiv değil	Этот файл не является поддерживаемым архивом
+Bu dosya tanınan bir arşiv değil (zip, 7z, tar, 	Этот файл не является поддерживаемым архивом (zip, 7z, tar, 
+Bu dosyayı açacak uygulama yok	Нет приложения для открытия этого файла
+Bu klasör boş.	Папка пуста.
+Bu klasöre çıkar	Распаковать сюда
+Bu konum salt okunur	Это место только для чтения
+Bu uygulamanın açılacak ekranı yok	У этого приложения нет открываемого экрана
+Bu video oynatılamıyor; başka uygulamayla açmayı deneyin	Видео не воспроизводится; попробуйте другое приложение
+Bulunamadı	Не найдено
+Bulunan kart: 	Найдена карта: 
+Buraya yapıştır (	Вставить сюда (
+Buraya çıkar	Распаковать сюда
+Bölüm 	Раздел 
+Bölüm sayısı	Количество разделов
+Bölüm sihirbazı	Мастер разделов
+Bölüm sihirbazı  •  	Мастер разделов  •  
+Bölüm tablosu	Таблица разделов
+Bölümler oluşturulsun mu?	Создать разделы?
+Bölümler oluşturuluyor	Создание разделов
+Büyük	Крупный
+Cihaz ekle	Добавить устройство
+Dahili depolama	Внутренняя память
+Devam	Продолжить
+Devre dışı	Выключено
+Değişiklikler kaydedilsin mi?	Сохранить изменения?
+Değiştirilme: 	Изменён: 
+Disk analizi	Анализ диска
+Disk analizi: 	Анализ диска: 
+Diğer panelde hedef klasöre dokunun	Нажмите на целевую папку в другой панели
+Diğer paneldeki klasöre çıkar	Распаковать в папку другой панели
+Dosya adı	Имя файла
+Dosya adı (bir kısmı)	Имя файла (или часть)
+Dosya açılamadı: 	Не удалось открыть файл: 
+Dosya ekranı açılamadı.	Не удалось открыть экран файлов.
+Dosya erişim izni	Доступ к файлам
+Dosya erişim izni gerekli	Нужен доступ к файлам
+Dosya erişim izni ver	Разрешить доступ к файлам
+Dosya hazırlanıyor: 	Подготовка файла: 
+Dosya inceleniyor…	Проверка файла…
+Dosya kaydetme ekranı açılamadı.	Не удалось открыть экран сохранения.
+Dosya oluşturuluyor	Создание файла
+Dosya seçici açılamadı.	Не удалось открыть выбор файла.
+Dosya sistemi	Файловая система
+Dosya yöneticisinin telefondaki dosyaları gösterebilmesi için 	Чтобы файловый менеджер показывал файлы телефона, 
+Dosya: 	Файл: 
+Dosyalar	Файлы
+Dosyalar: 	Файлы: 
+Düzenle	Изменить
+Ekle	Добавить
+FAT32 (her cihaz okur, tek dosya en çok 4 GB)	FAT32 (читается любым устройством, файл до 4 ГБ)
+FTP sunucusu açık	FTP-сервер включён
+FTP sunucusu başlatılamadı	Не удалось запустить FTP-сервер
+FTP sunucusu kapatıldı	FTP-сервер остановлен
+FTP ya da SFTP (SSH) sunucusu	FTP или SFTP (SSH) сервер
+FreeDOS açılış kartı hazırlansın mı?	Подготовить загрузочную карту FreeDOS?
+FreeDOS ile açılabilir yap (BIOS güncellemesi için; FAT32 + MBR)	Сделать загрузочной с FreeDOS (для обновления BIOS; FAT32 + MBR)
+FreeDOS kartı hazırlanıyor	Подготовка карты FreeDOS
+GPT (yalnızca UEFI)	GPT (только UEFI)
+GPT (yeni bilgisayarlar için)	GPT (для новых компьютеров)
+Geniş	Широкий
+Geri yükle	Восстановить
+Geri yüklendi: 	Восстановлено: 
+Geri yüklenemedi	Не удалось восстановить
+Gizli dosyaları göster	Показывать скрытые файлы
+Göster	Показать
+Hakkında	О приложении
+Hangi bölüm açılsın?	Какой раздел открыть?
+Hata: 	Ошибка: 
+Hedef dosya açılamadı	Не удалось открыть целевой файл
+Hedef salt okunur	Цель только для чтения
+Hedefte yeterli yer yok (	Недостаточно места в цели (
+Hesaplanıyor	Подсчёт
+Hex görüntüleyici	HEX-просмотр
+Hız testi	Тест скорости
+Hız ölçülüyor	Измерение скорости
+Hızlı sil (birkaç saniye; bölüm tablosunu ve dosya sistemini siler)	Быстрая очистка (несколько секунд; стирает таблицу разделов и файловую систему)
+Hızlı silme	Быстрая очистка
+ISO dosyası inceleniyor…	Проверка ISO…
+ISO okunamadı: 	Не удалось прочитать ISO: 
+Kaldır	Удалить
+Kalıcı sil	Удалить навсегда
+Kalıp	Шаблон
+Kapalı	Выкл
+Kapat	Закрыть
+Kart	Карта
+Kart Format açık başka bir telefon (adres ve kod)	Другой телефон с этим приложением (адрес и код)
+Kart adı (isteğe bağlı)	Имя карты (необязательно)
+Kart açılıyor…	Открытие карты…
+Kart bilgisi	Сведения о карте
+Kart bilgisi okunuyor	Чтение сведений о карте
+Kart okunuyor…	Чтение карты…
+Kart okuyucu bulunamadı	Картридер не найден
+Kart okuyucu bulunamadı.\n\nKartı OTG kart okuyucuya takıp 	Картридер не найден.\n\nВставьте карту в OTG-картридер и 
+Kart okuyucu çıkarıldı	Картридер отключён
+Kart okuyucu çıkarıldı.	Картридер отключён.
+Kart okuyucu: 	Картридер: 
+Kart silindi. Kullanmak için "Biçimlendir"e basın.	Карта очищена. Нажмите «Форматировать», чтобы использовать её.
+Kart siliniyor	Очистка карты
+Kart yedekleniyor	Резервное копирование карты
+Kart: 	Карта: 
+Karta kopyalanıyor	Копирование на карту
+Kartta açılabilen bölüm yok	На карте нет открываемых разделов
+Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n	ВСЕ файлы на карте будут удалены без возможности восстановления.\n\n
+Kartı sil	Очистить карту
+Kasa	Сейф
+Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.	Сейф открыт. Скопируйте или переместите файлы из другой панели.
+Kasa açılıyor	Открытие сейфа
+Kasa kilitlendi	Сейф заблокирован
+Kasa parolası belirle	Задайте пароль сейфа
+Kasayı aç	Открыть сейф
+Kaydedildi	Сохранено
+Kaydedildi: İndirilenler/APK/	Сохранено: Загрузки/APK/
+Kaydedilemedi: 	Не удалось сохранить: 
+Kaydediliyor: 	Сохранение: 
+Kaydet	Сохранить
+Kaydetme	Не сохранять
+Kaynak salt okunur; taşınamaz, kopyalayın	Источник только для чтения; скопируйте вместо перемещения
+Klasör	Папка
+Klasör adı	Имя папки
+Klasör kendi içine yapıştırılamaz	Папку нельзя вставить в саму себя
+Klasör oluşturulamadı	Не удалось создать папку
+Klasör oluşturuluyor	Создание папки
+Klasör seçme ekranı açılamadı.	Не удалось открыть выбор папки.
+Klasör telefona kaydediliyor	Сохранение папки в телефон
+Klasör yapısı çok derin	Слишком глубокая структура папок
+Klasörler paylaşılamaz; önce ZIP yapın	Папки нельзя отправить; сначала создайте ZIP
+Klasörler önce	Сначала папки
+Kopyala	Копировать
+Kopyala (diğer panele)	Копировать (в другую панель)
+Kopyalanıyor	Копирование
+Kopyası oluşturuluyor	Создание копии
+Kopyasını oluştur	Создать копию
+Kullanıcı adı	Имя пользователя
+Küme boyutu (FAT32 / exFAT / NTFS)	Размер кластера (FAT32 / exFAT / NTFS)
+Küçük	Мелкий
+Küçük resimler	Миниатюры
+Listede görünecek bölümler	Разделы, показываемые в списке
+MBR (UEFI + eski BIOS; eski bilgisayarlar için)	MBR (UEFI + старый BIOS; для старых компьютеров)
+MBR (açılmazsa bunu deneyin)	MBR (попробуйте, если не загружается)
+MBR (önerilen; telefonlar ve kameralar için)	MBR (рекомендуется; для телефонов и камер)
+Metin dosyası	Текстовый файл
+Metin olarak	Как текст
+Microsoft hesabı zorunluluğunu atla (yerel hesap)	Пропустить учётную запись Microsoft (локальная учётная запись)
+NTFS (Windows bilgisayarlar için)	NTFS (для компьютеров с Windows)
+Normal	Обычный
+Not: telefonlar ve kameralar çoğunlukla yalnızca ilk bölümü görür.	Примечание: телефоны и камеры обычно видят только первый раздел.
+OTG ile takılan kart ve USB bellek araçları. Root gerekmez.	Инструменты для карт и USB-накопителей через OTG. Root не нужен.
+Okunamadı: 	Не удалось прочитать: 
+Okuyucuyu çıkarıp kartı kullanabilirsiniz.	Можно извлечь картридер и пользоваться картой.
+Oluştur	Создать
+Orta	Средний
+Otomatik	Авто
+Oyun inceleniyor…	Проверка игры…
+Oyun kodu: 	Код игры: 
+Oyun kopyalanıyor	Копирование игры
+Oyun okunamadı: 	Не удалось прочитать игру: 
+PDF açılamadı: 	Не удалось открыть PDF: 
+PS2 oyunu ekle	Добавить игру PS2
+PS2 oyunu karta eklensin mi?	Добавить игру PS2 на карту?
+Panelleri değiştir	Поменять панели
+Pano boş	Буфер пуст
+Pano boş: bir öğeye uzun basıp "Panoya kopyala" seçin	Буфер пуст: долго нажмите на объект и выберите «Копировать в буфер»
+Panoya kes	Вырезать в буфер
+Panoya kopyala	Копировать в буфер
+Parola	Пароль
+Parola (tekrar)	Пароль (ещё раз)
+Parola en az 4 karakter olmalı	Пароль должен быть не короче 4 символов
+Parola yanlış	Неверный пароль
+Parolalar aynı değil	Пароли не совпадают
+Parolayı unutursanız kasadaki dosyalar açılamaz.	Если забудете пароль, файлы в сейфе нельзя будет открыть.
+Paylaş	Поделиться
+Paylaşılamadı: 	Не удалось поделиться: 
+Paylaşım adı ve klasör (ör. /Belgeler)	Имя общей папки (напр. /Documents)
+Paylaşım hazırlanıyor	Подготовка к отправке
+Port	Порт
+Resim olarak	Как изображение
+SD kart	SD-карта
+Satır yüksekliği	Высота строки
+Sağda göster	Показать справа
+Sağlama toplamı	Контрольная сумма
+Seri no: 	Серийный номер: 
+Ses olarak	Как аудио
+Sil	Удалить
+Sil ve biçimlendir	Очистить и форматировать
+Sil ve hazırla	Очистить и подготовить
+Sil ve oluştur	Очистить и создать
+Sil ve yaz	Очистить и записать
+Silerken çöp kutusu kullan	Использовать корзину при удалении
+Siliniyor	Удаление
+Siliniyor: 	Удаление: 
+Silinsin mi?	Удалить?
+Sistem	Системные
+Solda göster	Показать слева
+Son dosyalar	Недавние файлы
+Sonra	Позже
+Sunucu	Сервер
+Sunucu başlatılamadı	Не удалось запустить сервер
+Sunucu başlatılamadı: 	Не удалось запустить сервер: 
+Sunucu ekle	Добавить сервер
+Sunucuyu düzenle	Изменить сервер
+Sık kullan.	Избранное
+Sık kullanılanlar	Избранное
+Sık kullanılanlara ekle	Добавить в избранное
+Sık kullanılanlara eklendi	Добавлено в избранное
+Sık kullanılanlardan çıkarıldı	Удалено из избранного
+Sıkı	Плотный
+Sıkıştırılıyor	Сжатие
+Sıkıştırılıyor: 	Сжатие: 
+Sıralama	Сортировка
+Tam ekran	Полный экран
+Tam sil (kartın tamamını sıfırla doldurur; uzun sürer)	Полная очистка (заполняет всю карту нулями; долго)
+Tam silme	Полная очистка
+Tamam	ОК
+Tamamlandı. 	Готово. 
+Tamamlandı. Kart 	Готово. Карта 
+Tarihe göre	По дате
+Taşı	Переместить
+Taşı (diğer panele)	Переместить (в другую панель)
+Taşınıyor	Перемещение
+Telefon	Телефон
+Telefon belleğinde bir klasöre dokunun	Нажмите на папку в памяти телефона
+Telefona kaydediliyor	Сохранение в телефон
+Telefona kaydet	Сохранить в телефон
+Telefondaki dosyaları görmek için gerekli	Нужно, чтобы видеть файлы телефона
+Toplu yeniden adlandır	Пакетное переименование
+Tümünü seç	Выбрать все
+Türe göre	По типу
+USB depolama	USB-накопитель
+USB izni bekleniyor…	Ожидание разрешения USB…
+USB izni verilmedi	Доступ к USB не разрешён
+USB izni verilmedi. "Yenile"ye basıp izin verin.	Доступ к USB не разрешён. Нажмите «Обновить» и разрешите.
+USB kart	USB-карта
+USB kart (OTG)	USB-карта (OTG)
+USB kart araçları	Инструменты USB-карт
+USB kart açılıyor	Открытие USB-карты
+USB kart – 	USB-карта – 
+USB kimliği: %04X:%04X\n	USB ID: %04X:%04X\n
+Uygulama bilgisi	О приложении
+Uygulama yöneticisi	Менеджер приложений
+Uygulamadan çıkılsın mı?	Выйти из приложения?
+Uzun bas: geri yükle	Долгое нажатие: восстановить
+Vazgeç	Отмена
+Veritabanı açılamadı: 	Не удалось открыть базу данных: 
+Video olarak	Как видео
+Web depolama	Веб-хранилище
+WebDAV: Nextcloud, Yandex Disk, NAS…	WebDAV: Nextcloud, Яндекс Диск, NAS…
+WiFi dosya paylaşımı	Обмен файлами по WiFi
+WiFi dosya paylaşımı açık	Обмен файлами по WiFi включён
+WiFi paylaşımı kapatıldı	Обмен по WiFi остановлен
+WiFi'ye bağlı değilsiniz	Нет подключения к WiFi
+WiFi'ye bağlı değilsiniz (ya da erişim noktası kapalı)	Нет подключения к WiFi (или точка доступа выключена)
+Windows 11 denetimlerini atla (TPM, Güvenli Önyükleme, RAM)	Пропустить проверки Windows 11 (TPM, Secure Boot, RAM)
+Windows kartı hazırlansın mı?	Подготовить карту Windows?
+Windows kartı hazırlanıyor	Подготовка карты Windows
+Windows kurulum kartı	Установочная карта Windows
+Windows kurulum kartı (ISO)	Установочная карта Windows (ISO)
+Windows paylaşımı ya da NAS (SMB)	Общая папка Windows или NAS (SMB)
+Yalnız telefondaki dosyalar için	Только для файлов телефона
+Yapıştır (	Вставить (
+Yazı boyutu	Размер текста
+Yazılan veri doğrulanamadı; kart bozuk ya da sahte olabilir	Не удалось проверить записанные данные; карта может быть повреждена или поддельной
+Yazılan veri doğrulanıyor… Kartı çıkarmayın.	Проверка записанных данных… Не извлекайте карту.
+Yazılırsa bilgisayar bu karttan açılmayabilir.	Если записать, компьютер может не загрузиться с этой карты.
+Yedek al	Резервная копия
+Yedek alındı (	Копия создана (
+Yedek dosyası oluşturulamadı	Не удалось создать файл копии
+Yeni ad	Новое имя
+Yeni klasör	Новая папка
+Yeni: 	Новый: 
+Yeniden adlandır	Переименовать
+Yeniden adlandırılıyor	Переименование
+Yenile	Обновить
+Yer: 	Место: 
+Yükleniyor…	Загрузка…
+Yüklü	Установленные
+ZIP içi • uzun bas: kapat	Внутри ZIP • долгое нажатие: закрыть
+ZIP içine göz atılamadı (	Не удалось просмотреть ZIP (
+ZIP oluştur	Создать ZIP
+ZIP yap	ZIP
+ZIP'in kaydedileceği klasörü açın	Откройте папку для сохранения ZIP
+" klasörüne açıldı	" распакован в папку
+" klasörüne açıldı.	" распакован в папку.
+"Tüm dosyalara erişim" izni gerekiyor. Açılan ekranda izni verin.	Нужно разрешение «Доступ ко всем файлам». Разрешите его на открывшемся экране.
+\n(Bu uygulama parçalı APK kullanıyor; yalnızca ana parça kaydedildi)	\n(Приложение использует разделённые APK; сохранена только основная часть)
+\nAd: 	\nИмя: 
+\nBoyut: 	\nРазмер: 
+\nBu bölüm salt okunur açıldı.	\nРаздел открыт только для чтения.
+\nBölüm tablosu: 	\nТаблица разделов: 
+\nKart: 	\nКарта: 
+\nKarttaki BÜTÜN dosyalar silinecek ve geri 	\nВСЕ файлы на карте будут удалены без возможности 
+\nKlasör: 	\nПапка: 
+\nKüme: 	\nКластер: 
+\nSilinen dosyalar geri getirilemez.	\nУдалённые файлы нельзя восстановить.
+\n\nDosya indirip yükleyebilirsiniz. Uygulama açıkken çalışır; işiniz 	\n\nМожно скачивать и загружать файлы. Работает, пока приложение открыто; выключите, 
+\n\nGPT seçilirse kart yalnızca UEFI ile, MBR seçilirse eski BIOS'lu 	\n\nС GPT карта загружается только через UEFI; с MBR — и на старых BIOS 
+\n\nKart yalnızca UEFI ile açılır (2012 sonrası bilgisayarların çoğu).	\n\nКарта загружается только через UEFI (большинство компьютеров после 2012 г.).
+\n\nKarttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.	\n\nВСЕ файлы на карте будут удалены без возможности восстановления.
+\n\nKarttaki dosyalar silinmez; oyun OPL'nin okuyacağı adla eklenir.	\n\nФайлы на карте сохраняются; игра добавляется под именем для OPL.
+\n\nKlasörün içindeki her şey de silinecek.	\n\nВсё содержимое папки тоже будет удалено.
+\n\nKod: 	\n\nКод: 
+\n\nKullanıcı: kart\nParola: 	\n\nПользователь: kart\nПароль: 
+\n\nSildikten sonra kartı kullanmak için 	\n\nПосле очистки, чтобы пользоваться картой, 
+\n\nSilinen dosyalar geri getirilemez.	\n\nУдалённые файлы нельзя восстановить.
+\n\nUyarı: bu dosya doğrudan yazılmaya uygun bir disk imajına 	\n\nВнимание: файл не похож на образ диска 
+\n\nUygulama açıkken çalışır; işiniz bitince kapatın.	\n\nРаботает, пока приложение открыто; выключите после работы.
+\n\ninstall.wim 4 GB'tan büyük; 	\n\ninstall.wim больше 4 ГБ; 
+\n\nİşlem kartın hızına göre 10-40 dakika 	\n\nВ зависимости от скорости карты это займёт 10–40 минут 
+\nÇöp kutusuna taşınanlar 30 gün içinde geri yüklenebilir.	\nОбъекты в корзине можно восстановить в течение 30 дней.
+benzemiyor (örneğin Windows kurulum ISO'ları bu yöntemle çalışmaz). 	для прямой записи (напр. установочные ISO Windows так не работают). 
+bilgisayarlarda da açılır.	компьютерах тоже.
+bitince kapatın.	после работы.
+biçimlendirin.	отформатируйте её.
+biçimlendirmeniz gerekir.	её нужно отформатировать.
+exFAT (4 GB'tan büyük dosyalar, 64 GB+ kartlar)	exFAT (файлы больше 4 ГБ, карты от 64 ГБ)
+ext4 (Linux, Raspberry Pi, bazı Android cihazlar)	ext4 (Linux, Raspberry Pi, некоторые Android)
+kalan alan	свободно
+kopyalandı	скопировано
+okunur 	чтение 
+okuyucuyu telefona bağlayın.	подключите картридер к телефону.
+seçin.	выберите.
+sürebilir. Telefonu şarja takmanız önerilir.	. Рекомендуется поставить телефон на зарядку.
+tar.gz, tar.xz, tar.bz2 ya da ISO olmalı)	tar.gz, tar.xz, tar.bz2 или ISO)
+taşınamadı	не удалось переместить
+yazılır 	запись 
+Çal	Воспроизвести
+Çalınamadı: 	Не удалось воспроизвести: 
+Çöp kutusu	Корзина
+Çöp kutusuna	В корзину
+Çöp kutusuna taşınıyor	Перемещение в корзину
+Çık	Выйти
+Çıkarken onay sor	Спрашивать при выходе
+Çıkarılacak yazılabilir bir klasör açın	Откройте папку с правом записи для распаковки
+Çıkmak için tekrar basın	Нажмите ещё раз для выхода
+Önbellek oluşturulamadı	Не удалось создать кэш
+Önbellek temizlendi	Кэш очищен
+Önbelleği temizle	Очистить кэш
+Önce bir klasör açın	Сначала откройте папку
+Önce bir klasöre dokunun	Сначала нажмите на папку
+Önce bir öğeye dokunun	Сначала нажмите на объект
+Önce bir öğeye dokunun ya da uzun basıp seçin	Сначала нажмите на объект или выберите долгим нажатием
+Önce yazılabilir bir klasöre dokunun	Сначала нажмите на папку с правом записи
+Özellikler	Свойства
+Üretici: 	Производитель: 
+Ürün: 	Продукт: 
+Üst klasör	Вверх
+İki panelli dosya yöneticisi ve USB kart araçları.\n\n	Двухпанельный файловый менеджер и инструменты USB-карт.\n\n
+İmaj karta yazılsın mı?	Записать образ на карту?
+İmaj yaz	Записать образ
+İmaj yazılıyor	Запись образа
+İnceleniyor: 	Проверка: 
+İptal	Отмена
+İptal edildi	Отменено
+İptal edildi.	Отменено.
+İptal edildi. Yazma işlemi yarıda kaldıysa kartı kullanmadan önce 	Отменено. Если запись прервалась, перед использованием карты 
+İptal ediliyor…	Отмена…
+İzin ver	Разрешить
+İzinler: 	Права: 
+İçerik: 	Содержимое: 
+İçindekileri birleştir (defrag)	Дефрагментировать содержимое
+İşareti kaldır	Снять отметку
+İşaretle	Отметить
+Şifreli dosyalar	Зашифрованные файлы
+Şununla aç…	Открыть с помощью…
+… Kartı çıkarmayın, uygulamayı kapatmayın.	… Не извлекайте карту и не закрывайте приложение.
+… ve 	… и ещё 
+⬆ Yukarı	⬆ Вверх
+💾 Kaydet	💾 Сохранить
+📁  Dosyalar	📁  Файлы
+Dil	Язык
+Sistem dili	Язык системы
+Bir dosya seçin	Выберите файл

@@ -26,6 +26,7 @@ public class VideoActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         paths = getIntent().getStringArrayListExtra("paths");
         index = getIntent().getIntExtra("index", 0);
         if (paths == null || paths.isEmpty()) {
@@ -49,7 +50,7 @@ public class VideoActivity extends Activity {
             if (index + 1 < paths.size()) step(1);
         });
         video.setOnErrorListener((mp, what, extra) -> {
-            Toast.makeText(this, "Bu video oynatılamıyor; başka uygulamayla açmayı deneyin",
+            Toast.makeText(this, L.t("Bu video oynatılamıyor; başka uygulamayla açmayı deneyin"),
                     Toast.LENGTH_LONG).show();
             return true;
         });
@@ -66,7 +67,7 @@ public class VideoActivity extends Activity {
         video.postDelayed(() -> {
             if (!isFinishing()) ctl.show(2500);
         }, 300);
-        Toast.makeText(this, f.getName(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, L.t(f.getName()), Toast.LENGTH_SHORT).show();
     }
 
     private void step(int d) {

@@ -27,6 +27,7 @@ public class HexViewerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         String path = getIntent().getStringExtra("path");
         try {
             raf = new RandomAccessFile(new File(path), "r");

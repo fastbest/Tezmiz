@@ -93,7 +93,7 @@ public final class MiniFtpServer {
                 BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream(),
                         StandardCharsets.UTF_8));
                 out = new OutputStreamWriter(sock.getOutputStream(), StandardCharsets.UTF_8);
-                reply("220 Kart Format FTP");
+                reply("220 Hujjat/boss FTP");
                 String line;
                 while ((line = in.readLine()) != null) {
                     String cmd = line, arg = "";

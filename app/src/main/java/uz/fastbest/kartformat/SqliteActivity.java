@@ -33,12 +33,13 @@ public class SqliteActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         String path = getIntent().getStringExtra("path");
         try {
             db = SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READONLY
                     | SQLiteDatabase.NO_LOCALIZED_COLLATORS);
         } catch (Exception e) {
-            android.widget.Toast.makeText(this, "Veritabanı açılamadı: " + e.getMessage(),
+            android.widget.Toast.makeText(this, L.t("Veritabanı açılamadı: " + e.getMessage()),
                     android.widget.Toast.LENGTH_LONG).show();
             finish();
             return;
@@ -113,7 +114,7 @@ public class SqliteActivity extends Activity {
         hs.addView(table);
         ScrollView vs = new ScrollView(this);
         vs.addView(hs);
-        new AlertDialog.Builder(this).setTitle(t + " (en çok 200 satır)").setView(vs)
+        new L.Builder(this).setTitle(t + " (en çok 200 satır)").setView(vs)
                 .setPositiveButton("Kapat", null).show();
     }
 

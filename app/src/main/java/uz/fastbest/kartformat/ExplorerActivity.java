@@ -225,6 +225,7 @@ public class ExplorerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         prefs = getSharedPreferences("gezgin", MODE_PRIVATE);
         internal = new LocalFs("Dahili depolama", Environment.getExternalStorageDirectory());
         findOtherVolumes();
@@ -257,12 +258,114 @@ public class ExplorerActivity extends Activity {
         }
         setActive(0);
         if (!hasStorageAccess()) askStorageAccess();
+        handleIntent(getIntent());
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        setIntent(intent);
         refreshRoots();
+        handleIntent(intent);
+    }
+
+    /** Başka uygulamadan seçim isteği (GET_CONTENT / PICK) geldiyse true. */
+    private boolean pickMode;
+
+    /** Klasör ya da arşiv açma isteklerini ve dosya seçme isteklerini karşılar. */
+    private void handleIntent(Intent in) {
+        if (in == null) return;
+        String act = in.getAction();
+        if (Intent.ACTION_GET_CONTENT.equals(act) || Intent.ACTION_PICK.equals(act)) {
+            pickMode = true;
+            toast("Bir dosya seçin");
+            return;
+        }
+        if (!Intent.ACTION_VIEW.equals(act) || in.getData() == null) return;
+        final Uri u = in.getData();
+        String path = pathOf(u);
+        if (path != null) {
+            File f = new File(path);
+            if (f.isDirectory()) {
+                startReveal(panes[active], f.getAbsolutePath());
+                return;
+            }
+            if (f.isFile()) {
+                startReveal(panes[active], f.getParent());
+                TNode t = fileNode(null, fsFor(f).node(f));
+                openFile(t);
+                return;
+            }
+        }
+        if ("content".equals(u.getScheme())) {
+            // Yolu bilinmeyen arşiv: önbelleğe alıp aç
+            runOp("Dosya hazırlanıyor: ", (pr, c) -> {
+                String name = "dosya";
+                try (Cursor cur = getContentResolver().query(u, null, null, null, null)) {
+                    if (cur != null && cur.moveToFirst()) {
+                        int i = cur.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                        if (i >= 0 && cur.getString(i) != null) name = cur.getString(i);
+                    }
+                } catch (RuntimeException ignored) {
+                }
+                final File out = new File(getCacheDir(), "acilan_" + name.replaceAll("[/\\\\]", "_"));
+                try (InputStream is = getContentResolver().openInputStream(u);
+                     java.io.OutputStream os = new java.io.FileOutputStream(out)) {
+                    if (is == null) throw new IOException("Dosya açılamadı: " + u);
+                    byte[] buf = new byte[1 << 16];
+                    int r;
+                    while ((r = is.read(buf)) > 0) os.write(buf, 0, r);
+                }
+                main.post(() -> openFile(fileNode(null, fsFor(out).node(out))));
+                return null;
+            }, null);
+        }
+    }
+
+    /** file:// ya da "externalstorage" belge adresini gerçek yola çevirir. */
+    private String pathOf(Uri u) {
+        if ("file".equals(u.getScheme())) return u.getPath();
+        if (u.getScheme() == null) return u.getPath();
+        String auth = u.getAuthority();
+        if ("com.android.externalstorage.documents".equals(auth)) {
+            String id = null;
+            try {
+                id = android.provider.DocumentsContract.isTreeUri(u)
+                        ? android.provider.DocumentsContract.getTreeDocumentId(u)
+                        : android.provider.DocumentsContract.getDocumentId(u);
+            } catch (RuntimeException ignored) {
+            }
+            if (id == null) return null;
+            int colon = id.indexOf(':');
+            String vol = colon < 0 ? id : id.substring(0, colon);
+            String rest = colon < 0 ? "" : id.substring(colon + 1);
+            File base = "primary".equals(vol) ? internal.rootFile() : new File("/storage/" + vol);
+            return new File(base, rest).getAbsolutePath();
+        }
+        String p = u.getPath();
+        if (p != null && p.startsWith("/storage/")) return p;
+        if (p != null && p.contains("/storage/emulated/")) return p.substring(p.indexOf("/storage/emulated/"));
+        return null;
+    }
+
+    /** Seçici kipinde dokunulan dosyayı isteyen uygulamaya geri verir. */
+    private boolean deliverPick(VNode f) {
+        if (!pickMode || f == null || f.dir) return false;
+        withLocal(f, file -> {
+            try {
+                Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", file);
+                Intent r = new Intent();
+                r.setData(uri);
+                r.setClipData(ClipData.newRawUri(file.getName(), uri));
+                r.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                setResult(RESULT_OK, r);
+            } catch (RuntimeException ex) {
+                toast("Paylaşılamadı: " + ex.getMessage());
+                return;
+            }
+            finish();
+        });
+        return true;
     }
 
     @Override
@@ -368,7 +471,7 @@ public class ExplorerActivity extends Activity {
         }
         if (goUp(p)) return;
         if (prefs.getBoolean("confirmExit", false)) {
-            new AlertDialog.Builder(this).setMessage("Uygulamadan çıkılsın mı?")
+            new L.Builder(this).setMessage("Uygulamadan çıkılsın mı?")
                     .setPositiveButton("Çık", (d, w) -> finish())
                     .setNegativeButton("Vazgeç", null).show();
             return;
@@ -409,7 +512,7 @@ public class ExplorerActivity extends Activity {
 
     private void askStorageAccess() {
         if (Build.VERSION.SDK_INT >= 30) {
-            new AlertDialog.Builder(this)
+            new L.Builder(this)
                     .setTitle("Dosya erişim izni")
                     .setMessage("Dosya yöneticisinin telefondaki dosyaları gösterebilmesi için "
                             + "\"Tüm dosyalara erişim\" izni gerekiyor. Açılan ekranda izni verin.")
@@ -450,7 +553,7 @@ public class ExplorerActivity extends Activity {
 
     private TextView label(String text, float size, int color) {
         TextView t = new TextView(this);
-        t.setText(text);
+        t.setText(L.t(text));
         t.setTextSize(size);
         t.setTextColor(color);
         return t;
@@ -487,7 +590,7 @@ public class ExplorerActivity extends Activity {
         top.setBackgroundColor(TOP);
         top.setPadding(dp(16), 0, dp(4), 0);
         top.setMinimumHeight(dp(52));
-        TextView title = label("Kart Format", 20, TEXT);
+        TextView title = label(getString(R.string.app_name), 20, TEXT);
         top.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         top.addView(topButton(R.drawable.ic_m_search, v -> askSearch()));
         top.addView(topButton(R.drawable.ic_m_sort, v -> askSort()));
@@ -599,7 +702,7 @@ public class ExplorerActivity extends Activity {
         statusCancel.setOnClickListener(v -> {
             cancelled.set(true);
             statusCancel.setEnabled(false);
-            statusCancel.setText("İptal ediliyor…");
+            statusCancel.setText(L.t("İptal ediliyor…"));
         });
         row.addView(statusCancel);
         statusBar.addView(row);
@@ -872,7 +975,7 @@ public class ExplorerActivity extends Activity {
     }
 
     private void toast(String s) {
-        Toast.makeText(this, s, s.length() > 60 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, L.t(s), s.length() > 60 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT).show();
     }
 
     private Pane other() {
@@ -989,7 +1092,7 @@ public class ExplorerActivity extends Activity {
         void updateChip() {
             TNode root = current;
             while (root != null && root.parent != null) root = root.parent;
-            String t = root != null ? root.title : "Kart Format";
+            String t = root != null ? root.title : getString(R.string.app_name);
             int icon = root != null && root.icon != 0 ? root.icon : R.drawable.ic_phone;
             // köke kadar zincir (dosya seçiliyse klasöründen başlar)
             List<TNode> chain = new ArrayList<>();
@@ -1005,6 +1108,8 @@ public class ExplorerActivity extends Activity {
                 boolean first = k == from, last = k == chain.size() - 1;
                 TextView tv = label(seg == null ? t : (k == from && from > 0 ? "… " : "") + seg.title,
                         13f, on ? Color.WHITE : 0xFFC9CDD3);
+                tv.setText(seg == null ? L.exact(t) : (k == from && from > 0 ? "… " : "")
+                        + (seg.depth == 0 ? L.exact(seg.title) : seg.title));
                 tv.setSingleLine(true);
                 tv.setEllipsize(TextUtils.TruncateAt.END);
                 tv.setMaxWidth(dp(150));
@@ -1037,7 +1142,7 @@ public class ExplorerActivity extends Activity {
             String label = current == null ? t
                     : current.kind == K_FILE && current.parent != null ? current.parent.title
                     : current.title;
-            stripLabel.setText(label);
+            stripLabel.setText(current != null && current.depth == 0 ? L.exact(label) : label);
         }
     }
 
@@ -1448,7 +1553,9 @@ public class ExplorerActivity extends Activity {
             } else {
                 badge.setVisibility(View.GONE);
             }
-            title.setText(n.title);
+            boolean special = n.kind == K_GROUP || n.kind == K_ACTION || n.kind == K_INFO
+                    || (n.kind == K_VOLUME && n.depth == 0);
+            title.setText(special ? L.exact(n.title) : n.title);
             title.setTextSize((n.depth == 0 ? 14.5f : 14f) * fontScale());
             title.setTypeface(n.kind == K_FILE || n.kind == K_INFO ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             title.setTextColor(n.kind == K_INFO ? MUTED : TEXT);
@@ -1460,16 +1567,16 @@ public class ExplorerActivity extends Activity {
                 countFiles.setText(String.valueOf(n.files));
             }
             String s = showCounts ? null : n.sub;
-            sub.setText(s == null ? "" : s);
+            sub.setText(s == null ? "" : special || n.kind == K_APP ? L.t(s) : s);
             sub.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE);
-            path.setText(n.path == null ? "" : n.path);
+            path.setText(L.t(n.path == null ? "" : n.path));
             path.setVisibility(n.path == null || n.path.isEmpty() ? View.GONE : View.VISIBLE);
 
             boolean hasRight = n.right1 != null || n.right2 != null || n.bar >= 0;
             right.setVisibility(hasRight ? View.VISIBLE : View.GONE);
-            right1.setText(n.right1 == null ? "" : n.right1);
+            right1.setText(L.t(n.right1 == null ? "" : n.right1));
             right1.setVisibility(n.right1 == null ? View.GONE : View.VISIBLE);
-            right2.setText(n.right2 == null ? "" : n.right2);
+            right2.setText(L.t(n.right2 == null ? "" : n.right2));
             right2.setVisibility(n.right2 == null ? View.GONE : View.VISIBLE);
             if (n.bar >= 0) {
                 bar.setVisibility(View.VISIBLE);
@@ -1955,7 +2062,7 @@ public class ExplorerActivity extends Activity {
         sv.addView(list);
         col.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        final AlertDialog dlg = new AlertDialog.Builder(this).setView(col).create();
+        final AlertDialog dlg = new L.Builder(this).setView(col).create();
         for (final Object[] it : items) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);
@@ -2339,6 +2446,7 @@ public class ExplorerActivity extends Activity {
     private void openFile(final TNode t) {
         final Pane p = panes[active];
         final VNode f = t.node;
+        if (deliverPick(f)) return;
         String e = f.ext();
         File local = f.fs.localFile(f);
         if ((e.equals("zip") || e.equals("jar")) && local != null) {
@@ -2358,7 +2466,7 @@ public class ExplorerActivity extends Activity {
                 addTempGroup(p, g);
                 expand(p, g);
             } catch (IOException | RuntimeException ex) {
-                new AlertDialog.Builder(this).setTitle(f.name)
+                new L.Builder(this).setTitle(f.name)
                         .setMessage("ZIP içine göz atılamadı (" + ex.getMessage() + "). "
                                 + "Arşivi bir klasöre çıkarmayı deneyin.")
                         .setNegativeButton("Vazgeç", null)
@@ -2411,7 +2519,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         if (ARCHIVES.contains(e) && !e.equals("zip") && !e.equals("jar")) {
-            new AlertDialog.Builder(this)
+            new L.Builder(this)
                     .setTitle(f.name)
                     .setItems(new String[]{"Diğer paneldeki klasöre çıkar", "Bu klasöre çıkar",
                             "Başka uygulamayla aç"}, (d, w) -> {
@@ -2524,7 +2632,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         final VNode f = sel.get(0);
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(f.name)
                 .setItems(new String[]{"Başka uygulamayla aç", "Metin olarak", "Hex görüntüleyici",
                         "Resim olarak", "Video olarak", "Ses olarak"}, (d, w) -> {
@@ -2577,9 +2685,9 @@ public class ExplorerActivity extends Activity {
         cancelled.set(false);
         statusBar.setVisibility(View.VISIBLE);
         statusProgress.setIndeterminate(true);
-        statusText.setText(title + "…");
+        statusText.setText(L.t(title + "…"));
         statusCancel.setEnabled(true);
-        statusCancel.setText("İptal");
+        statusCancel.setText(L.t("İptal"));
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         final Fat32Formatter.Progress progress = new Fat32Formatter.Progress() {
             private long last;
@@ -2621,7 +2729,7 @@ public class ExplorerActivity extends Activity {
 
     private void status(final String s) {
         main.post(() -> {
-            if (busy) statusText.setText(s);
+            if (busy) statusText.setText(L.t(s));
         });
     }
 
@@ -2631,7 +2739,7 @@ public class ExplorerActivity extends Activity {
         EditText e = new EditText(this);
         e.setSingleLine(true);
         e.setText(text);
-        e.setHint(hint);
+        e.setHint(L.t(hint));
         e.setSelectAllOnFocus(true);
         return e;
     }
@@ -2651,7 +2759,7 @@ public class ExplorerActivity extends Activity {
         final Set<String> hid = new HashSet<>(Arrays.asList(prefs.getString("hiddenRoots", "").split(",")));
         final boolean[] on = new boolean[keys.length];
         for (int i = 0; i < keys.length; i++) on[i] = !hid.contains(keys[i]);
-        new AlertDialog.Builder(this).setTitle("Göster")
+        new L.Builder(this).setTitle("Göster")
                 .setMultiChoiceItems(names, on, (d, w, c) -> on[w] = c)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Tamam", (d, w) -> {
@@ -2673,7 +2781,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         final EditText e = input("", "Ad");
-        new AlertDialog.Builder(this).setTitle("Yeni: " + dir.name).setView(padded(e))
+        new L.Builder(this).setTitle("Yeni: " + dir.name).setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
                 .setNeutralButton("Metin dosyası", (d, w) -> {
                     String name = e.getText().toString().trim();
@@ -2707,7 +2815,7 @@ public class ExplorerActivity extends Activity {
         help.setPadding(dp(20), dp(4), dp(20), 0);
         box.addView(padded(e));
         box.addView(help);
-        new AlertDialog.Builder(this).setTitle(sel.size() + " öğeyi yeniden adlandır").setView(box)
+        new L.Builder(this).setTitle(sel.size() + " öğeyi yeniden adlandır").setView(box)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Tamam", (d, w) -> {
                     final String pat = e.getText().toString();
@@ -2762,7 +2870,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         final EditText e = input(n.name, "Yeni ad");
-        new AlertDialog.Builder(this).setTitle("Yeniden adlandır").setView(padded(e))
+        new L.Builder(this).setTitle("Yeniden adlandır").setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Tamam", (d, w) -> {
                     final String name = e.getText().toString();
@@ -2790,7 +2898,7 @@ public class ExplorerActivity extends Activity {
             toast("Kaynak salt okunur; taşınamaz, kopyalayın");
             return;
         }
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(move ? "Taşı" : "Kopyala")
                 .setMessage(sel.size() + " öğe\n→ " + dest.fs.title() + " › " + dest.name)
                 .setNegativeButton("Vazgeç", null)
@@ -2816,7 +2924,7 @@ public class ExplorerActivity extends Activity {
         if (sel.size() > 5) names.append("… ve ").append(sel.size() - 5).append(" öğe daha\n");
         boolean canTrash = prefs.getBoolean("trash", true);
         for (VNode v : sel) if (trashDirFor(v) == null) canTrash = false;
-        AlertDialog.Builder b = new AlertDialog.Builder(this)
+        AlertDialog.Builder b = new L.Builder(this)
                 .setTitle(sel.size() == 1 ? "Silinsin mi?" : sel.size() + " öğe silinsin mi?")
                 .setNegativeButton("Vazgeç", null);
         if (canTrash) {
@@ -2932,7 +3040,7 @@ public class ExplorerActivity extends Activity {
                 t.title = us > 0 ? f.getName().substring(us + 1) : f.getName();
                 final String orig = idx.get(f.getName());
                 t.path = orig == null ? null : "← " + new File(orig).getParent();
-                t.onLong = () -> new AlertDialog.Builder(this).setTitle(t.title)
+                t.onLong = () -> new L.Builder(this).setTitle(t.title)
                         .setItems(new String[]{"Geri yükle", "Kalıcı sil"}, (d, w) -> {
                             if (w == 0) {
                                 File back = orig == null ? new File(vol.rootFile(), t.title) : new File(orig);
@@ -2965,7 +3073,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         final EditText e = input((sel.size() == 1 ? sel.get(0).name : "arsiv") + ".zip", "Dosya adı");
-        new AlertDialog.Builder(this).setTitle("ZIP oluştur").setView(padded(e))
+        new L.Builder(this).setTitle("ZIP oluştur").setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Oluştur", (d, w) -> {
                     String n = e.getText().toString().trim();
@@ -3068,7 +3176,7 @@ public class ExplorerActivity extends Activity {
             return null;
         }, () -> {
             if (res[0] == null) return;
-            new AlertDialog.Builder(this).setTitle(n.name).setMessage(res[0])
+            new L.Builder(this).setTitle(n.name).setMessage(res[0])
                     .setNeutralButton("Kopyala", (d, w) -> {
                         android.content.ClipboardManager cm = (android.content.ClipboardManager)
                                 getSystemService(CLIPBOARD_SERVICE);
@@ -3126,7 +3234,7 @@ public class ExplorerActivity extends Activity {
                     .append(String.format(Locale.ROOT, "%,d", r[0][0])).append(" bayt)\n");
             sb.append("İçerik: ").append(r[0][1]).append(" dosya, ")
                     .append(Math.max(0, r[0][2] - dirsSel)).append(" klasör");
-            AlertDialog.Builder b = new AlertDialog.Builder(this).setTitle("Özellikler").setMessage(sb)
+            AlertDialog.Builder b = new L.Builder(this).setTitle("Özellikler").setMessage(sb)
                     .setPositiveButton("Tamam", null);
             if (nodes.size() == 1 && !nodes.get(0).dir) {
                 b.setNeutralButton("Sağlama toplamı", (d, w) -> checksum(nodes.get(0)));
@@ -3200,7 +3308,7 @@ public class ExplorerActivity extends Activity {
         VNode d = dirOf(p.current);
         final VNode where = d != null ? d : internal.root();
         final EditText e = input("", "Dosya adı (bir kısmı)");
-        new AlertDialog.Builder(this).setTitle("Ara: " + where.name).setView(padded(e))
+        new L.Builder(this).setTitle("Ara: " + where.name).setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Ara", (dd, w) -> {
                     final String q = e.getText().toString().trim();
@@ -3232,7 +3340,7 @@ public class ExplorerActivity extends Activity {
         int sel = 0;
         for (int i = 0; i < keys.length; i++) if (keys[i].equals(cur)) sel = i;
         final boolean desc = prefs.getBoolean("desc", false);
-        new AlertDialog.Builder(this).setTitle("Sıralama")
+        new L.Builder(this).setTitle("Sıralama")
                 .setSingleChoiceItems(names, sel, (d, w) -> {
                     prefs.edit().putString("sort", keys[w]).apply();
                     d.dismiss();
@@ -3310,17 +3418,37 @@ public class ExplorerActivity extends Activity {
             }
             col.addView(seg);
         }
+        // Dil seçimi
+        final String[] langPick = {prefs.getString("lang", "")};
+        final TextView langRow = label("", 15, TEXT);
+        final Runnable langText = () -> {
+            String name = L.t("Sistem dili");
+            for (String[] l : L.LANGS) if (l[0].equals(langPick[0])) name = l[1];
+            langRow.setText(L.t("Dil") + ":  " + name);
+        };
+        langText.run();
+        langRow.setPadding(0, dp(12), 0, dp(12));
+        langRow.setOnClickListener(v -> {
+            String[] names = new String[L.LANGS.length + 1];
+            names[0] = L.t("Sistem dili");
+            for (int i = 0; i < L.LANGS.length; i++) names[i + 1] = L.LANGS[i][1];
+            new AlertDialog.Builder(this).setTitle(L.t("Dil")).setItems(names, (d, w) -> {
+                langPick[0] = w == 0 ? "" : L.LANGS[w - 1][0];
+                langText.run();
+            }).show();
+        });
+        col.addView(langRow, 0);
         final android.widget.Switch[] sw = new android.widget.Switch[toggles.length];
         for (int i = 0; i < toggles.length; i++) {
             sw[i] = new android.widget.Switch(this);
-            sw[i].setText(toggles[i][1]);
+            sw[i].setText(L.t(toggles[i][1]));
             sw[i].setTextColor(TEXT);
             sw[i].setTextSize(15);
             sw[i].setPadding(0, dp(10), 0, dp(10));
             sw[i].setChecked(prefs.getBoolean(toggles[i][0], "1".equals(toggles[i][2])));
             col.addView(sw[i]);
         }
-        new AlertDialog.Builder(this).setTitle("Ayarlar").setView(sv)
+        new L.Builder(this).setTitle("Ayarlar").setView(sv)
                 .setPositiveButton("Kaydet", (d, w) -> {
                     SharedPreferences.Editor e = prefs.edit();
                     boolean reload = false, restart = false;
@@ -3333,7 +3461,10 @@ public class ExplorerActivity extends Activity {
                         e.putBoolean(toggles[i][0], sw[i].isChecked());
                     }
                     for (int i = 0; i < choices.length; i++) e.putInt(choices[i][0], choice[i]);
+                    if (!langPick[0].equals(prefs.getString("lang", ""))) restart = true;
+                    e.putString("lang", langPick[0]);
                     e.apply();
+                    if (restart) L.init(this);
                     if (restart) {
                         recreate();
                         return;
@@ -3359,7 +3490,7 @@ public class ExplorerActivity extends Activity {
                 "Önbelleği temizle",
                 "Hakkında"
         };
-        new AlertDialog.Builder(this).setItems(opts, (d, w) -> {
+        new L.Builder(this).setItems(opts, (d, w) -> {
             switch (w) {
                 case 0:
                     showSettings();
@@ -3386,7 +3517,7 @@ public class ExplorerActivity extends Activity {
                     toast("Önbellek temizlendi");
                     break;
                 default:
-                    new AlertDialog.Builder(this).setTitle("Kart Format")
+                    new L.Builder(this).setTitle(getString(R.string.app_name))
                             .setMessage("İki panelli dosya yöneticisi ve USB kart araçları.\n\n"
                                     + "Açık kaynak bileşenler: ntfs-3g (GPL-2.0), Rufus/ms-sys "
                                     + "(GPL), Apache Commons Compress ve Net (Apache-2.0), "
@@ -3547,7 +3678,7 @@ public class ExplorerActivity extends Activity {
 
     private void appMenu(final TNode it) {
         final ApplicationInfo a = it.app;
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(it.title)
                 .setItems(new String[]{"Aç", "APK'yı yedekle (İndirilenler/APK)", "APK'yı paylaş",
                         "Uygulama bilgisi", "Kaldır"}, (d, w) -> {
@@ -3682,7 +3813,7 @@ public class ExplorerActivity extends Activity {
             t.sub = s.type.equals("wifi") ? s.host : (s.type.equals("smb") ? "" : s.type.toUpperCase(Locale.ROOT) + "  ")
                     + (s.user.isEmpty() || s.user.equals("anonymous") || s.user.equals("guest") ? "" : s.user + "@")
                     + s.host + s.path;
-            t.onLong = () -> new AlertDialog.Builder(this).setTitle(s.name)
+            t.onLong = () -> new L.Builder(this).setTitle(s.name)
                     .setItems(new String[]{"Düzenle", "Sil"}, (d, w) -> {
                         if (w == 0) {
                             editFtp(idx, s.type);
@@ -3747,7 +3878,7 @@ public class ExplorerActivity extends Activity {
         }
         ftpServer = srv;
         reloadFtp();
-        new AlertDialog.Builder(this).setTitle("FTP sunucusu açık")
+        new L.Builder(this).setTitle("FTP sunucusu açık")
                 .setMessage("Bilgisayardan (Windows Gezgini adres çubuğu ya da FileZilla) bağlanın:\n\n"
                         + "ftp://" + ip + ":" + srv.port + "\n\nKullanıcı: kart\nParola: " + ftpPass
                         + "\n\nUygulama açıkken çalışır; işiniz bitince kapatın.")
@@ -3788,8 +3919,8 @@ public class ExplorerActivity extends Activity {
         final TextView[] tbs = new TextView[types.length];
         final Runnable paint = () -> {
             for (int k = 0; k < tbs.length; k++) tbs[k].setBackground(round(k == type[0] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
-            if (pathRef[0] != null) pathRef[0].setHint(type[0] == 2 ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü");
-            if (hostRef[0] != null) hostRef[0].setHint(type[0] == 3 ? "Adres (ör. https://webdav.yandex.ru)" : "Adres (ör. 192.168.1.10)");
+            if (pathRef[0] != null) pathRef[0].setHint(L.t(type[0] == 2 ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü"));
+            if (hostRef[0] != null) hostRef[0].setHint(L.t(type[0] == 3 ? "Adres (ör. https://webdav.yandex.ru)" : "Adres (ör. 192.168.1.10)"));
         };
         for (int k = 0; k < types.length; k++) {
             final int kk = k;
@@ -3830,7 +3961,7 @@ public class ExplorerActivity extends Activity {
         for (View v : new View[]{name, host, port, user, pass, path}) box.addView(v);
         ScrollView sv = new ScrollView(this);
         sv.addView(box);
-        new AlertDialog.Builder(this).setTitle(idx >= 0 ? "Sunucuyu düzenle" : "Sunucu ekle")
+        new L.Builder(this).setTitle(idx >= 0 ? "Sunucuyu düzenle" : "Sunucu ekle")
                 .setView(sv)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Kaydet", (d, w) -> {
@@ -3886,7 +4017,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         reloadFtp();
-        new AlertDialog.Builder(this).setTitle("WiFi dosya paylaşımı açık")
+        new L.Builder(this).setTitle("WiFi dosya paylaşımı açık")
                 .setMessage("Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n"
                         + "http://" + ip + ":" + wifi.port + "\n\nKod: " + wifiCode
                         + "\n\nDosya indirip yükleyebilirsiniz. Uygulama açıkken çalışır; işiniz "
@@ -3913,7 +4044,7 @@ public class ExplorerActivity extends Activity {
             box.addView(pass2);
             box.addView(label("Parolayı unutursanız kasadaki dosyalar açılamaz.", 13, 0xFF888888));
         }
-        new AlertDialog.Builder(this).setTitle(setup ? "Kasa parolası belirle" : "Kasayı aç")
+        new L.Builder(this).setTitle(setup ? "Kasa parolası belirle" : "Kasayı aç")
                 .setView(box)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton(setup ? "Oluştur" : "Aç", (d, w) -> {

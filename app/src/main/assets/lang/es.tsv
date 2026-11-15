@@ -1,0 +1,307 @@
+  (açılamadı)	  (no se pudo abrir)
+  (salt okunur)	  (solo lectura)
+ açılamadı	 no se pudo abrir
+ boş / 	 libre / 
+ boş)	 libre)
+ dosya kopyalandı.	 archivos copiados.
+ dosya, 	 archivos, 
+ içi • uzun bas: kapat	 contenido • pulsación larga: cerrar
+ klasör	 carpetas
+ silindi.	 eliminado.
+ sonuç • uzun bas: kapat	 resultados • pulsación larga: cerrar
+ öğe	 elementos
+ öğe daha\n	 elementos más\n
+ öğe panoya 	 elementos al portapapeles: 
+ öğe seçili\n	 elementos seleccionados\n
+ öğe silindi	 elementos eliminados
+ öğe silinsin mi?	 elementos — ¿eliminar?
+ öğe taşındı.	 elementos movidos.
+ öğe çöp kutusuna taşındı	 elementos movidos a la papelera
+ öğe)	 elementos)
+ öğe\n→ 	 elementos\n→ 
+ öğeyi yeniden adlandır	 elementos — renombrar
+ • uzun bas: kapat	 • pulsación larga: cerrar
+# → sıra numarası (## = 01, 02…)\n* → eski ad (uzantısız)\nUzantılar korunur.	# → número de orden (## = 01, 02…)\n* → nombre anterior (sin extensión)\nSe conservan las extensiones.
+(boş)	(vacío)
+(geri) 	(restaurado) 
+. Hedef klasöre uzun basıp "Yapıştır" seçin.	. Mantén pulsada la carpeta de destino y elige "Pegar".
+Ad	Nombre
+Ad (ör. Bilgisayarım)	Nombre (ej. Mi ordenador)
+Ad değiştir	Renombrar
+Ad: 	Nombre: 
+Ada göre	Por nombre
+Adres (ör. 192.168.1.10)	Dirección (ej. 192.168.1.10)
+Adres (ör. https://webdav.yandex.ru)	Dirección (ej. https://webdav.yandex.ru)
+Adres gerekli	Se necesita la dirección
+Ara	Buscar
+Ara: 	Buscar: 
+Arama: "	Búsqueda: "
+Aranıyor	Buscando
+Aranıyor: 	Buscando: 
+Araç çubuğu yazıları	Etiquetas de la barra de herramientas
+Artan sırala	Orden ascendente
+Arşiv açılıyor	Abriendo archivo comprimido
+Arşiv hazırlanıyor…	Preparando archivo comprimido…
+Arşiv okunuyor	Leyendo archivo comprimido
+Arşivi aç	Extraer
+Arşivi bir klasöre çıkarmayı deneyin.	Intenta extraer el archivo a una carpeta.
+Arşivi çıkar	Extraer archivo comprimido
+Arşivin içine bak	Ver contenido del archivo
+Ayarlar	Ajustes
+Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n	En un ordenador de la misma WiFi, abre el navegador y ve a:\n\n
+Azalan sırala	Orden descendente
+Aç	Abrir
+Açmak için dokunun	Toca para abrir
+Açık	Activo
+Açık • uzun bas: kilitle	Abierto • pulsación larga: bloquear
+Açılamadı: 	No se pudo abrir: 
+Açılışta son klasörler	Abrir las últimas carpetas al iniciar
+Ağaç çizgileri	Líneas del árbol
+Başka uygulamayla aç	Abrir con otra app
+Başlangıç klasörü	Carpeta inicial
+Beklenmeyen hata: 	Error inesperado: 
+Bilgisayardan (Windows Gezgini adres çubuğu ya da FileZilla) bağlanın:\n\n	Conéctate desde un ordenador (barra de direcciones del Explorador o FileZilla):\n\n
+Bir arşiv dosyası seçin	Elige un archivo comprimido
+Bir dosyaya dokunun	Toca un archivo
+Bir işlem sürüyor	Hay una operación en curso
+Bir klasör kendi içine kopyalanamaz: 	Una carpeta no se puede copiar dentro de sí misma: 
+Bir klasöre dokunup ⭐ ile ekleyebilirsiniz	Toca una carpeta y añádela con ⭐
+Birlikte aç	Abrir con
+Biçimlendir	Formatear
+Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…	Formatear, escribir imagen, Windows / FreeDOS, PS2…
+Boyut: 	Tamaño: 
+Boyuta göre	Por tamaño
+Boş	Libre
+Bu dosya tanınan bir arşiv değil	Este archivo no es un archivo comprimido reconocido
+Bu dosyayı açacak uygulama yok	Ninguna app puede abrir este archivo
+Bu klasör boş.	Esta carpeta está vacía.
+Bu klasöre çıkar	Extraer aquí
+Bu konum salt okunur	Esta ubicación es de solo lectura
+Bu video oynatılamıyor; başka uygulamayla açmayı deneyin	Este vídeo no se puede reproducir; prueba otra app
+Bulunamadı	No encontrado
+Buraya yapıştır (	Pegar aquí (
+Buraya çıkar	Extraer aquí
+Büyük	Grande
+Cihaz ekle	Añadir dispositivo
+Dahili depolama	Almacenamiento interno
+Devam	Continuar
+Devre dışı	Desactivado
+Değişiklikler kaydedilsin mi?	¿Guardar los cambios?
+Değiştirilme: 	Modificado: 
+Disk analizi	Análisis de disco
+Disk analizi: 	Análisis de disco: 
+Diğer panelde hedef klasöre dokunun	Toca la carpeta de destino en el otro panel
+Diğer paneldeki klasöre çıkar	Extraer a la carpeta del otro panel
+Dosya adı	Nombre de archivo
+Dosya adı (bir kısmı)	Nombre de archivo (o parte)
+Dosya açılamadı: 	No se pudo abrir el archivo: 
+Dosya erişim izni	Permiso de acceso a archivos
+Dosya erişim izni gerekli	Se necesita permiso de acceso a archivos
+Dosya erişim izni ver	Permitir acceso a archivos
+Dosya hazırlanıyor: 	Preparando archivo: 
+Dosya oluşturuluyor	Creando archivo
+Dosya sistemi	Sistema de archivos
+Dosya yöneticisinin telefondaki dosyaları gösterebilmesi için 	Para que el gestor de archivos muestre los archivos del teléfono, 
+Dosya: 	Archivo: 
+Dosyalar	Archivos
+Dosyalar: 	Archivos: 
+Düzenle	Editar
+Ekle	Añadir
+FTP sunucusu açık	Servidor FTP activo
+FTP sunucusu başlatılamadı	No se pudo iniciar el servidor FTP
+FTP sunucusu kapatıldı	Servidor FTP detenido
+FTP ya da SFTP (SSH) sunucusu	Servidor FTP o SFTP (SSH)
+Geniş	Amplio
+Geri yükle	Restaurar
+Geri yüklendi: 	Restaurado: 
+Geri yüklenemedi	No se pudo restaurar
+Gizli dosyaları göster	Mostrar archivos ocultos
+Göster	Mostrar
+Hakkında	Acerca de
+Hata: 	Error: 
+Hedef salt okunur	El destino es de solo lectura
+Hedefte yeterli yer yok (	No hay espacio suficiente en el destino (
+Hesaplanıyor	Calculando
+Kaldır	Desinstalar
+Kalıcı sil	Eliminar definitivamente
+Kalıp	Patrón
+Kapalı	Apagado
+Kapat	Cerrar
+Kart	Tarjeta
+Kart Format açık başka bir telefon (adres ve kod)	Otro teléfono con esta app (dirección y código)
+Kasa	Caja fuerte
+Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.	Caja fuerte abierta. Copia o mueve archivos desde el otro panel para añadirlos.
+Kasa açılıyor	Abriendo caja fuerte
+Kasa kilitlendi	Caja fuerte bloqueada
+Kasa parolası belirle	Establecer contraseña de la caja fuerte
+Kasayı aç	Abrir caja fuerte
+Kaydedildi	Guardado
+Kaydedildi: İndirilenler/APK/	Guardado: Descargas/APK/
+Kaydedilemedi: 	No se pudo guardar: 
+Kaydediliyor: 	Guardando: 
+Kaydet	Guardar
+Kaydetme	No guardar
+Kaynak salt okunur; taşınamaz, kopyalayın	El origen es de solo lectura; copia en lugar de mover
+Klasör	Carpeta
+Klasör adı	Nombre de la carpeta
+Klasör kendi içine yapıştırılamaz	Una carpeta no se puede pegar dentro de sí misma
+Klasör oluşturulamadı	No se pudo crear la carpeta
+Klasör oluşturuluyor	Creando carpeta
+Klasörler paylaşılamaz; önce ZIP yapın	Las carpetas no se pueden compartir; crea primero un ZIP
+Klasörler önce	Carpetas primero
+Kopyala	Copiar
+Kopyala (diğer panele)	Copiar (al otro panel)
+Kopyalanıyor	Copiando
+Kopyası oluşturuluyor	Creando copia
+Kopyasını oluştur	Duplicar
+Kullanıcı adı	Usuario
+Küçük	Pequeño
+Küçük resimler	Miniaturas
+Listede görünecek bölümler	Secciones mostradas en la lista
+Metin dosyası	Archivo de texto
+Metin olarak	Como texto
+Okunamadı: 	No se pudo leer: 
+Oluştur	Crear
+Orta	Mediano
+Otomatik	Automático
+PDF açılamadı: 	No se pudo abrir el PDF: 
+Panelleri değiştir	Intercambiar paneles
+Pano boş	Portapapeles vacío
+Pano boş: bir öğeye uzun basıp "Panoya kopyala" seçin	Portapapeles vacío: mantén pulsado un elemento y elige "Copiar al portapapeles"
+Panoya kes	Cortar al portapapeles
+Panoya kopyala	Copiar al portapapeles
+Parola	Contraseña
+Parola (tekrar)	Contraseña (de nuevo)
+Parola en az 4 karakter olmalı	La contraseña debe tener al menos 4 caracteres
+Parola yanlış	Contraseña incorrecta
+Parolalar aynı değil	Las contraseñas no coinciden
+Parolayı unutursanız kasadaki dosyalar açılamaz.	Si olvidas la contraseña, no podrás abrir los archivos de la caja fuerte.
+Paylaş	Compartir
+Paylaşılamadı: 	No se pudo compartir: 
+Paylaşım adı ve klasör (ör. /Belgeler)	Recurso compartido y carpeta (ej. /Documentos)
+Paylaşım hazırlanıyor	Preparando para compartir
+Port	Puerto
+Resim olarak	Como imagen
+SD kart	Tarjeta SD
+Satır yüksekliği	Altura de fila
+Sağda göster	Mostrar a la derecha
+Sağlama toplamı	Suma de verificación
+Ses olarak	Como audio
+Sil	Eliminar
+Silerken çöp kutusu kullan	Usar la papelera al eliminar
+Siliniyor	Eliminando
+Siliniyor: 	Eliminando: 
+Silinsin mi?	¿Eliminar?
+Sistem	Sistema
+Solda göster	Mostrar a la izquierda
+Son dosyalar	Archivos recientes
+Sonra	Más tarde
+Sunucu	Servidor
+Sunucu başlatılamadı	No se pudo iniciar el servidor
+Sunucu başlatılamadı: 	No se pudo iniciar el servidor: 
+Sunucu ekle	Añadir servidor
+Sunucuyu düzenle	Editar servidor
+Sık kullan.	Favoritos
+Sık kullanılanlar	Favoritos
+Sık kullanılanlara ekle	Añadir a favoritos
+Sık kullanılanlara eklendi	Añadido a favoritos
+Sık kullanılanlardan çıkarıldı	Quitado de favoritos
+Sıkı	Compacto
+Sıkıştırılıyor	Comprimiendo
+Sıkıştırılıyor: 	Comprimiendo: 
+Sıralama	Ordenar
+Tam ekran	Pantalla completa
+Tamam	Aceptar
+Tamamlandı. 	Hecho. 
+Tarihe göre	Por fecha
+Taşı	Mover
+Taşı (diğer panele)	Mover (al otro panel)
+Taşınıyor	Moviendo
+Telefon	Teléfono
+Telefon belleğinde bir klasöre dokunun	Toca una carpeta del almacenamiento del teléfono
+Telefondaki dosyaları görmek için gerekli	Necesario para ver los archivos del teléfono
+Toplu yeniden adlandır	Renombrar en lote
+Tümünü seç	Seleccionar todo
+Türe göre	Por tipo
+USB depolama	Almacenamiento USB
+USB kart	Tarjeta USB
+USB kart (OTG)	Tarjeta USB (OTG)
+USB kart araçları	Herramientas de tarjeta USB
+Uygulama bilgisi	Información de la app
+Uygulama yöneticisi	Gestor de apps
+Uygulamadan çıkılsın mı?	¿Salir de la app?
+Uzun bas: geri yükle	Pulsación larga: restaurar
+Vazgeç	Cancelar
+Veritabanı açılamadı: 	No se pudo abrir la base de datos: 
+Video olarak	Como vídeo
+Web depolama	Almacenamiento web
+WiFi dosya paylaşımı	Compartir archivos por WiFi
+WiFi dosya paylaşımı açık	Compartir archivos por WiFi activo
+WiFi paylaşımı kapatıldı	Compartir por WiFi detenido
+WiFi'ye bağlı değilsiniz	No estás conectado a WiFi
+WiFi'ye bağlı değilsiniz (ya da erişim noktası kapalı)	No estás conectado a WiFi (o el punto de acceso está apagado)
+Windows paylaşımı ya da NAS (SMB)	Recurso compartido de Windows o NAS (SMB)
+Yalnız telefondaki dosyalar için	Solo para archivos del teléfono
+Yapıştır (	Pegar (
+Yazı boyutu	Tamaño del texto
+Yeni ad	Nuevo nombre
+Yeni klasör	Nueva carpeta
+Yeni: 	Nuevo: 
+Yeniden adlandır	Renombrar
+Yeniden adlandırılıyor	Renombrando
+Yenile	Actualizar
+Yer: 	Ubicación: 
+Yükleniyor…	Cargando…
+Yüklü	Instaladas
+ZIP içi • uzun bas: kapat	Dentro del ZIP • pulsación larga: cerrar
+ZIP oluştur	Crear ZIP
+ZIP yap	ZIP
+" klasörüne açıldı	" extraído en la carpeta
+" klasörüne açıldı.	" extraído en la carpeta.
+"Tüm dosyalara erişim" izni gerekiyor. Açılan ekranda izni verin.	Se necesita el permiso "Acceso a todos los archivos". Concédelo en la pantalla que se abre.
+\nAd: 	\nNombre: 
+\nBoyut: 	\nTamaño: 
+\nKlasör: 	\nCarpeta: 
+\nSilinen dosyalar geri getirilemez.	\nLos archivos eliminados no se pueden recuperar.
+\n\nKlasörün içindeki her şey de silinecek.	\n\nTodo lo que hay dentro de la carpeta también se eliminará.
+\n\nKod: 	\n\nCódigo: 
+\n\nKullanıcı: kart\nParola: 	\n\nUsuario: kart\nContraseña: 
+\n\nSilinen dosyalar geri getirilemez.	\n\nLos archivos eliminados no se pueden recuperar.
+\n\nUygulama açıkken çalışır; işiniz bitince kapatın.	\n\nFunciona mientras la app está abierta; desactívalo al terminar.
+\nÇöp kutusuna taşınanlar 30 gün içinde geri yüklenebilir.	\nLos elementos de la papelera se pueden restaurar durante 30 días.
+kalan alan	espacio libre
+kopyalandı	copiado
+taşınamadı	no se pudo mover
+Çal	Reproducir
+Çalınamadı: 	No se pudo reproducir: 
+Çöp kutusu	Papelera
+Çöp kutusuna	A la papelera
+Çöp kutusuna taşınıyor	Moviendo a la papelera
+Çık	Salir
+Çıkarken onay sor	Preguntar al salir
+Çıkarılacak yazılabilir bir klasör açın	Abre una carpeta con escritura para extraer
+Çıkmak için tekrar basın	Pulsa otra vez para salir
+Önbellek temizlendi	Caché borrada
+Önbelleği temizle	Borrar caché
+Önce bir klasör açın	Abre primero una carpeta
+Önce bir klasöre dokunun	Toca primero una carpeta
+Önce bir öğeye dokunun	Toca primero un elemento
+Önce bir öğeye dokunun ya da uzun basıp seçin	Toca primero un elemento o mantenlo pulsado para seleccionar
+Önce yazılabilir bir klasöre dokunun	Toca primero una carpeta con escritura
+Özellikler	Propiedades
+Üst klasör	Subir
+İki panelli dosya yöneticisi ve USB kart araçları.\n\n	Gestor de archivos de dos paneles y herramientas de tarjetas USB.\n\n
+İptal	Cancelar
+İptal edildi	Cancelado
+İptal edildi.	Cancelado.
+İptal ediliyor…	Cancelando…
+İzin ver	Permitir
+İzinler: 	Permisos: 
+İçerik: 	Contenido: 
+İşareti kaldır	Desmarcar
+İşaretle	Marcar
+Şifreli dosyalar	Archivos cifrados
+Şununla aç…	Abrir con…
+Dil	Idioma
+Sistem dili	Idioma del sistema
+Bir dosya seçin	Elige un archivo

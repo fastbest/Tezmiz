@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
                 if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                     if (!busy) scan();
                 } else {
-                    status.setText("USB izni verilmedi. \"Yenile\"ye basıp izin verin.");
+                    status.setText(L.t("USB izni verilmedi. \"Yenile\"ye basıp izin verin."));
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)
                     || UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
@@ -107,7 +107,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         setContentView(R.layout.activity_main);
+        L.tree(findViewById(android.R.id.content));
 
         usb = (UsbManager) getSystemService(Context.USB_SERVICE);
         NtfsFormatter.tool = new java.io.File(getApplicationInfo().nativeLibraryDir, "libmkntfs.so");
@@ -199,7 +201,7 @@ public class MainActivity extends Activity {
         rescanAfter = false;
         setToolsEnabled(false);
         progressBar.setProgress(0);
-        progressText.setText("");
+        progressText.setText(L.t(""));
 
         final UsbMassStorage old = storage;
         storage = null;
@@ -216,20 +218,20 @@ public class MainActivity extends Activity {
         }
         if (found == null) {
             closeAsync(old);
-            status.setText("Kart okuyucu bulunamadı.\n\nKartı OTG kart okuyucuya takıp "
-                    + "okuyucuyu telefona bağlayın.");
+            status.setText(L.t("Kart okuyucu bulunamadı.\n\nKartı OTG kart okuyucuya takıp "
+                    + "okuyucuyu telefona bağlayın."));
             return;
         }
         if (!usb.hasPermission(found)) {
             closeAsync(old);
-            status.setText("USB izni bekleniyor…");
+            status.setText(L.t("USB izni bekleniyor…"));
             int flags = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
             Intent intent = new Intent(ACTION_USB_PERMISSION).setPackage(getPackageName());
             usb.requestPermission(found, PendingIntent.getBroadcast(this, 0, intent, flags));
             return;
         }
 
-        status.setText("Kart okunuyor…");
+        status.setText(L.t("Kart okunuyor…"));
         busy = true;
         final UsbDevice target = found;
         worker.execute(() -> {
@@ -245,15 +247,15 @@ public class MainActivity extends Activity {
                     storage = s;
                     device = target;
                     String name = s.name().isEmpty() ? "USB depolama" : s.name();
-                    status.setText("Bulunan kart: " + name + "\nBoyut: "
-                            + DiskOps.sizeText(s.blockCount() * s.blockSize()));
+                    status.setText(L.t("Bulunan kart: " + name + "\nBoyut: "
+                            + DiskOps.sizeText(s.blockCount() * s.blockSize())));
                     setToolsEnabled(true);
                     if (rescanAfter) scan();
                 });
             } catch (final IOException e) {
                 main.post(() -> {
                     busy = false;
-                    status.setText("Hata: " + e.getMessage());
+                    status.setText(L.t("Hata: " + e.getMessage()));
                     if (rescanAfter) scan();
                 });
             }
@@ -274,8 +276,8 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         progressBar.setIndeterminate(false);
         progressBar.setProgress(0);
-        progressText.setText("");
-        result.setText(title + "… Kartı çıkarmayın, uygulamayı kapatmayın.");
+        progressText.setText(L.t(""));
+        result.setText(L.t(title + "… Kartı çıkarmayın, uygulamayı kapatmayın."));
 
         final Fat32Formatter.Progress progress = new Fat32Formatter.Progress() {
             private long last;
@@ -312,8 +314,8 @@ public class MainActivity extends Activity {
             int pct = (int) Math.min(100, done * 100 / total);
             progressBar.setIndeterminate(false);
             progressBar.setProgress(pct);
-            progressText.setText("%" + pct + "  •  " + DiskOps.sizeText(done) + " / "
-                    + DiskOps.sizeText(total));
+            progressText.setText(L.t("%" + pct + "  •  " + DiskOps.sizeText(done) + " / "
+                    + DiskOps.sizeText(total)));
         } else {
             progressBar.setIndeterminate(true);
             progressText.setText(DiskOps.sizeText(done));
@@ -398,18 +400,18 @@ public class MainActivity extends Activity {
         box.addView(tableGroup);
 
         final EditText input = new EditText(this);
-        input.setHint("Kart adı (isteğe bağlı)");
+        input.setHint(L.t("Kart adı (isteğe bağlı)"));
         input.setSingleLine(true);
         box.addView(input);
 
         final CheckBox freedos = new CheckBox(this);
-        freedos.setText("FreeDOS ile açılabilir yap (BIOS güncellemesi için; FAT32 + MBR)");
+        freedos.setText(L.t("FreeDOS ile açılabilir yap (BIOS güncellemesi için; FAT32 + MBR)"));
         if (BootCode.freeDos()) box.addView(freedos);
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(box);
 
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Biçimlendir  •  " + DiskOps.sizeText(bytes))
                 .setView(scroll)
                 .setNegativeButton("Vazgeç", null)
@@ -447,7 +449,7 @@ public class MainActivity extends Activity {
                                final int clusterBytes) {
         if (storage == null || busy) return;
         final String fsName = fs.title();
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(fsName + " olarak biçimlendirilsin mi?")
                 .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
                         + "Kart: " + cardSize() + "\nBölüm tablosu: " + (gpt ? "GPT" : "MBR")
@@ -467,7 +469,7 @@ public class MainActivity extends Activity {
 
     private void confirmFreeDos(final String label) {
         if (storage == null || busy) return;
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("FreeDOS açılış kartı hazırlansın mı?")
                 .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
                         + "Kart: " + cardSize() + "\nFAT32, MBR")
@@ -537,11 +539,11 @@ public class MainActivity extends Activity {
                 size.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
                         | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
                 if (i == n - 1) {
-                    size.setText("");
-                    size.setHint("kalan");
+                    size.setText(L.t(""));
+                    size.setHint(L.t("kalan"));
                     size.setEnabled(false);
                 } else {
-                    size.setHint("GB");
+                    size.setHint(L.t("GB"));
                     size.setText(String.valueOf(Math.max(1, bytes / 1000000000L / n)));
                 }
                 row.addView(fs, new LinearLayout.LayoutParams(0,
@@ -565,14 +567,14 @@ public class MainActivity extends Activity {
         box.addView(tableGroup);
 
         TextView note = new TextView(this);
-        note.setText("Not: telefonlar ve kameralar çoğunlukla yalnızca ilk bölümü görür.");
+        note.setText(L.t("Not: telefonlar ve kameralar çoğunlukla yalnızca ilk bölümü görür."));
         note.setTextSize(13);
         box.addView(note);
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(box);
 
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Bölüm sihirbazı  •  " + DiskOps.sizeText(bytes))
                 .setView(scroll)
                 .setNegativeButton("Vazgeç", null)
@@ -592,7 +594,7 @@ public class MainActivity extends Activity {
                                 gb = 0;
                             }
                             if (gb <= 0) {
-                                result.setText("Bölüm " + (i + 1) + " için boyut girin.");
+                                result.setText(L.t("Bölüm " + (i + 1) + " için boyut girin."));
                                 return;
                             }
                             sectors = (long) (gb * 1e9 / 512);
@@ -610,7 +612,7 @@ public class MainActivity extends Activity {
     private void confirmPartitions(final List<DiskFormatter.Part> parts, final boolean gpt,
                                    String summary) {
         if (storage == null || busy) return;
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Bölümler oluşturulsun mu?")
                 .setMessage(summary + "\nKarttaki BÜTÜN dosyalar silinecek ve geri "
                         + "getirilemeyecek.")
@@ -637,7 +639,7 @@ public class MainActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_OPEN_IMAGE);
         } catch (RuntimeException e) {
-            result.setText("Dosya seçici açılamadı.");
+            result.setText(L.t("Dosya seçici açılamadı."));
         }
     }
 
@@ -651,7 +653,7 @@ public class MainActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_CREATE_BACKUP);
         } catch (RuntimeException e) {
-            result.setText("Dosya kaydetme ekranı açılamadı.");
+            result.setText(L.t("Dosya kaydetme ekranı açılamadı."));
         }
     }
 
@@ -680,7 +682,7 @@ public class MainActivity extends Activity {
         if (storage == null || busy) return;
         busy = true;
         setToolsEnabled(false);
-        result.setText("Dosya inceleniyor…");
+        result.setText(L.t("Dosya inceleniyor…"));
         final ContentResolver cr = getContentResolver();
         worker.execute(() -> {
             String name = "imaj";
@@ -727,7 +729,7 @@ public class MainActivity extends Activity {
                     result.setText(fError);
                     return;
                 }
-                result.setText("");
+                result.setText(L.t(""));
                 confirmImage(uri, fName, fSize, total, fBootable);
             });
         });
@@ -746,7 +748,7 @@ public class MainActivity extends Activity {
                     + "benzemiyor (örneğin Windows kurulum ISO'ları bu yöntemle çalışmaz). "
                     + "Yazılırsa bilgisayar bu karttan açılmayabilir.");
         }
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("İmaj karta yazılsın mı?")
                 .setMessage(msg.toString())
                 .setNegativeButton("Vazgeç", null)
@@ -786,7 +788,7 @@ public class MainActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_OPEN_PS2);
         } catch (RuntimeException e) {
-            result.setText("Dosya seçici açılamadı.");
+            result.setText(L.t("Dosya seçici açılamadı."));
         }
     }
 
@@ -795,7 +797,7 @@ public class MainActivity extends Activity {
         busy = true;
         setToolsEnabled(false);
         progressBar.setIndeterminate(true);
-        result.setText("Oyun inceleniyor…");
+        result.setText(L.t("Oyun inceleniyor…"));
         final ContentResolver cr = getContentResolver();
         worker.execute(() -> {
             Ps2Games.Game game = null;
@@ -818,10 +820,10 @@ public class MainActivity extends Activity {
                     return;
                 }
                 if (err != null) {
-                    result.setText("Hata: " + err);
+                    result.setText(L.t("Hata: " + err));
                     return;
                 }
-                result.setText("");
+                result.setText(L.t(""));
                 confirmPs2(uri, g);
             });
         });
@@ -829,7 +831,7 @@ public class MainActivity extends Activity {
 
     private void confirmPs2(final Uri uri, final Ps2Games.Game g) {
         if (storage == null || busy || isFinishing()) return;
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("PS2 oyunu karta eklensin mi?")
                 .setMessage("Oyun kodu: " + g.id + "\nAd: " + g.title + "\nBoyut: "
                         + DiskOps.sizeText(g.size) + "\nKlasör: " + (g.dvd ? "DVD" : "CD")
@@ -858,7 +860,7 @@ public class MainActivity extends Activity {
             startActivityForResult(new Intent(this, FilesActivity.class), REQ_FILES);
         } catch (RuntimeException e) {
             filesClosed();
-            result.setText("Dosya ekranı açılamadı.");
+            result.setText(L.t("Dosya ekranı açılamadı."));
         }
     }
 
@@ -883,7 +885,7 @@ public class MainActivity extends Activity {
         try {
             startActivityForResult(intent, REQ_OPEN_ISO);
         } catch (RuntimeException e) {
-            result.setText("Dosya seçici açılamadı.");
+            result.setText(L.t("Dosya seçici açılamadı."));
         }
     }
 
@@ -892,7 +894,7 @@ public class MainActivity extends Activity {
         busy = true;
         setToolsEnabled(false);
         progressBar.setIndeterminate(true);
-        result.setText("ISO dosyası inceleniyor…");
+        result.setText(L.t("ISO dosyası inceleniyor…"));
         final ContentResolver cr = getContentResolver();
         worker.execute(() -> {
             WindowsUsb.Info info = null;
@@ -915,10 +917,10 @@ public class MainActivity extends Activity {
                     return;
                 }
                 if (fError != null) {
-                    result.setText("Hata: " + fError);
+                    result.setText(L.t("Hata: " + fError));
                     return;
                 }
-                result.setText("");
+                result.setText(L.t(""));
                 askWindowsOptions(uri, fInfo);
             });
         });
@@ -949,10 +951,10 @@ public class MainActivity extends Activity {
         box.addView(text);
 
         final CheckBox bypass = new CheckBox(this);
-        bypass.setText("Windows 11 denetimlerini atla (TPM, Güvenli Önyükleme, RAM)");
+        bypass.setText(L.t("Windows 11 denetimlerini atla (TPM, Güvenli Önyükleme, RAM)"));
         bypass.setChecked(true);
         final CheckBox local = new CheckBox(this);
-        local.setText("Microsoft hesabı zorunluluğunu atla (yerel hesap)");
+        local.setText(L.t("Microsoft hesabı zorunluluğunu atla (yerel hesap)"));
         if (!info.hasUnattend) {
             box.addView(bypass);
             box.addView(local);
@@ -971,7 +973,7 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(box);
 
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Windows kurulum kartı")
                 .setView(scroll)
                 .setNegativeButton("Vazgeç", null)
@@ -984,7 +986,7 @@ public class MainActivity extends Activity {
     private void confirmWindows(final Uri uri, final WindowsUsb.Info info, final boolean gpt,
                                 final boolean bypass, final boolean local) {
         if (storage == null || busy) return;
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Windows kartı hazırlansın mı?")
                 .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
                         + "Kart: " + cardSize() + "\n\nİşlem kartın hızına göre 10-40 dakika "
@@ -1047,7 +1049,7 @@ public class MainActivity extends Activity {
                 "Hızlı sil (birkaç saniye; bölüm tablosunu ve dosya sistemini siler)",
                 "Tam sil (kartın tamamını sıfırla doldurur; uzun sürer)"
         };
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle("Kartı sil")
                 .setItems(items, (d, which) -> confirmWipe(which == 1))
                 .setNegativeButton("Vazgeç", null)
@@ -1056,7 +1058,7 @@ public class MainActivity extends Activity {
 
     private void confirmWipe(final boolean full) {
         if (storage == null || busy) return;
-        new AlertDialog.Builder(this)
+        new L.Builder(this)
                 .setTitle(full ? "Tam silme" : "Hızlı silme")
                 .setMessage("Karttaki BÜTÜN dosyalar silinecek ve geri getirilemeyecek.\n\n"
                         + "Kart: " + cardSize() + "\n\nSildikten sonra kartı kullanmak için "

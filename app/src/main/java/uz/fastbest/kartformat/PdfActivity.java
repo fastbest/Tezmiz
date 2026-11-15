@@ -37,12 +37,13 @@ public class PdfActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         String path = getIntent().getStringExtra("path");
         try {
             fd = ParcelFileDescriptor.open(new File(path), ParcelFileDescriptor.MODE_READ_ONLY);
             pdf = new PdfRenderer(fd);
         } catch (Exception e) {
-            android.widget.Toast.makeText(this, "PDF açılamadı: " + e.getMessage(),
+            android.widget.Toast.makeText(this, L.t("PDF açılamadı: " + e.getMessage()),
                     android.widget.Toast.LENGTH_LONG).show();
             finish();
             return;

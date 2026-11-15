@@ -44,6 +44,7 @@ public class TextEditorActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        L.init(this);
         String path = getIntent().getStringExtra("path");
         if (path == null) {
             finish();
@@ -128,7 +129,7 @@ public class TextEditorActivity extends Activity {
             final boolean tr = truncated;
             main.post(() -> {
                 if (fe != null) {
-                    Toast.makeText(this, "Açılamadı: " + fe, Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, L.t("Açılamadı: " + fe), Toast.LENGTH_LONG).show();
                     return;
                 }
                 edit.setText(t);
@@ -162,17 +163,17 @@ public class TextEditorActivity extends Activity {
         try (OutputStream out = new FileOutputStream(file)) {
             out.write(edit.getText().toString().getBytes(charset));
             dirty = false;
-            Toast.makeText(this, "Kaydedildi", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, L.t("Kaydedildi"), Toast.LENGTH_SHORT).show();
             if (thenClose) finish();
         } catch (IOException e) {
-            Toast.makeText(this, "Kaydedilemedi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, L.t("Kaydedilemedi: " + e.getMessage()), Toast.LENGTH_LONG).show();
         }
     }
 
     @Override
     public void onBackPressed() {
         if (dirty && !readOnly) {
-            new AlertDialog.Builder(this).setTitle("Değişiklikler kaydedilsin mi?")
+            new L.Builder(this).setTitle("Değişiklikler kaydedilsin mi?")
                     .setPositiveButton("Kaydet", (d, w) -> save(true))
                     .setNegativeButton("Kaydetme", (d, w) -> finish())
                     .setNeutralButton("Vazgeç", null).show();
