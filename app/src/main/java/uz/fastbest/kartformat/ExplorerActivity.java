@@ -655,7 +655,7 @@ public class ExplorerActivity extends Activity {
                 setActive(index);
                 if (current != null) {
                     int pos = visible.indexOf(current);
-                    if (pos >= 0) list.setSelection(Math.max(0, pos - 2));
+                    if (pos >= 0) Pane.this.list.setSelection(Math.max(0, pos - 2));
                 }
             });
             chipRow.addView(chip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
