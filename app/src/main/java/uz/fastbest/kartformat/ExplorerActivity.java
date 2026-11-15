@@ -2073,6 +2073,12 @@ public class ExplorerActivity extends Activity {
             items.add(new Object[]{R.drawable.ic_t_extract, "Buraya yapıştır (" + clip.size() + ")", (Runnable) () -> paste(v)});
         }
         if (writable) items.add(new Object[]{R.drawable.ic_t_delete, "Sil", (Runnable) this::askDelete});
+        if (v != null && (v.fs instanceof Zip4jFs || v.fs instanceof VaultFs)) {
+            items.add(new Object[]{R.drawable.ic_vault_open, "Kasadan çıkar (telefona taşı)",
+                    (Runnable) () -> moveOutOfVault(targets(p))});
+        } else if (v != null && writable) {
+            items.add(new Object[]{R.drawable.ic_vault, "Kasaya taşı", (Runnable) () -> moveToVault(targets(p))});
+        }
         if (v != null && !v.dir && !multi) {
             if (AUDIO.contains(e) || VIDEO.contains(e)) {
                 items.add(new Object[]{AUDIO.contains(e) ? R.drawable.ic_file_audio : R.drawable.ic_file_video,
@@ -4600,6 +4606,66 @@ public class ExplorerActivity extends Activity {
             }
         }
         for (Pane q : panes) if (q != p) reloadVaults();
+    }
+
+    /** Seçilenleri bir kasaya taşır (kasa kapalıysa önce parola sorar). */
+    private void moveToVault(final List<VNode> items) {
+        if (items.isEmpty()) return;
+        final List<String> paths = vaultPaths();
+        if (paths.isEmpty()) {
+            new L.Builder(this).setTitle("Kasaya taşı")
+                    .setMessage("Henüz kasa yok. Önce Kasa bölümünden \"Kasa oluştur\" ile bir kasa oluşturun.")
+                    .setPositiveButton("Kasa oluştur", (d, w) -> createVault())
+                    .setNegativeButton("Vazgeç", null).show();
+            return;
+        }
+        String[] names = new String[paths.size()];
+        for (int i = 0; i < names.length; i++) {
+            File f = new File(paths.get(i));
+            names[i] = f.getName().replaceFirst("(?i)\\.zip$", "")
+                    + (openVaults.containsKey(paths.get(i)) ? "" : "  🔒");
+        }
+        new L.Builder(this).setTitle("Hangi kasaya?").setItems(names, (d, w) -> {
+            final String path = paths.get(w);
+            Runnable go = () -> {
+                Zip4jFs fs = openVaults.get(path);
+                if (fs == null) return;
+                final VNode dest = fs.root();
+                runOp("Kasaya taşınıyor", (pr, c) -> new FileOps(pr, c, this::status).copy(items, dest, true),
+                        () -> {
+                            panes[active].selected.clear();
+                            reloadAll();
+                            reloadVaults();
+                        });
+            };
+            if (openVaults.containsKey(path)) go.run();
+            else unlockVault(new File(path), go);
+        }).show();
+    }
+
+    /** Kasadaki seçilenleri telefona (diğer paneldeki klasöre ya da İndirilenler'e) taşır. */
+    private void moveOutOfVault(final List<VNode> items) {
+        if (items.isEmpty()) return;
+        VNode od = dirOf(other().current);
+        final VNode dest;
+        if (od != null && od.fs instanceof LocalFs && od.fs.writable()) {
+            dest = od;
+        } else {
+            File dl = new File(internal.rootFile(), "Download");
+            if (!dl.isDirectory()) dl = internal.rootFile();
+            dest = internal.node(dl);
+        }
+        File df = dest.fs.localFile(dest);
+        new L.Builder(this).setTitle("Kasadan çıkar")
+                .setMessage(L.t("Şuraya taşınacak:") + "\n" + (df == null ? dest.name : df.getAbsolutePath()))
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Taşı", (d, w) -> runOp("Taşınıyor",
+                        (pr, c) -> new FileOps(pr, c, this::status).copy(items, dest, true),
+                        () -> {
+                            panes[active].selected.clear();
+                            reloadAll();
+                            reloadVaults();
+                        })).show();
     }
 
     private void lockVault(String path) {
