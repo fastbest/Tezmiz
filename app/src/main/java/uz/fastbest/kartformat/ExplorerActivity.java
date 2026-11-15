@@ -182,6 +182,7 @@ public class ExplorerActivity extends Activity {
     private boolean busy;
 
     private LinearLayout paneRow;
+    private FrameLayout stripHolder;
     private LinearLayout statusBar;
     private ProgressBar statusProgress;
     private TextView statusText;
@@ -395,9 +396,8 @@ public class ExplorerActivity extends Activity {
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setBackgroundColor(TOP);
         top.setPadding(dp(16), 0, dp(4), 0);
-        top.setMinimumHeight(dp(58));
-        TextView title = label("Kart Format", 23, TEXT);
-        title.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        top.setMinimumHeight(dp(52));
+        TextView title = label("Kart Format", 20, TEXT);
         top.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         top.addView(topButton(R.drawable.ic_m_search, v -> askSearch()));
         top.addView(topButton(R.drawable.ic_m_sort, v -> askSort()));
@@ -412,7 +412,18 @@ public class ExplorerActivity extends Activity {
         panes[0] = new Pane(0);
         panes[1] = new Pane(1);
         body.addView(paneRow, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        body.addView(buildToolbar(), new LinearLayout.LayoutParams(dp(82),
+        LinearLayout rightCol = new LinearLayout(this);
+        rightCol.setOrientation(LinearLayout.VERTICAL);
+        rightCol.setBackgroundColor(TOOL_BG);
+        stripHolder = new FrameLayout(this);
+        rightCol.addView(stripHolder, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(132)));
+        rightCol.addView(buildToolbar(), new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        View edge = new View(this);
+        edge.setBackgroundColor(0xFF131416);
+        body.addView(edge, new LinearLayout.LayoutParams(dp(2), ViewGroup.LayoutParams.MATCH_PARENT));
+        body.addView(rightCol, new LinearLayout.LayoutParams(dp(58),
                 ViewGroup.LayoutParams.MATCH_PARENT));
         rootView.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
@@ -500,30 +511,30 @@ public class ExplorerActivity extends Activity {
         Object[][] tools = {
                 {R.drawable.ic_t_up, "Üst klasör", (Runnable) () -> goUp(panes[active])},
                 {R.drawable.ic_t_newfolder, "Yeni klasör", (Runnable) this::askNewFolder},
-                {R.drawable.ic_t_rename, "Yeniden adlandır", (Runnable) this::askRename},
+                {R.drawable.ic_t_rename, "Ad değiştir", (Runnable) this::askRename},
                 {R.drawable.ic_t_copy, "Kopyala", (Runnable) () -> copySelected(false)},
                 {R.drawable.ic_t_move, "Taşı", (Runnable) () -> copySelected(true)},
                 {R.drawable.ic_t_delete, "Sil", (Runnable) this::askDelete},
-                {R.drawable.ic_t_zip, "ZIP oluştur", (Runnable) this::askZip},
+                {R.drawable.ic_t_zip, "ZIP yap", (Runnable) this::askZip},
                 {R.drawable.ic_t_extract, "Arşivi aç", (Runnable) this::extractSelected},
                 {R.drawable.ic_t_share, "Paylaş", (Runnable) this::shareSelected},
                 {R.drawable.ic_t_openwith, "Birlikte aç", (Runnable) this::openWithSelected},
                 {R.drawable.ic_t_info, "Özellikler", (Runnable) this::showProperties},
                 {R.drawable.ic_t_selectall, "Tümünü seç", (Runnable) this::selectAll},
                 {R.drawable.ic_t_analysis, "Disk analizi", (Runnable) this::analyzeCurrent},
-                {R.drawable.ic_t_star, "Sık kullanılan", (Runnable) this::addFavorite},
+                {R.drawable.ic_t_star, "Sık kullan.", (Runnable) this::addFavorite},
                 {R.drawable.ic_t_refresh, "Yenile", (Runnable) () -> reloadPane(panes[active])},
         };
         for (Object[] t : tools) {
             LinearLayout b = new LinearLayout(this);
             b.setOrientation(LinearLayout.VERTICAL);
             b.setGravity(Gravity.CENTER);
-            b.setPadding(dp(2), dp(9), dp(2), dp(9));
+            b.setPadding(dp(1), dp(7), dp(1), dp(6));
             b.setBackgroundResource(themeRes(android.R.attr.selectableItemBackground));
-            ImageView icon = iconView((Integer) t[0], 34);
-            TextView name = label((String) t[1], 11, 0xFFD0D3D8);
+            ImageView icon = iconView((Integer) t[0], 28);
+            TextView name = label((String) t[1], 9.5f, 0xFFD0D3D8);
             name.setGravity(Gravity.CENTER);
-            name.setMaxLines(2);
+            name.setSingleLine(true);
             name.setPadding(0, dp(3), 0, 0);
             b.addView(icon);
             b.addView(name);
@@ -582,23 +593,29 @@ public class ExplorerActivity extends Activity {
         if (panes[0] == null) return;
         boolean land = landscape();
         paneRow.removeAllViews();
+        stripHolder.removeAllViews();
         for (int i = 0; i < 2; i++) {
             Pane p = panes[i];
-            boolean wide = land || i == active;
-            p.content.setVisibility(wide ? View.VISIBLE : View.GONE);
-            p.strip.setVisibility(wide ? View.GONE : View.VISIBLE);
-            p.chip.setBackground(round(i == active ? CHIP : 0xFF3A3D44, 0, 0, dp(8)));
+            boolean show = land || i == active;
+            p.chip.setBackground(round(i == active ? CHIP : 0xFF3A3D44, 0, 0, dp(7)));
             p.box.setBackgroundColor(i == active || !land ? BG : BG_DIM);
             p.list.setAlpha(i == active || !land ? 1f : 0.82f);
-            paneRow.addView(p.box, wide
-                    ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1)
-                    : new LinearLayout.LayoutParams(dp(46), ViewGroup.LayoutParams.MATCH_PARENT));
-            if (i == 0) {
-                View sep = new View(this);
-                sep.setBackgroundColor(0xFF111214);
-                paneRow.addView(sep, new LinearLayout.LayoutParams(dp(2), ViewGroup.LayoutParams.MATCH_PARENT));
+            if (show) {
+                paneRow.addView(p.box, new LinearLayout.LayoutParams(0,
+                        ViewGroup.LayoutParams.MATCH_PARENT, 1));
+                if (land && i == 0) {
+                    View sep = new View(this);
+                    sep.setBackgroundColor(0xFF131416);
+                    paneRow.addView(sep, new LinearLayout.LayoutParams(dp(2),
+                            ViewGroup.LayoutParams.MATCH_PARENT));
+                }
+            } else {
+                // Diğer panel, araç çubuğunun üstünde küçük bir şerit olarak durur
+                stripHolder.addView(p.strip, new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             }
         }
+        stripHolder.setVisibility(land ? View.GONE : View.VISIBLE);
         updateToolbar();
     }
 
@@ -645,10 +662,10 @@ public class ExplorerActivity extends Activity {
             content.setOrientation(LinearLayout.VERTICAL);
             LinearLayout chipRow = new LinearLayout(ExplorerActivity.this);
             chipRow.setPadding(dp(6), dp(6), dp(6), dp(4));
-            chip = label("", 15, Color.WHITE);
+            chip = label("", 13.5f, Color.WHITE);
             chip.setSingleLine(true);
             chip.setEllipsize(TextUtils.TruncateAt.END);
-            chip.setPadding(dp(10), dp(6), dp(12), dp(6));
+            chip.setPadding(dp(8), dp(5), dp(12), dp(5));
             chip.setCompoundDrawablePadding(dp(6));
             chip.setGravity(Gravity.CENTER_VERTICAL);
             chip.setOnClickListener(v -> {
@@ -664,7 +681,7 @@ public class ExplorerActivity extends Activity {
             list = new ListView(ExplorerActivity.this);
             list.setDivider(null);
             list.setFastScrollEnabled(true);
-            list.setSelector(android.R.color.transparent);
+            list.setDrawSelectorOnTop(true);
             list.setCacheColorHint(Color.TRANSPARENT);
             adapter = new TreeAdapter(this);
             list.setAdapter(adapter);
@@ -681,21 +698,19 @@ public class ExplorerActivity extends Activity {
             strip = new LinearLayout(ExplorerActivity.this);
             strip.setOrientation(LinearLayout.VERTICAL);
             strip.setGravity(Gravity.CENTER_HORIZONTAL);
-            strip.setBackgroundColor(BG_DIM);
-            strip.setPadding(0, dp(10), 0, dp(10));
-            stripIcon = iconView(R.drawable.ic_phone, 30);
+            strip.setBackgroundColor(0xFF26272B);
+            strip.setPadding(0, dp(6), 0, dp(6));
+            stripIcon = iconView(R.drawable.ic_phone, 26);
             strip.addView(stripIcon);
-            ImageView arrow = iconView(R.drawable.ic_tree_closed, 22);
+            ImageView arrow = iconView(R.drawable.ic_tree_closed, 18);
             arrow.setRotation(index == 0 ? 180 : 0);
-            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(22), dp(22));
-            alp.topMargin = dp(10);
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(18), dp(18));
+            alp.topMargin = dp(3);
             strip.addView(arrow, alp);
-            stripLabel = new VerticalLabel(ExplorerActivity.this, dp(17), 0xFFE0E3E8);
-            stripLabel.setPadding(dp(8), dp(12), 0, dp(8));
+            stripLabel = new VerticalLabel(ExplorerActivity.this, dp(14), 0xFFE0E3E8);
+            stripLabel.setPadding(0, dp(4), 0, dp(4));
             strip.addView(stripLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             strip.setOnClickListener(v -> setActive(index));
-            box.addView(strip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
         }
 
         /** Görünen listeyi ağaçtan yeniden üretir. */
@@ -726,7 +741,7 @@ public class ExplorerActivity extends Activity {
             }
             chip.setText(t + where);
             Drawable d = getDrawable(icon);
-            if (d != null) d.setBounds(0, 0, dp(20), dp(20));
+            if (d != null) d.setBounds(0, 0, dp(18), dp(18));
             chip.setCompoundDrawables(d, null, null, null);
             stripIcon.setImageResource(icon);
             String label = current == null ? t
@@ -782,7 +797,10 @@ public class ExplorerActivity extends Activity {
         final TextView right1;
         final TextView right2;
         final ProgressBar bar;
-        final TextView check;
+        final ImageView check;
+        final LinearLayout counts;
+        final TextView countDirs;
+        final TextView countFiles;
         final ProgressBar spinner;
         TNode node;
 
@@ -795,15 +813,14 @@ public class ExplorerActivity extends Activity {
             card = new LinearLayout(ExplorerActivity.this);
             card.setOrientation(LinearLayout.HORIZONTAL);
             card.setGravity(Gravity.CENTER_VERTICAL);
-            card.setPadding(dp(2), dp(6), dp(4), dp(6));
-            card.setMinimumHeight(dp(58));
+            card.setPadding(dp(3), dp(5), dp(6), dp(5));
+            card.setMinimumHeight(dp(46));
             root.addView(card);
 
             indent = new View(ExplorerActivity.this);
             card.addView(indent, new LinearLayout.LayoutParams(0, 1));
             arrow = new ImageView(ExplorerActivity.this);
-            arrow.setPadding(dp(3), dp(3), dp(3), dp(3));
-            card.addView(arrow, new LinearLayout.LayoutParams(dp(22), dp(22)));
+            card.addView(arrow, new LinearLayout.LayoutParams(dp(18), dp(18)));
             arrow.setOnClickListener(v -> {
                 if (node != null && node.expandable() && !busy) {
                     setActive(pane.index);
@@ -819,20 +836,32 @@ public class ExplorerActivity extends Activity {
                     ViewGroup.LayoutParams.MATCH_PARENT));
             spinner = new ProgressBar(ExplorerActivity.this, null, android.R.attr.progressBarStyleSmall);
             iconBox.addView(spinner, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
-            card.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)));
+            card.addView(iconBox, new LinearLayout.LayoutParams(dp(38), dp(38)));
 
             LinearLayout texts = new LinearLayout(ExplorerActivity.this);
             texts.setOrientation(LinearLayout.VERTICAL);
-            texts.setPadding(dp(10), 0, dp(6), 0);
-            title = label("", 16.5f, TEXT);
+            texts.setPadding(dp(9), 0, dp(6), 0);
+            title = label("", 15, TEXT);
             title.setMaxLines(2);
             title.setEllipsize(TextUtils.TruncateAt.MIDDLE);
-            sub = label("", 13, MUTED);
+            sub = label("", 12, MUTED);
             sub.setSingleLine(true);
-            path = label("", 13, MUTED);
+            sub.setEllipsize(TextUtils.TruncateAt.END);
+            path = label("", 12, MUTED);
             path.setSingleLine(true);
             path.setEllipsize(TextUtils.TruncateAt.START);
+            counts = new LinearLayout(ExplorerActivity.this);
+            counts.setGravity(Gravity.CENTER_VERTICAL);
+            counts.addView(iconView(R.drawable.ic_meta_folder, 13));
+            countDirs = label("", 12, MUTED);
+            countDirs.setPadding(dp(4), 0, dp(14), 0);
+            counts.addView(countDirs);
+            counts.addView(iconView(R.drawable.ic_meta_file, 13));
+            countFiles = label("", 12, MUTED);
+            countFiles.setPadding(dp(4), 0, 0, 0);
+            counts.addView(countFiles);
             texts.addView(title);
+            texts.addView(counts);
             texts.addView(sub);
             texts.addView(path);
             card.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -840,24 +869,24 @@ public class ExplorerActivity extends Activity {
             right = new LinearLayout(ExplorerActivity.this);
             right.setOrientation(LinearLayout.VERTICAL);
             right.setGravity(Gravity.END);
-            right1 = label("", 13, MUTED);
+            right1 = label("", 11.5f, MUTED);
             right1.setGravity(Gravity.END);
-            right2 = label("", 13, 0xFFC9CDD3);
+            right2 = label("", 11.5f, 0xFFC9CDD3);
             right2.setGravity(Gravity.END);
             bar = new ProgressBar(ExplorerActivity.this, null, android.R.attr.progressBarStyleHorizontal);
             bar.setMax(1000);
             bar.setProgressDrawable(barDrawable());
             right.addView(right1);
             right.addView(right2);
-            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(96), dp(5));
-            bp.topMargin = dp(5);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(80), dp(4));
+            bp.topMargin = dp(4);
             right.addView(bar, bp);
             card.addView(right);
 
-            check = label("", 15, Color.WHITE);
-            check.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(26), dp(26));
-            cp.leftMargin = dp(8);
+            check = new ImageView(ExplorerActivity.this);
+            check.setPadding(dp(3), dp(3), dp(3), dp(3));
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(21), dp(21));
+            cp.leftMargin = dp(6);
             card.addView(check, cp);
             check.setOnClickListener(v -> {
                 if (node != null && node.fileish() && !busy) {
@@ -876,7 +905,7 @@ public class ExplorerActivity extends Activity {
             boolean sel = pane.selected.contains(n);
             card.setBackground(round(sel ? SELECT : Color.TRANSPARENT,
                     isCurrent ? ORANGE : 0, dp(2), dp(6)));
-            indent.setLayoutParams(new LinearLayout.LayoutParams(dp(16) * n.depth, 1));
+            indent.setLayoutParams(new LinearLayout.LayoutParams(dp(14) * n.depth, 1));
             if (n.expandable()) {
                 arrow.setVisibility(View.VISIBLE);
                 arrow.setImageResource(n.expanded ? R.drawable.ic_tree_open : R.drawable.ic_tree_closed);
@@ -897,12 +926,17 @@ public class ExplorerActivity extends Activity {
                 if (f != null) loadThumb(icon, f);
             }
             title.setText(n.title);
-            title.setTextSize(n.depth == 0 ? 17.5f : 16f);
+            title.setTextSize(n.depth == 0 ? 15.5f : 15f);
             title.setTypeface(n.kind == K_FILE || n.kind == K_INFO ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             title.setTextColor(n.kind == K_INFO ? MUTED : TEXT);
 
-            String s = n.expanded && n.dirs >= 0
-                    ? "📁 " + n.dirs + "     📄 " + n.files : n.sub;
+            boolean showCounts = n.expanded && n.dirs >= 0;
+            counts.setVisibility(showCounts ? View.VISIBLE : View.GONE);
+            if (showCounts) {
+                countDirs.setText(String.valueOf(n.dirs));
+                countFiles.setText(String.valueOf(n.files));
+            }
+            String s = showCounts ? null : n.sub;
             sub.setText(s == null ? "" : s);
             sub.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE);
             path.setText(n.path == null ? "" : n.path);
@@ -923,9 +957,10 @@ public class ExplorerActivity extends Activity {
 
             if (n.fileish()) {
                 check.setVisibility(View.VISIBLE);
-                check.setText(sel ? "✓" : "");
-                check.setBackground(sel ? round(ACCENT, 0, 0, dp(5))
-                        : round(Color.TRANSPARENT, 0xFF6B7078, dp(1.5f), dp(5)));
+                if (sel) check.setImageResource(R.drawable.ic_check);
+                else check.setImageDrawable(null);
+                check.setBackground(sel ? round(ACCENT, 0, 0, dp(4))
+                        : round(Color.TRANSPARENT, 0xFF5F646C, dp(1.5f), dp(4)));
             } else {
                 check.setVisibility(View.GONE);
             }
@@ -943,7 +978,7 @@ public class ExplorerActivity extends Activity {
         view.setTag(key);
         try {
             thumbs.execute(() -> {
-                Bitmap bm = decodeSampled(f, dp(44));
+                Bitmap bm = decodeSampled(f, dp(38));
                 if (bm == null) return;
                 thumbCache.put(key, bm);
                 main.post(() -> {
@@ -1004,8 +1039,8 @@ public class ExplorerActivity extends Activity {
         t.key = "f:" + v.path;
         t.title = v.name;
         t.icon = iconFor(v);
-        if (!v.dir) t.right1 = DiskOps.sizeText(Math.max(0, v.size));
-        t.right2 = date(v.modified);
+        String d = date(v.modified);
+        t.sub = v.dir ? d : DiskOps.sizeText(Math.max(0, v.size)) + (d == null ? "" : "  •  " + d);
         return t;
     }
 
@@ -2131,6 +2166,7 @@ public class ExplorerActivity extends Activity {
                 VNode n = (VNode) o[0];
                 long bytes = (Long) o[1];
                 TNode t = fileNode(g, n);
+                t.sub = null;
                 t.right1 = String.format(Locale.ROOT, "%%%.1f", total > 0 ? bytes * 100.0 / total : 0);
                 t.right2 = DiskOps.sizeText(bytes);
                 t.bar = total > 0 ? (float) bytes / total : 0;
