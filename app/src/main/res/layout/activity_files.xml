@@ -45,7 +45,7 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:backgroundTint="#FFFFFF"
+            android:backgroundTint="#3A3D44"
             android:text="⬆ Yukarı"
             android:textAllCaps="false"
             android:textColor="@color/text" />
@@ -65,7 +65,7 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:backgroundTint="#FFFFFF"
+            android:backgroundTint="#3A3D44"
             android:text="+ Klasör"
             android:textAllCaps="false"
             android:textColor="@color/text" />
@@ -75,7 +75,7 @@
         android:id="@+id/archiveButton"
         android:layout_width="match_parent"
         android:layout_height="44dp"
-        android:backgroundTint="#FFFFFF"
+        android:backgroundTint="#3A3D44"
         android:text="Arşiv / ISO aç (zip, 7z, tar, iso)"
         android:textAllCaps="false"
         android:textColor="@color/text" />

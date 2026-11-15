@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <color name="accent">#1565C0</color>
-    <color name="bg">#F4F6FA</color>
-    <color name="text">#1B1F27</color>
-    <color name="muted">#5C6675</color>
+    <color name="accent">#1E88E5</color>
+    <color name="bg">#2A2B2F</color>
+    <color name="text">#F2F2F2</color>
+    <color name="muted">#A4A9B1</color>
 
-    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorPrimary">@color/accent</item>
         <item name="android:colorPrimaryDark">@color/bg</item>
         <item name="android:windowBackground">@color/bg</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
     </style>
