@@ -108,7 +108,7 @@ final class WifiShare extends NanoHTTPD {
     private static Response html(String body) {
         String page = "<!DOCTYPE html><html><head><meta charset=utf-8>"
                 + "<meta name=viewport content='width=device-width,initial-scale=1'>"
-                + "<title>Hujjat/boss</title><style>"
+                + "<title>Gravity Manager</title><style>"
                 + "body{font-family:sans-serif;background:#1e1f22;color:#e8e8e8;margin:0;padding:16px}"
                 + "a{color:#7cc4ff;text-decoration:none}table{width:100%;border-collapse:collapse}"
                 + "td{padding:8px;border-bottom:1px solid #333}td.s{text-align:right;color:#aaa;white-space:nowrap}"
@@ -138,7 +138,7 @@ final class WifiShare extends NanoHTTPD {
             String key = parms.get("k");
             if (key == null) key = s.getCookies().read("k");
             if (!code.equals(key)) {
-                return html("<h2>Hujjat/boss</h2><form><p>Telefonda görünen kodu girin:</p>"
+                return html("<h2>Gravity Manager</h2><form><p>Telefonda görünen kodu girin:</p>"
                         + "<input name=k inputmode=numeric autofocus> <button>Gir</button></form>");
             }
             String uri = s.getUri();

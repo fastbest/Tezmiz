@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hujjat/boss</string>
-    <color name="launcher_bg">#FFFFFFFF</color>
+    <string name="app_name">Gravity Manager</string>
+    <color name="launcher_bg">#FF0E0E0E</color>
 </resources>

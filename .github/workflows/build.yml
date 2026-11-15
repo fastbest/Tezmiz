@@ -71,6 +71,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Kart Format (son sürüm)
+          name: Gravity Manager (son sürüm)
           files: KartFormat.apk
           make_latest: true

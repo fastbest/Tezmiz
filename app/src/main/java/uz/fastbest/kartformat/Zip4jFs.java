@@ -49,7 +49,7 @@ public final class Zip4jFs implements Vfs {
         if (file.exists()) throw new IOException("Bu adda bir dosya zaten var: " + file.getName());
         Zip4jFs fs = new Zip4jFs(file, password.toCharArray(), title);
         fs.zip = new ZipFile(file, fs.pass);
-        fs.zip.addStream(new ByteArrayInputStream("Hujjat/boss".getBytes(StandardCharsets.UTF_8)),
+        fs.zip.addStream(new ByteArrayInputStream("Gravity Manager".getBytes(StandardCharsets.UTF_8)),
                 fs.params(MARKER, true));
         fs.reload();
         return fs;
