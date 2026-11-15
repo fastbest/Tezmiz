@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <!-- SD kart -->
+    <path android:fillColor="#33000000" android:pathData="M15,5h17l7,7v30a2,2 0 0 1 -2,2h-22a2,2 0 0 1 -2,-2v-35a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#FF3F6FB5" android:pathData="M14,4h17l7,7v30a2,2 0 0 1 -2,2h-22a2,2 0 0 1 -2,-2v-35a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#FF5C8BD6" android:pathData="M14,4h17l7,7v6h-26v-11a2,2 0 0 1 2,-2z" />
+    <path android:fillColor="#FFFFC94A" android:pathData="M16,7h3v7h-3zM21,7h3v7h-3zM26,7h3v7h-3zM31,9h3v5h-3z" />
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.85" android:pathData="M16,22h14v2h-14zM16,26h10v2h-10z" />
+    <!-- anahtar rozeti -->
+    <path android:fillColor="#FF263238" android:pathData="M35,35m-11,0a11,11 0 1 1 22,0a11,11 0 1 1 -22,0" />
+    <path android:fillColor="#FFFFA726" android:pathData="M35,35m-9.5,0a9.5,9.5 0 1 1 19,0a9.5,9.5 0 1 1 -19,0" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.2" android:strokeLineCap="round" android:pathData="M30.5,39.5L36,34" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2.6" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M40.2,31.8A3.6,3.6 0 1 1 37.2,28.8" />
+</vector>

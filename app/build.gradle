@@ -10,8 +10,8 @@ android {
         applicationId 'uz.fastbest.kartformat'
         minSdk 21
         targetSdk 34
-        versionCode 35
-        versionName '7.2'
+        versionCode 36
+        versionName '7.3'
     }
 
     signingConfigs {
@@ -73,4 +73,6 @@ dependencies {
     implementation 'com.hierynomus:smbj:0.13.0'
     // SFTP (SSH) istemcisi (BSD)
     implementation 'com.github.mwiede:jsch:0.2.20'
+    // Parolalı (AES) ZIP: kasa (Apache-2.0)
+    implementation 'net.lingala.zip4j:zip4j:2.11.5'
 }

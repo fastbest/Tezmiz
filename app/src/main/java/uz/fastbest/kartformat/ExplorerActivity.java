@@ -477,6 +477,7 @@ public class ExplorerActivity extends Activity {
         unregisterNsd();
         if (ftpServer != null) ftpServer.stop();
         if (vault != null) vault.close();
+        for (Zip4jFs z : openVaults.values()) z.close();
         io.execute(() -> usb.close());
         io.shutdown();
         thumbs.shutdownNow();
@@ -1929,17 +1930,8 @@ public class ExplorerActivity extends Activity {
         out.add(special("lan", K_GROUP, R.drawable.ic_network, "LAN", null));
         out.add(special("web", K_GROUP, R.drawable.ic_cloud, "Web depolama", null));
         out.add(special("wifi", K_GROUP, R.drawable.ic_wifi, "WiFi dosya paylaşımı", null));
-        if (vault == null) {
-            TNode v = special("vault", K_ACTION, R.drawable.ic_vault, "Kasa", "Şifreli dosyalar");
-            v.action = () -> openVault(p);
-            out.add(v);
-        } else {
-            TNode v = volumeNode(vault, R.drawable.ic_vault_open, "vaultopen", "Açık • uzun bas: kilitle");
-            v.title = "Kasa";
-            v.onLong = this::lockVault;
-            out.add(v);
-        }
-        TNode tools = special("tools", K_ACTION, R.drawable.ic_tools, "USB kart araçları",
+        out.add(special("vault", K_GROUP, R.drawable.ic_vault, "Kasa", "Parolalı ZIP dosyaları"));
+        TNode tools = special("tools", K_ACTION, R.drawable.ic_usb_tools, "USB kart araçları",
                 "Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…");
         tools.action = this::openTools;
         out.add(tools);
@@ -2334,6 +2326,8 @@ public class ExplorerActivity extends Activity {
                 return parent -> netChildren(parent, "web");
             case "wifi":
                 return parent -> netChildren(parent, "wifi");
+            case "vault":
+                return this::vaultChildren;
             default:
                 return null;   // geçici gruplar (arama, analiz) hazır gelir
         }
@@ -2484,6 +2478,11 @@ public class ExplorerActivity extends Activity {
         if (deliverPick(f)) return;
         String e = f.ext();
         File local = f.fs.localFile(f);
+        if (e.equals("zip") && local != null && Zip4jFs.isEncrypted(local)) {
+            // Parolalı ZIP: kasa olarak açılır
+            unlockVault(local, null);
+            return;
+        }
         if ((e.equals("zip") || e.equals("jar")) && local != null) {
             try {
                 final ZipFs z = new ZipFs(local);
@@ -4374,7 +4373,210 @@ public class ExplorerActivity extends Activity {
                 .setPositiveButton("Tamam", null).show();
     }
 
-    // ---------------------------------------------------------------- Kasa
+    // ---------------------------------------------------------------- Kasa (parolalı ZIP)
+
+    /** Açık kasalar: ZIP yolu → dosya sistemi. */
+    private final Map<String, Zip4jFs> openVaults = new HashMap<>();
+
+    private List<String> vaultPaths() {
+        List<String> out = new ArrayList<>();
+        for (String s : prefs.getString("vaults", "").split("\n")) {
+            if (!s.trim().isEmpty() && !out.contains(s.trim())) out.add(s.trim());
+        }
+        return out;
+    }
+
+    private void saveVaultPaths(List<String> l) {
+        StringBuilder sb = new StringBuilder();
+        for (String s : l) sb.append(s).append('\n');
+        prefs.edit().putString("vaults", sb.toString()).apply();
+    }
+
+    private List<TNode> vaultChildren(TNode parent) {
+        List<TNode> out = new ArrayList<>();
+        final List<String> paths = vaultPaths();
+        for (final String path : paths) {
+            final File f = new File(path);
+            Zip4jFs fs = openVaults.get(path);
+            String name = f.getName().replaceFirst("(?i)\\.zip$", "");
+            TNode t;
+            if (fs != null) {
+                t = new TNode();
+                t.kind = K_VOLUME;
+                t.node = fs.root();
+                t.icon = R.drawable.ic_vault_open;
+                t.sub = L.t("Açık • uzun bas: kilitle") + "   " + f.getParent();
+            } else {
+                t = new TNode();
+                t.kind = K_ACTION;
+                t.icon = R.drawable.ic_vault;
+                t.sub = (f.exists() ? L.t("Kilitli • açmak için dokunun") : L.t("Dosya bulunamadı")) + "   " + f.getParent();
+                t.action = () -> unlockVault(f, null);
+            }
+            t.key = "kasa:" + path;
+            t.title = name;
+            t.parent = parent;
+            t.depth = parent.depth + 1;
+            t.onLong = () -> {
+                List<String> items = new ArrayList<>();
+                final List<Runnable> acts = new ArrayList<>();
+                if (openVaults.containsKey(path)) {
+                    items.add("Kilitle");
+                    acts.add(() -> lockVault(path));
+                } else {
+                    items.add("Aç");
+                    acts.add(() -> unlockVault(f, null));
+                }
+                items.add("Dosyanın yerini göster");
+                acts.add(() -> startReveal(panes[active], f.getParent()));
+                items.add("Listeden kaldır (dosya silinmez)");
+                acts.add(() -> {
+                    lockVault(path);
+                    List<String> l = vaultPaths();
+                    l.remove(path);
+                    saveVaultPaths(l);
+                    reloadVaults();
+                });
+                new L.Builder(this).setTitle(name)
+                        .setItems(items.toArray(new String[0]), (d, w) -> acts.get(w).run()).show();
+            };
+            out.add(t);
+        }
+        if (prefs.getString("vaultSalt", null) != null) {
+            // Eski sürümlerin kasası (uygulama içinde saklanan)
+            TNode old;
+            if (vault == null) {
+                old = special("vault:old", K_ACTION, R.drawable.ic_vault, "Eski kasa", "Kilitli • açmak için dokunun");
+                old.action = () -> openVault(panes[active]);
+            } else {
+                old = volumeNode(vault, R.drawable.ic_vault_open, "vaultopen", "Açık • uzun bas: kilitle");
+                old.title = "Eski kasa";
+                old.onLong = this::lockVault;
+            }
+            old.parent = parent;
+            old.depth = parent.depth + 1;
+            out.add(old);
+        }
+        TNode add = special("vault:new", K_ACTION, R.drawable.ic_add, "Kasa oluştur",
+                "Parolalı ZIP dosyası (AES-256)");
+        add.parent = parent;
+        add.depth = parent.depth + 1;
+        add.action = this::createVault;
+        out.add(add);
+        return out;
+    }
+
+    private void reloadVaults() {
+        for (Pane q : panes) {
+            for (TNode r : q.roots) if ("vault".equals(r.key) && r.expanded) expand(q, r);
+        }
+    }
+
+    private void createVault() {
+        VNode here = dirOf(panes[active].current);
+        File dirF = here != null && here.fs instanceof LocalFs ? here.fs.localFile(here) : null;
+        if (dirF == null || !dirF.canWrite()) dirF = internal.rootFile();
+        final File dir = dirF;
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(8), dp(20), 0);
+        final EditText name = input("Kasa", "Ad");
+        box.addView(name);
+        final EditText pass = input("", "Parola");
+        pass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        box.addView(pass);
+        final EditText pass2 = input("", "Parola (tekrar)");
+        pass2.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        box.addView(pass2);
+        box.addView(label(L.t("Yer:") + " " + dir.getAbsolutePath() + "\n"
+                + L.t("Dosyalar AES-256 ile şifrelenir. Bilgisayarda 7-Zip ya da WinRAR ile aynı parolayla açılır. Parolayı unutursanız dosyalar açılamaz."), 12, MUTED));
+        new L.Builder(this).setTitle("Kasa oluştur").setView(box)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Oluştur", (d, w) -> {
+                    final String pw = pass.getText().toString();
+                    String n = name.getText().toString().trim();
+                    if (n.isEmpty()) n = "Kasa";
+                    if (pw.length() < 4) {
+                        toast("Parola en az 4 karakter olmalı");
+                        return;
+                    }
+                    if (!pw.equals(pass2.getText().toString())) {
+                        toast("Parolalar aynı değil");
+                        return;
+                    }
+                    final File f = new File(dir, LocalFs.unique(dir, n.toLowerCase(Locale.ROOT).endsWith(".zip") ? n : n + ".zip"));
+                    final Zip4jFs[] made = new Zip4jFs[1];
+                    runOp("Kasa oluşturuluyor", (pr, c) -> {
+                        made[0] = Zip4jFs.create(f, pw, f.getName().replaceFirst("(?i)\\.zip$", ""));
+                        return null;
+                    }, () -> {
+                        if (made[0] == null) return;
+                        mountVault(f, made[0]);
+                        toast("Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.");
+                    });
+                }).show();
+    }
+
+    /** Parolayı sorup kasayı açar. afterOpen: açıldıktan sonra (isteğe bağlı). */
+    private void unlockVault(final File f, final Runnable afterOpen) {
+        if (!f.exists()) {
+            toast("Dosya bulunamadı");
+            return;
+        }
+        final EditText pass = input("", "Parola");
+        pass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        new L.Builder(this).setTitle(f.getName()).setView(padded(pass))
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Aç", (d, w) -> {
+                    final String pw = pass.getText().toString();
+                    final Zip4jFs[] got = new Zip4jFs[1];
+                    runOp("Kasa açılıyor", (pr, c) -> {
+                        got[0] = Zip4jFs.open(f, pw, f.getName().replaceFirst("(?i)\\.zip$", ""));
+                        return null;
+                    }, () -> {
+                        if (got[0] == null) return;
+                        mountVault(f, got[0]);
+                        if (afterOpen != null) afterOpen.run();
+                    });
+                }).show();
+    }
+
+    private void mountVault(File f, Zip4jFs fs) {
+        String path = f.getAbsolutePath();
+        Zip4jFs old = openVaults.put(path, fs);
+        if (old != null && old != fs) old.close();
+        List<String> l = vaultPaths();
+        if (!l.contains(path)) {
+            l.add(path);
+            saveVaultPaths(l);
+        }
+        Pane p = panes[active];
+        for (TNode r : p.roots) {
+            if ("vault".equals(r.key)) {
+                r.expanded = false;
+                p.current = r;
+                expand(p, r);
+                final TNode group = r;
+                main.postDelayed(() -> {
+                    for (TNode k : group.children) {
+                        if (("kasa:" + path).equals(k.key)) {
+                            p.current = k;
+                            expand(p, k);
+                        }
+                    }
+                }, 400);
+            }
+        }
+        for (Pane q : panes) if (q != p) reloadVaults();
+    }
+
+    private void lockVault(String path) {
+        Zip4jFs fs = openVaults.remove(path);
+        if (fs != null) fs.close();
+        clearOpenCache();
+        reloadVaults();
+        toast("Kasa kilitlendi");
+    }
 
     private void openVault(final Pane p) {
         final File dir = new File(getFilesDir(), "kasa");
@@ -4427,12 +4629,7 @@ public class ExplorerActivity extends Activity {
                         if (opened[0] == null) return;
                         vault = opened[0];
                         refreshRoots();
-                        for (TNode r : p.roots) {
-                            if ("vaultopen".equals(r.key)) {
-                                p.current = r;
-                                expand(p, r);
-                            }
-                        }
+                        reloadVaults();
                         toast("Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.");
                     });
                 }).show();
@@ -4444,6 +4641,7 @@ public class ExplorerActivity extends Activity {
         vault = null;
         clearOpenCache();
         refreshRoots();
+        reloadVaults();
         toast("Kasa kilitlendi");
     }
 }

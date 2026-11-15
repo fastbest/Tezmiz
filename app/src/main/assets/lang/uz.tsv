@@ -498,3 +498,19 @@ Kart değişmiş; yeni kartta Disk analizine tekrar basın	Karta almashgan; yang
 İnceleniyor: 	Tekshirilmoqda: 
 Dokun: yakınlaş • İki parmak: büyüt • Uzun bas: klasörü aç	Bosing: yaqinlashtirish • Ikki barmoq: kattalashtirish • Uzoq bosing: papkani ochish
 Üst klasör	Yuqori papka
+Parolalı ZIP dosyaları	Parolli ZIP fayllar
+Açık • uzun bas: kilitle	Ochiq • uzoq bosing: qulflash
+Kilitli • açmak için dokunun	Qulflangan • ochish uchun bosing
+Dosya bulunamadı	Fayl topilmadi
+Kilitle	Qulflash
+Dosyanın yerini göster	Fayl joyini ko'rsatish
+Listeden kaldır (dosya silinmez)	Ro'yxatdan olib tashlash (fayl o'chirilmaydi)
+Eski kasa	Eski seyf
+Kasa oluştur	Seyf yaratish
+Parolalı ZIP dosyası (AES-256)	Parolli ZIP fayl (AES-256)
+Yer:	Joyi:
+Dosyalar AES-256 ile şifrelenir. Bilgisayarda 7-Zip ya da WinRAR ile aynı parolayla açılır. Parolayı unutursanız dosyalar açılamaz.	Fayllar AES-256 bilan shifrlanadi. Kompyuterda 7-Zip yoki WinRAR'da shu parol bilan ochiladi. Parolni unutsangiz, fayllarni ochib bo'lmaydi.
+Kasa oluşturuluyor	Seyf yaratilmoqda
+Kasa açılıyor	Seyf ochilmoqda
+Parola yanlış	Parol noto'g'ri
+Kasa kilitlendi	Seyf qulflandi

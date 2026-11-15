@@ -504,3 +504,19 @@ Kart değişmiş; yeni kartta Disk analizine tekrar basın	Карта смени
 İnceleniyor: 	Сканирование: 
 Dokun: yakınlaş • İki parmak: büyüt • Uzun bas: klasörü aç	Нажатие: приблизить • Два пальца: масштаб • Долгое нажатие: открыть папку
 Üst klasör	Вверх
+Parolalı ZIP dosyaları	ZIP-файлы с паролем
+Açık • uzun bas: kilitle	Открыт • долгое нажатие: заблокировать
+Kilitli • açmak için dokunun	Заблокирован • нажмите, чтобы открыть
+Dosya bulunamadı	Файл не найден
+Kilitle	Заблокировать
+Dosyanın yerini göster	Показать расположение файла
+Listeden kaldır (dosya silinmez)	Убрать из списка (файл не удаляется)
+Eski kasa	Старый сейф
+Kasa oluştur	Создать сейф
+Parolalı ZIP dosyası (AES-256)	ZIP-файл с паролем (AES-256)
+Yer:	Место:
+Dosyalar AES-256 ile şifrelenir. Bilgisayarda 7-Zip ya da WinRAR ile aynı parolayla açılır. Parolayı unutursanız dosyalar açılamaz.	Файлы шифруются AES-256. На компьютере открываются в 7-Zip или WinRAR тем же паролем. Если забудете пароль, файлы нельзя будет открыть.
+Kasa oluşturuluyor	Создание сейфа
+Kasa açılıyor	Открытие сейфа
+Parola yanlış	Неверный пароль
+Kasa kilitlendi	Сейф заблокирован

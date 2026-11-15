@@ -501,3 +501,19 @@ Kart değişmiş; yeni kartta Disk analizine tekrar basın	The card has changed;
 İnceleniyor: 	Scanning: 
 Dokun: yakınlaş • İki parmak: büyüt • Uzun bas: klasörü aç	Tap: zoom in • Two fingers: enlarge • Long press: open folder
 Üst klasör	Up
+Parolalı ZIP dosyaları	Password-protected ZIP files
+Açık • uzun bas: kilitle	Open • long press: lock
+Kilitli • açmak için dokunun	Locked • tap to open
+Dosya bulunamadı	File not found
+Kilitle	Lock
+Dosyanın yerini göster	Show file location
+Listeden kaldır (dosya silinmez)	Remove from list (file is kept)
+Eski kasa	Old vault
+Kasa oluştur	Create vault
+Parolalı ZIP dosyası (AES-256)	Password-protected ZIP file (AES-256)
+Yer:	Location:
+Dosyalar AES-256 ile şifrelenir. Bilgisayarda 7-Zip ya da WinRAR ile aynı parolayla açılır. Parolayı unutursanız dosyalar açılamaz.	Files are encrypted with AES-256. On a computer they open in 7-Zip or WinRAR with the same password. If you forget the password, the files cannot be opened.
+Kasa oluşturuluyor	Creating vault
+Kasa açılıyor	Opening vault
+Parola yanlış	Wrong password
+Kasa kilitlendi	Vault locked
