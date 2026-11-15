@@ -1719,6 +1719,7 @@ public class ExplorerActivity extends Activity {
         out.add(special("fav", K_GROUP, R.drawable.ic_star, "Sık kullanılanlar", null));
         out.add(special("recent", K_GROUP, R.drawable.ic_clock, "Son dosyalar", null));
         out.add(special("apps", K_GROUP, R.drawable.ic_apps, "Uygulama yöneticisi", null));
+        out.add(special("trash", K_GROUP, R.drawable.ic_t_delete, "Çöp kutusu", "Uzun bas: geri yükle"));
         out.add(special("ftp", K_GROUP, R.drawable.ic_network, "Ağ (FTP / LAN)", null));
         TNode wifiNode = special("wifi", K_ACTION, R.drawable.ic_wifi, "WiFi dosya paylaşımı",
                 wifi == null ? "Kapalı" : "http://" + WifiShare.address() + ":" + wifi.port);
@@ -1971,6 +1972,8 @@ public class ExplorerActivity extends Activity {
                 return this::favoriteChildren;
             case "recent":
                 return this::recentChildren;
+            case "trash":
+                return this::trashChildren;
             case "apps":
                 return parent -> appChildren(parent, prefs.getBoolean("systemApps", false));
             case "ftp":
@@ -2249,6 +2252,16 @@ public class ExplorerActivity extends Activity {
             openText(f);
             return;
         }
+        if (e.equals("pdf") && Build.VERSION.SDK_INT >= 21) {
+            withLocal(f, file -> startActivity(new Intent(this, PdfActivity.class)
+                    .putExtra("path", file.getAbsolutePath())));
+            return;
+        }
+        if (e.equals("db") || e.equals("sqlite") || e.equals("sqlite3")) {
+            withLocal(f, file -> startActivity(new Intent(this, SqliteActivity.class)
+                    .putExtra("path", file.getAbsolutePath())));
+            return;
+        }
         withLocal(f, file -> openExternal(file, null));
     }
 
@@ -2436,8 +2449,8 @@ public class ExplorerActivity extends Activity {
     }
 
     private void askShownRoots() {
-        final String[] keys = {"fav", "recent", "apps", "ftp", "wifi", "vault", "tools"};
-        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "Ağ (FTP / LAN)",
+        final String[] keys = {"fav", "recent", "apps", "trash", "ftp", "wifi", "vault", "tools"};
+        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "Çöp kutusu", "Ağ (FTP / LAN)",
                 "WiFi dosya paylaşımı", "Kasa", "USB kart araçları"};
         final Set<String> hid = new HashSet<>(Arrays.asList(prefs.getString("hiddenRoots", "").split(",")));
         final boolean[] on = new boolean[keys.length];
@@ -2605,11 +2618,27 @@ public class ExplorerActivity extends Activity {
         StringBuilder names = new StringBuilder();
         for (int i = 0; i < Math.min(5, sel.size()); i++) names.append("• ").append(sel.get(i).name).append('\n');
         if (sel.size() > 5) names.append("… ve ").append(sel.size() - 5).append(" öğe daha\n");
-        new AlertDialog.Builder(this)
+        boolean canTrash = prefs.getBoolean("trash", true);
+        for (VNode v : sel) if (trashDirFor(v) == null) canTrash = false;
+        AlertDialog.Builder b = new AlertDialog.Builder(this)
                 .setTitle(sel.size() == 1 ? "Silinsin mi?" : sel.size() + " öğe silinsin mi?")
-                .setMessage(names + "\nSilinen dosyalar geri getirilemez.")
-                .setNegativeButton("Vazgeç", null)
-                .setPositiveButton("Sil", (d, w) -> runOp("Siliniyor", (pr, c) -> {
+                .setNegativeButton("Vazgeç", null);
+        if (canTrash) {
+            b.setMessage(names + "\nÇöp kutusuna taşınanlar 30 gün içinde geri yüklenebilir.");
+            b.setNeutralButton("Çöp kutusuna", (d, w) -> runOp("Çöp kutusuna taşınıyor", (pr, c) -> {
+                int n = 0;
+                for (VNode v : sel) if (moveToTrash(v)) n++;
+                return n + " öğe çöp kutusuna taşındı";
+            }, () -> {
+                Pane p = panes[active];
+                p.selected.clear();
+                if (p.current != null && p.current.fileish()) p.current = p.current.parent;
+                reloadAll();
+            }));
+        } else {
+            b.setMessage(names + "\nSilinen dosyalar geri getirilemez.");
+        }
+        b.setPositiveButton(canTrash ? "Kalıcı sil" : "Sil", (d, w) -> runOp("Siliniyor", (pr, c) -> {
                     FileOps ops = new FileOps(pr, c, this::status);
                     ops.delete(sel);
                     return ops.files() + " öğe silindi";
@@ -2618,8 +2647,116 @@ public class ExplorerActivity extends Activity {
                     p.selected.clear();
                     if (p.current != null && p.current.fileish()) p.current = p.current.parent;
                     reloadAll();
-                }))
-                .show();
+                }));
+        b.show();
+    }
+
+    // ---------------------------------------------------------------- çöp kutusu
+
+    private static final String TRASH = ".KartFormatCop";
+
+    /** Öğenin bulunduğu birimdeki çöp klasörü; yerel değilse ya da zaten çöpteyse null. */
+    private File trashDirFor(VNode v) {
+        File f = v.fs.localFile(v);
+        if (f == null) return null;
+        List<File> roots = new ArrayList<>();
+        roots.add(internal.rootFile());
+        for (LocalFs o : otherVolumes) roots.add(o.rootFile());
+        for (File r : roots) {
+            String rp = r.getAbsolutePath() + "/";
+            if (f.getAbsolutePath().startsWith(rp)) {
+                File t = new File(r, TRASH);
+                if (f.getAbsolutePath().startsWith(t.getAbsolutePath())) return null;
+                return t;
+            }
+        }
+        return null;
+    }
+
+    private boolean moveToTrash(VNode v) {
+        File f = v.fs.localFile(v);
+        File dir = trashDirFor(v);
+        if (f == null || dir == null) return false;
+        if (!dir.isDirectory() && !dir.mkdirs()) return false;
+        try {
+            new File(dir, ".nomedia").createNewFile();
+        } catch (IOException ignored) {
+        }
+        String tn = System.currentTimeMillis() + "_" + f.getName();
+        File to = new File(dir, tn);
+        if (!f.renameTo(to)) return false;
+        try (java.io.FileWriter w = new java.io.FileWriter(new File(dir, ".index"), true)) {
+            w.write(tn + "\t" + f.getAbsolutePath() + "\n");
+        } catch (IOException ignored) {
+        }
+        return true;
+    }
+
+    private Map<String, String> trashIndex(File dir) {
+        Map<String, String> m = new HashMap<>();
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(new File(dir, ".index")))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                int t = line.indexOf('\t');
+                if (t > 0) m.put(line.substring(0, t), line.substring(t + 1));
+            }
+        } catch (IOException ignored) {
+        }
+        return m;
+    }
+
+    private List<TNode> trashChildren(TNode parent) {
+        List<TNode> out = new ArrayList<>();
+        List<LocalFs> vols = new ArrayList<>();
+        vols.add(internal);
+        vols.addAll(otherVolumes);
+        long limit = System.currentTimeMillis() - 30L * 24 * 3600 * 1000;
+        for (LocalFs vol : vols) {
+            final File dir = new File(vol.rootFile(), TRASH);
+            File[] fs = dir.listFiles();
+            if (fs == null) continue;
+            Map<String, String> idx = trashIndex(dir);
+            for (final File f : fs) {
+                if (f.getName().startsWith(".")) continue;
+                int us = f.getName().indexOf('_');
+                long when = 0;
+                try {
+                    when = us > 0 ? Long.parseLong(f.getName().substring(0, us)) : 0;
+                } catch (NumberFormatException ignored) {
+                }
+                if (when > 0 && when < limit) {
+                    // 30 günü geçenler kalıcı silinir
+                    try {
+                        vol.delete(vol.node(f), null);
+                    } catch (IOException ignored) {
+                    }
+                    continue;
+                }
+                TNode t = fileNode(parent, vol.node(f));
+                t.title = us > 0 ? f.getName().substring(us + 1) : f.getName();
+                final String orig = idx.get(f.getName());
+                t.path = orig == null ? null : "← " + new File(orig).getParent();
+                t.onLong = () -> new AlertDialog.Builder(this).setTitle(t.title)
+                        .setItems(new String[]{"Geri yükle", "Kalıcı sil"}, (d, w) -> {
+                            if (w == 0) {
+                                File back = orig == null ? new File(vol.rootFile(), t.title) : new File(orig);
+                                if (back.exists()) back = new File(back.getParentFile(), "(geri) " + back.getName());
+                                File pd = back.getParentFile();
+                                if (pd != null) pd.mkdirs();
+                                toast(f.renameTo(back) ? "Geri yüklendi: " + back.getParent() : "Geri yüklenemedi");
+                                reloadAll();
+                            } else {
+                                runOp("Siliniyor", (pr, c) -> {
+                                    vol.delete(vol.node(f), c);
+                                    return null;
+                                }, this::reloadAll);
+                            }
+                        }).show();
+                out.add(t);
+            }
+        }
+        if (out.isEmpty()) out.add(info(parent, "(boş)", "empty"));
+        return out;
     }
 
     private void askZip() {
@@ -2938,6 +3075,7 @@ public class ExplorerActivity extends Activity {
                 {"toolLabels", "Araç çubuğu yazıları", "1"},
                 {"restoreLast", "Açılışta son klasörler", "1"},
                 {"confirmExit", "Çıkarken onay sor", "0"},
+                {"trash", "Silerken çöp kutusu kullan", "1"},
                 {"fullscreen", "Tam ekran", "0"},
         };
         final String[][] choices = {
