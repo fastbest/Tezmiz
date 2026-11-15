@@ -408,7 +408,46 @@ public class ExplorerActivity extends Activity {
         rootView.addView(top);
 
         // Paneller + araç çubuğu: araç çubuğu sütunu etkin panelin yanında durur
-        FrameLayout body = new FrameLayout(this);
+        final int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+        FrameLayout body = new FrameLayout(this) {
+            float dx0, dy0;
+            boolean swiping;
+
+            @Override
+            public boolean onInterceptTouchEvent(android.view.MotionEvent e) {
+                if (landscape()) return false;
+                switch (e.getActionMasked()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        dx0 = e.getX();
+                        dy0 = e.getY();
+                        swiping = false;
+                        break;
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        float dx = e.getX() - dx0, dy = e.getY() - dy0;
+                        if (Math.abs(dx) > slop * 2 && Math.abs(dx) > Math.abs(dy) * 1.6f) {
+                            swiping = true;
+                            return true;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                return false;
+            }
+
+            @Override
+            public boolean onTouchEvent(android.view.MotionEvent e) {
+                int a = e.getActionMasked();
+                if (a == android.view.MotionEvent.ACTION_UP && swiping) {
+                    float dx = e.getX() - dx0;
+                    if (Math.abs(dx) > dp(48)) setActive(dx < 0 ? 1 : 0);
+                    swiping = false;
+                } else if (a == android.view.MotionEvent.ACTION_CANCEL) {
+                    swiping = false;
+                }
+                return true;
+            }
+        };
         body.setBackgroundColor(0xFF131416);
         paneRow = body;
         panes[0] = new Pane(0);
