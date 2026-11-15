@@ -13,8 +13,8 @@ android {
         applicationId 'uz.fastbest.kartformat'
         minSdk 21
         targetSdk 34
-        versionCode 47
-        versionName '7.9.3'
+        versionCode 48
+        versionName '8.0'
     }
 
     signingConfigs {
@@ -78,5 +78,7 @@ dependencies {
     implementation 'com.github.mwiede:jsch:0.2.20'
     // Parolalı (AES) ZIP: kasa (Apache-2.0)
     implementation 'net.lingala.zip4j:zip4j:2.11.5'
+    // 7-Zip motoru: RAR5, 7z, CAB, ARJ, LZH, WIM, DMG… (LGPL + unRAR lisansı)
+    implementation 'com.github.omicronapps:7-Zip-JBinding-4Android:Release-16.02-2.02'
     testImplementation 'junit:junit:4.13.2'
 }

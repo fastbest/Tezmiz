@@ -130,7 +130,9 @@ public class ExplorerActivity extends Activity {
     private static final Set<String> VIDEO = set("mp4", "mkv", "avi", "mov", "webm", "3gp", "ts",
             "m4v", "wmv", "flv");
     private static final Set<String> ARCHIVES = set("zip", "7z", "tar", "gz", "tgz", "xz", "txz",
-            "bz2", "tbz2", "iso", "rar", "jar");
+            "bz2", "tbz", "tbz2", "iso", "rar", "jar", "cab", "arj", "lzh", "lha", "wim", "swm", "cpio",
+            "rpm", "deb", "dmg", "lzma", "tlz", "z", "taz", "zst", "001", "cbz", "cbr", "cb7", "xar",
+            "vhd", "chm", "epub", "aar");
     private static final Set<String> DOCS = set("doc", "docx", "odt", "rtf");
     private static final Set<String> SHEETS = set("xls", "xlsx", "ods");
 
@@ -2549,36 +2551,13 @@ public class ExplorerActivity extends Activity {
                 addTempGroup(p, g);
                 expand(p, g);
             } catch (IOException | RuntimeException ex) {
-                new L.Builder(this).setTitle(f.name)
-                        .setMessage("ZIP içine göz atılamadı (" + ex.getMessage() + "). "
-                                + "Arşivi bir klasöre çıkarmayı deneyin.")
-                        .setNegativeButton("Vazgeç", null)
-                        .setPositiveButton("Buraya çıkar", (d, w) -> extract(f, f.parent))
-                        .show();
+                // Java'nın ZIP okuyucusu açamadı (eski şifreleme, bozuk başlık…): 7-Zip motoru dener
+                browseArchive(f, null);
             }
             return;
         }
-        if ((e.equals("7z") || e.equals("rar")) && local != null) {
-            final File lf = local;
-            runOp("Arşiv okunuyor", (pr, c) -> {
-                final ArchiveFs a = new ArchiveFs(lf, getCacheDir());
-                main.post(() -> {
-                    final TNode g = special("arc:" + lf.getAbsolutePath(), K_VOLUME,
-                            R.drawable.ic_file_archive, a.title(), e.toUpperCase(Locale.ROOT) + " içi • uzun bas: kapat");
-                    g.node = a.root();
-                    g.temp = true;
-                    g.onLong = () -> {
-                        a.close();
-                        for (Pane q : panes) {
-                            q.roots.remove(g);
-                            q.refresh();
-                        }
-                    };
-                    addTempGroup(p, g);
-                    expand(p, g);
-                });
-                return null;
-            }, null);
+        if (ARCHIVES.contains(e) && !e.equals("zip") && !e.equals("jar") && SevenFs.handles(e)) {
+            browseArchive(f, null);
             return;
         }
         if ((AUDIO.contains(e) || VIDEO.contains(e)) && local != null) {
@@ -3157,6 +3136,66 @@ public class ExplorerActivity extends Activity {
         return out;
     }
 
+    /** Arşive (RAR, 7z, TAR, GZ, ISO, CAB…) klasör gibi göz atar; parola gerekirse sorar. */
+    private void browseArchive(final VNode f, final String password) {
+        final Pane p = panes[active];
+        final SevenFs[] got = new SevenFs[1];
+        final boolean[] needPw = {false, false};
+        final File[] src = new File[1];
+        runOp("Arşiv okunuyor", (pr, c) -> {
+            File local = f.fs.localFile(f);
+            if (local == null) local = new FileOps(pr, c, this::status).toCache(f, getCacheDir());
+            src[0] = local;
+            try {
+                got[0] = new SevenFs(local, getCacheDir(), password);
+            } catch (SevenFs.PasswordNeeded e) {
+                needPw[0] = true;
+                needPw[1] = e.wrong;
+            }
+            return null;
+        }, () -> {
+            if (needPw[0]) {
+                askArchivePassword(f.name, needPw[1], pw -> browseArchive(f, pw));
+                return;
+            }
+            final SevenFs a = got[0];
+            if (a == null) return;
+            String e = f.ext().toUpperCase(Locale.ROOT);
+            final TNode g = special("arc:" + src[0].getAbsolutePath(), K_VOLUME,
+                    R.drawable.ic_file_archive, a.title(), e + " " + L.t("içi • uzun bas: kapat"));
+            g.node = a.root();
+            g.temp = true;
+            g.onLong = () -> {
+                a.close();
+                for (Pane q : panes) {
+                    q.roots.remove(g);
+                    q.refresh();
+                }
+            };
+            addTempGroup(p, g);
+            expand(p, g);
+        });
+    }
+
+    private interface PwCb {
+        void on(String pw);
+    }
+
+    private void askArchivePassword(String name, boolean wrong, final PwCb cb) {
+        final EditText pass = input("", "Parola");
+        pass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(6), dp(20), 0);
+        if (wrong) box.addView(label("Parola yanlış", 13, 0xFFE53935));
+        box.addView(pass);
+        new L.Builder(this).setTitle(name).setView(box)
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Aç", (d, w) -> cb.on(pass.getText().toString()))
+                .show();
+    }
+
+    /** Arşiv oluştur: ZIP, parolalı ZIP (AES-256), 7z (isteğe bağlı parola), TAR.GZ. */
     private void askZip() {
         final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
@@ -3166,18 +3205,163 @@ public class ExplorerActivity extends Activity {
             toast("ZIP'in kaydedileceği klasörü açın");
             return;
         }
-        final EditText e = input((sel.size() == 1 ? sel.get(0).name : "arsiv") + ".zip", "Dosya adı");
-        new L.Builder(this).setTitle("ZIP oluştur").setView(padded(e))
+        final String base = sel.size() == 1 ? sel.get(0).name.replaceFirst("\\.[^.]{1,5}$", "") : "arsiv";
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(6), dp(20), 0);
+        final String[] fmts = {"ZIP", "7z", "TAR.GZ"};
+        final String[] exts = {".zip", ".7z", ".tar.gz"};
+        final int[] fmt = {0};
+        final EditText name = input(base + ".zip", "Dosya adı");
+        final EditText pass = input("", "Parola (isteğe bağlı)");
+        pass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        final TextView note = label("", 12, MUTED);
+        LinearLayout seg = new LinearLayout(this);
+        seg.setPadding(0, dp(4), 0, dp(8));
+        final List<TextView> btns = new ArrayList<>();
+        final Runnable paint = () -> {
+            for (int i = 0; i < btns.size(); i++) {
+                btns.get(i).setBackground(round(i == fmt[0] ? CHIP : FIELD, 0, 0, dp(8)));
+                btns.get(i).setTextColor(i == fmt[0] ? Color.WHITE : TEXT);
+            }
+            pass.setVisibility(fmt[0] == 2 ? View.GONE : View.VISIBLE);
+            note.setText(L.t(fmt[0] == 0 ? "ZIP her yerde açılır. Parola verirseniz AES-256 ile şifrelenir."
+                    : fmt[0] == 1 ? "7z en iyi sıkıştırmayı yapar. Parola verirseniz dosya adları da gizlenir."
+                    : "TAR.GZ Linux ve Mac'te yaygındır; parola desteklemez."));
+            String n = name.getText().toString();
+            for (String x : exts) if (n.toLowerCase(Locale.ROOT).endsWith(x)) n = n.substring(0, n.length() - x.length());
+            name.setText(n + exts[fmt[0]]);
+        };
+        for (int i = 0; i < fmts.length; i++) {
+            final int k = i;
+            TextView b = label(fmts[i], 14, TEXT);
+            b.setGravity(Gravity.CENTER);
+            b.setPadding(0, dp(9), 0, dp(9));
+            b.setOnClickListener(v -> {
+                fmt[0] = k;
+                paint.run();
+            });
+            btns.add(b);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+            if (i > 0) lp.leftMargin = dp(6);
+            seg.addView(b, lp);
+        }
+        box.addView(seg);
+        box.addView(name);
+        box.addView(pass);
+        box.addView(note);
+        paint.run();
+        new L.Builder(this).setTitle("Arşiv oluştur").setView(box)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Oluştur", (d, w) -> {
-                    String n = e.getText().toString().trim();
-                    final String name = n.toLowerCase(Locale.ROOT).endsWith(".zip") ? n : n + ".zip";
+                    String n = name.getText().toString().trim();
+                    if (n.isEmpty()) n = base;
+                    if (!n.toLowerCase(Locale.ROOT).endsWith(exts[fmt[0]])) n += exts[fmt[0]];
+                    final String fileName = n;
+                    final String pw = fmt[0] == 2 ? "" : pass.getText().toString();
+                    final int f = fmt[0];
                     runOp("Sıkıştırılıyor", (pr, c) -> {
                         FileOps ops = new FileOps(pr, c, this::status);
-                        VNode z = ops.zip(sel, dest, name, getCacheDir());
-                        return z.name + " oluşturuldu (" + DiskOps.sizeText(z.size) + ")";
+                        if (f == 0 && pw.isEmpty()) {
+                            VNode z = ops.zip(sel, dest, fileName, getCacheDir());
+                            return z.name + " " + L.t("oluşturuldu") + " (" + DiskOps.sizeText(z.size) + ")";
+                        }
+                        // Diğer biçimler yerel dosyalardan çalışır; gerekirse önce önbelleğe alınır
+                        List<File[]> items = new ArrayList<>();
+                        File stage = null;
+                        for (VNode v : sel) {
+                            File lf = v.fs.localFile(v);
+                            if (lf == null) {
+                                if (stage == null) {
+                                    stage = new File(getCacheDir(), "paket_" + System.currentTimeMillis());
+                                    //noinspection ResultOfMethodCallIgnored
+                                    stage.mkdirs();
+                                }
+                                VNode sd = fsFor(stage).node(stage);
+                                ops.copy(java.util.Collections.singletonList(v), sd, false);
+                                lf = new File(stage, v.name);
+                            }
+                            collectFiles(lf, lf.getName(), items);
+                        }
+                        File out = new File(getCacheDir(), "olusan_" + System.currentTimeMillis() + exts[f]);
+                        try {
+                            if (f == 0) {
+                                net.lingala.zip4j.ZipFile zf = new net.lingala.zip4j.ZipFile(out, pw.toCharArray());
+                                net.lingala.zip4j.model.ZipParameters zp = new net.lingala.zip4j.model.ZipParameters();
+                                zp.setEncryptFiles(true);
+                                zp.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
+                                zp.setAesKeyStrength(net.lingala.zip4j.model.enums.AesKeyStrength.KEY_STRENGTH_256);
+                                long total = 0, done = 0;
+                                for (File[] it : items) total += it[0].length();
+                                for (File[] it : items) {
+                                    if (c.isCancelled()) throw new DiskOps.CancelledException();
+                                    if (it[0].isDirectory()) continue;
+                                    zp.setFileNameInZip(it[1].getPath());
+                                    zf.addFile(it[0], zp);
+                                    done += it[0].length();
+                                    pr.onProgress(done, Math.max(1, total));
+                                }
+                                zf.close();
+                            } else if (f == 1) {
+                                SevenFs.create7z(items, out, pw, 5, pr);
+                            } else {
+                                try (java.io.OutputStream fo = new java.io.BufferedOutputStream(new java.io.FileOutputStream(out), 1 << 16);
+                                     org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream gz =
+                                             new org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream(fo);
+                                     org.apache.commons.compress.archivers.tar.TarArchiveOutputStream tar =
+                                             new org.apache.commons.compress.archivers.tar.TarArchiveOutputStream(gz)) {
+                                    tar.setLongFileMode(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream.LONGFILE_POSIX);
+                                    tar.setBigNumberMode(org.apache.commons.compress.archivers.tar.TarArchiveOutputStream.BIGNUMBER_POSIX);
+                                    long total = 0, done = 0;
+                                    for (File[] it : items) total += it[0].length();
+                                    byte[] buf = new byte[1 << 16];
+                                    for (File[] it : items) {
+                                        if (c.isCancelled()) throw new DiskOps.CancelledException();
+                                        org.apache.commons.compress.archivers.tar.TarArchiveEntry te =
+                                                new org.apache.commons.compress.archivers.tar.TarArchiveEntry(it[0], it[1].getPath());
+                                        tar.putArchiveEntry(te);
+                                        if (it[0].isFile()) {
+                                            try (InputStream in = new java.io.FileInputStream(it[0])) {
+                                                int r;
+                                                while ((r = in.read(buf)) > 0) {
+                                                    tar.write(buf, 0, r);
+                                                    done += r;
+                                                    pr.onProgress(done, Math.max(1, total));
+                                                }
+                                            }
+                                        }
+                                        tar.closeArchiveEntry();
+                                    }
+                                }
+                            }
+                            VNode made;
+                            try (InputStream in = new java.io.FileInputStream(out)) {
+                                made = dest.fs.create(dest, fileName, in, out.length(), pr, c);
+                            }
+                            return made.name + " " + L.t("oluşturuldu") + " (" + DiskOps.sizeText(out.length()) + ")";
+                        } finally {
+                            //noinspection ResultOfMethodCallIgnored
+                            out.delete();
+                            if (stage != null) deleteTree(stage);
+                        }
                     }, this::reloadAll);
                 }).show();
+    }
+
+    /** Klasörü dolaşıp {dosya, arşivdeki yol} çiftlerini toplar. */
+    private static void collectFiles(File f, String rel, List<File[]> out) {
+        out.add(new File[]{f, new File(rel)});
+        if (f.isDirectory()) {
+            File[] k = f.listFiles();
+            if (k != null) for (File c : k) collectFiles(c, rel + "/" + c.getName(), out);
+        }
+    }
+
+    private static void deleteTree(File f) {
+        File[] k = f.isDirectory() ? f.listFiles() : null;
+        if (k != null) for (File c : k) deleteTree(c);
+        //noinspection ResultOfMethodCallIgnored
+        f.delete();
     }
 
     private void extractSelected() {
@@ -3196,11 +3380,60 @@ public class ExplorerActivity extends Activity {
             toast("Çıkarılacak yazılabilir bir klasör açın");
             return;
         }
+        extractWith(archive, target, null);
+    }
+
+    private void extractWith(final VNode archive, final VNode target, final String password) {
+        final boolean[] needPw = {false, false};
         runOp("Arşiv açılıyor", (pr, c) -> {
             FileOps ops = new FileOps(pr, c, this::status);
+            String ext = archive.ext();
+            boolean seven = SevenFs.handles(ext) && !ext.equals("img");
+            if (seven) {
+                File local = archive.fs.localFile(archive);
+                File temp = null;
+                if (local == null) {
+                    temp = ops.toCache(archive, getCacheDir());
+                    local = temp;
+                }
+                SevenFs a = null;
+                try {
+                    a = new SevenFs(local, getCacheDir(), password);
+                    String base = archive.name;
+                    int dot = base.lastIndexOf('.');
+                    if (dot > 0) base = base.substring(0, dot);
+                    if (base.toLowerCase(Locale.ROOT).endsWith(".tar")) base = base.substring(0, base.length() - 4);
+                    if (base.trim().isEmpty()) base = "arsiv";
+                    VNode d = target.fs.mkdir(target, base);
+                    int n = a.extractAll(d, c, pr, getCacheDir());
+                    return n + " " + L.t("dosya") + " \"" + d.name + "\" " + L.t("klasörüne açıldı");
+                } catch (SevenFs.PasswordNeeded e) {
+                    needPw[0] = true;
+                    needPw[1] = e.wrong;
+                    return null;
+                } catch (IOException e) {
+                    if (ext.equals("iso") || ext.equals("zip") || ext.startsWith("t") || ext.equals("gz")) {
+                        VNode d = ops.extract(archive, target, getCacheDir());
+                        return ops.files() + " dosya \"" + d.name + "\" klasörüne açıldı";
+                    }
+                    throw e;
+                } finally {
+                    if (a != null) a.close();
+                    if (temp != null) {
+                        //noinspection ResultOfMethodCallIgnored
+                        temp.delete();
+                    }
+                }
+            }
             VNode d = ops.extract(archive, target, getCacheDir());
             return ops.files() + " dosya \"" + d.name + "\" klasörüne açıldı";
-        }, this::reloadAll);
+        }, () -> {
+            if (needPw[0]) {
+                askArchivePassword(archive.name, needPw[1], pw -> extractWith(archive, target, pw));
+                return;
+            }
+            reloadAll();
+        });
     }
 
     private void shareSelected() {
