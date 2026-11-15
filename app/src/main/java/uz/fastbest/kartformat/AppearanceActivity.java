@@ -41,6 +41,7 @@ public class AppearanceActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle s) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(s);
         L.init(this);
         sp = Theme.prefs(this);
@@ -103,25 +104,27 @@ public class AppearanceActivity extends Activity {
         body.setOrientation(LinearLayout.VERTICAL);
         body.setPadding(dp(18), 0, dp(18), dp(30));
 
-        body.addView(label("Tema"));
+        body.addView(label("Tema", R.drawable.ic_sun));
         String[] themes = new String[Theme.THEMES.length];
         for (int i = 0; i < themes.length; i++) {
             String v = L.exact("tema:" + Theme.THEMES[i]);
             themes[i] = v.startsWith("tema:") ? Theme.THEMES[i] : v;
         }
-        body.addView(segmented(themes, sp.getInt("tema", 2), k -> {
+        body.addView(segmented(themes, new int[]{R.drawable.ic_theme_auto, R.drawable.ic_sun, R.drawable.ic_moon},
+                sp.getInt("tema", Theme.DEF_TEMA), k -> {
             sp.edit().putInt("tema", k).commit();
             changed();
         }));
 
-        body.addView(label("Stil"));
-        body.addView(segmented(new String[]{"Düz", "Cam"}, Theme.GLASS ? 1 : 0, k -> {
+        body.addView(label("Stil", R.drawable.ic_style_glass));
+        body.addView(segmented(new String[]{"Düz", "Cam"},
+                new int[]{R.drawable.ic_style_flat, R.drawable.ic_style_glass}, Theme.GLASS ? 1 : 0, k -> {
             sp.edit().putBoolean("cam", k == 1).commit();
             changed();
         }));
 
-        body.addView(label("Renk"));
-        final int sel = Math.max(0, Math.min(Theme.SWATCHES.length - 1, sp.getInt("renk", 0)));
+        body.addView(label("Renk", R.drawable.ic_palette));
+        final int sel = Math.max(0, Math.min(Theme.SWATCHES.length - 1, sp.getInt("renk", Theme.DEF_RENK)));
         HorizontalScrollView hs = new HorizontalScrollView(this);
         hs.setHorizontalScrollBarEnabled(false);
         LinearLayout sw = new LinearLayout(this);
@@ -157,16 +160,16 @@ public class AppearanceActivity extends Activity {
         name.setPadding(dp(2), dp(8), 0, 0);
         body.addView(name);
 
-        body.addView(label("Yazı boyutu"));
+        body.addView(label("Yazı boyutu", R.drawable.ic_textsize));
         int zsel = 1;
         float cur = sp.getFloat("yazi", 1f);
         for (int i = 0; i < Theme.ZOOMS.length; i++) if (Math.abs(Theme.ZOOMS[i] - cur) < 0.01f) zsel = i;
-        body.addView(segmented(Theme.ZOOM_LABELS, zsel, k -> {
+        body.addView(segmented(Theme.ZOOM_LABELS, new int[]{-13, -16, -19, -23}, zsel, k -> {
             sp.edit().putFloat("yazi", Theme.ZOOMS[k]).commit();
             changed();
         }));
 
-        body.addView(label("Ön izleme"));
+        body.addView(label("Ön izleme", R.drawable.ic_style_flat));
         body.addView(preview());
 
         ScrollView sv = new ScrollView(this);
@@ -175,29 +178,55 @@ public class AppearanceActivity extends Activity {
         setContentView(root);
     }
 
-    private TextView label(String s) {
+    private View label(String s, int icon) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(2), dp(20), 0, dp(10));
+        ImageView iv = new ImageView(this);
+        iv.setImageResource(icon);
+        if (icon != R.drawable.ic_palette) iv.setColorFilter(Theme.ACCENT);
+        row.addView(iv, new LinearLayout.LayoutParams(dp(22), dp(22)));
         TextView t = text(s, 15, Theme.TXT, true);
-        t.setPadding(dp(2), dp(18), 0, dp(10));
-        return t;
+        t.setPadding(dp(10), 0, 0, 0);
+        row.addView(t);
+        return row;
     }
 
-    private LinearLayout segmented(String[] items, int selected, IntCb cb) {
+    private LinearLayout segmented(String[] items, int[] icons, int selected, IntCb cb) {
         LinearLayout seg = new LinearLayout(this);
         seg.setBackground(round(Theme.FIELD, dp(22)));
         seg.setPadding(dp(4), dp(4), dp(4), dp(4));
         for (int i = 0; i < items.length; i++) {
             final int k = i;
-            TextView t = text(items[i], 14.5f, i == selected ? Theme.TXT : Theme.SUB, i == selected);
-            t.setGravity(Gravity.CENTER);
-            t.setPadding(0, dp(9), 0, dp(9));
-            if (i == selected) {
-                t.setBackground(round(Theme.LIGHT ? Color.WHITE : Theme.OUTLINE, dp(18)));
-                t.setElevation(dp(2));
+            boolean on = i == selected;
+            int fg = on ? (Theme.LIGHT || !Theme.GLASS ? Theme.ACCENT : Theme.TXT) : Theme.SUB;
+            LinearLayout cell = new LinearLayout(this);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER);
+            cell.setPadding(0, dp(9), 0, dp(8));
+            if (icons[i] > 0) {
+                ImageView iv = new ImageView(this);
+                iv.setImageResource(icons[i]);
+                iv.setColorFilter(fg);
+                cell.addView(iv, new LinearLayout.LayoutParams(dp(24), dp(24)));
+            } else {
+                TextView a = text("A", -icons[i], fg, true);
+                a.setGravity(Gravity.CENTER);
+                a.setIncludeFontPadding(false);
+                cell.addView(a, new LinearLayout.LayoutParams(WC, dp(24)));
             }
-            t.setOnClickListener(v -> {
+            TextView t = text(items[i], 13f, on ? Theme.TXT : Theme.SUB, on);
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(0, dp(4), 0, 0);
+            cell.addView(t);
+            if (on) {
+                cell.setBackground(round(Theme.LIGHT ? Color.WHITE : Theme.OUTLINE, dp(18)));
+                cell.setElevation(dp(2));
+            }
+            cell.setOnClickListener(v -> {
                 if (k != selected) cb.on(k);
             });
-            seg.addView(t, new LinearLayout.LayoutParams(0, WC, 1));
+            seg.addView(cell, new LinearLayout.LayoutParams(0, WC, 1));
         }
         return seg;
     }

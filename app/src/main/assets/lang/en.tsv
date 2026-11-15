@@ -550,3 +550,12 @@ Kasadan çıkar	Take out of vault
 Şuraya taşınacak:	Will be moved to:
 Taşı	Move
 Taşınıyor	Moving
+Taşı (diğer paneldeki klasöre)	Move (to the folder in the other panel)
+Kasayı sil	Delete vault
+Kasa dosyası ve içindeki her şey silinecek.	The vault file and everything inside it will be deleted.
+Önce diğer panelde telefondaki bir klasöre dokunun	First tap a phone folder in the other panel
+Bu adda bir dosya zaten var: 	A file with this name already exists: 
+Kasa çöp kutusuna taşındı	Vault moved to the recycle bin
+Kasa silindi	Vault deleted
+Yeniden adlandırılamadı	Could not rename
+Silinemedi	Could not delete

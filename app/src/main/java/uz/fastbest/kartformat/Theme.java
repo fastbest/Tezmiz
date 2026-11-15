@@ -30,6 +30,16 @@ public final class Theme {
             {"Turuncu", "#FF8800"}, {"Turkuaz", "#5FA3B0"}, {"Okyanus", "#3B8FE0"}, {"Lavanta", "#8E7CE8"},
             {"Gül", "#E0679C"}, {"Mercan", "#F2655B"}, {"Zümrüt", "#2EA56F"}, {"Kehribar", "#E0A23B"},
             {"Grafit", "#7D8396"}};
+    /** Varsayılan görünüm: Açık tema, Cam stil, Lavanta. */
+    public static final int DEF_TEMA = 1, DEF_RENK = 3;
+    public static final boolean DEF_CAM = true;
+
+    /** Activity'nin bileşen teması (giriş kutuları, anahtarlar) açık/koyu temaya uysun. */
+    public static int widgetTheme(Context c) {
+        load(c);
+        return LIGHT ? android.R.style.Theme_Material_Light_NoActionBar : android.R.style.Theme_Material_NoActionBar;
+    }
+
     public static final String[] THEMES = {"Sistem", "Açık", "Koyu"};
     public static final float[] ZOOMS = {0.85f, 1f, 1.15f, 1.3f};
     public static final String[] ZOOM_LABELS = {"Küçük", "Normal", "Büyük", "Çok büyük"};
@@ -58,13 +68,13 @@ public final class Theme {
 
     public static void load(Context c) {
         SharedPreferences sp = prefs(c);
-        int t = sp.getInt("tema", 2);
+        int t = sp.getInt("tema", DEF_TEMA);
         boolean nightSys = (c.getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-        int sw = sp.getInt("renk", 0);
+        int sw = sp.getInt("renk", DEF_RENK);
         if (sw < 0 || sw >= SWATCHES.length) sw = 0;
-        boolean glass = sp.getBoolean("cam", false);
+        boolean glass = sp.getBoolean("cam", DEF_CAM);
         float scale = sp.getFloat("yazi", 1f);
         boolean light = t == 1 || (t == 0 && !nightSys);
         String key = light + "/" + glass + "/" + sw + "/" + scale;

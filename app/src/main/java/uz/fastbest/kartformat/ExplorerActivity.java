@@ -242,6 +242,7 @@ public class ExplorerActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
         Theme.apply(this);
@@ -2810,6 +2811,17 @@ public class ExplorerActivity extends Activity {
         e.setText(text);
         e.setHint(L.t(hint));
         e.setSelectAllOnFocus(true);
+        // Görünür, çerçeveli yazı kutusu (açık ve koyu temada)
+        e.setTextColor(TEXT);
+        e.setHintTextColor(MUTED);
+        e.setTextSize(16);
+        e.setBackground(round(Theme.LIGHT ? 0xFFF4F5F9 : 0xFF2A2B30, Theme.ACCENT, dp(1.5f), dp(10)));
+        e.setPadding(dp(14), dp(12), dp(14), dp(12));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(6);
+        lp.bottomMargin = dp(6);
+        e.setLayoutParams(lp);
         return e;
     }
 
@@ -3485,6 +3497,13 @@ public class ExplorerActivity extends Activity {
         // Dil seçimi
         final String[] langPick = {prefs.getString("lang", "")};
         final TextView langRow = label("", 15, TEXT);
+        langRow.setCompoundDrawablePadding(dp(14));
+        android.graphics.drawable.Drawable lic = getDrawable(R.drawable.ic_language);
+        if (lic != null) {
+            lic.setBounds(0, 0, dp(26), dp(26));
+            langRow.setCompoundDrawables(lic, null, null, null);
+        }
+        langRow.setGravity(Gravity.CENTER_VERTICAL);
         final Runnable langText = () -> {
             String name = L.t("Sistem dili");
             for (String[] l : L.LANGS) if (l[0].equals(langPick[0])) name = l[1];
@@ -3502,8 +3521,21 @@ public class ExplorerActivity extends Activity {
             }).show();
         });
         col.addView(langRow, 0);
-        final TextView look = label(L.t("Görünüm") + "  ›", 15, TEXT);
-        look.setPadding(0, dp(12), 0, dp(12));
+        String[] tn = {L.t("tema:Sistem"), L.t("tema:Açık"), L.t("tema:Koyu")};
+        for (int i = 0; i < tn.length; i++) if (tn[i].startsWith("tema:")) tn[i] = tn[i].substring(5);
+        int ti = Math.max(0, Math.min(2, Theme.prefs(this).getInt("tema", Theme.DEF_TEMA)));
+        int ri = Math.max(0, Math.min(Theme.SWATCHES.length - 1, Theme.prefs(this).getInt("renk", Theme.DEF_RENK)));
+        final TextView look = label(L.t("Görünüm") + "\n" + tn[ti] + "  •  " + L.t(Theme.GLASS ? "Cam" : "Düz")
+                + "  •  " + L.t(Theme.SWATCHES[ri][0]) + "   ›", 15, TEXT);
+        look.setCompoundDrawablePadding(dp(14));
+        android.graphics.drawable.Drawable pic = getDrawable(R.drawable.ic_palette);
+        if (pic != null) {
+            pic.setBounds(0, 0, dp(26), dp(26));
+            look.setCompoundDrawables(pic, null, null, null);
+        }
+        look.setGravity(Gravity.CENTER_VERTICAL);
+        look.setPadding(dp(10), dp(12), dp(10), dp(12));
+        look.setBackground(round(Theme.alpha(Theme.ACCENT, 0x22), Theme.ACCENT, dp(1), dp(12)));
         col.addView(look, 0);
         final android.widget.Switch[] sw = new android.widget.Switch[toggles.length];
         for (int i = 0; i < toggles.length; i++) {
@@ -4467,6 +4499,14 @@ public class ExplorerActivity extends Activity {
                 }
                 items.add("Dosyanın yerini göster");
                 acts.add(() -> startReveal(panes[active], f.getParent()));
+                if (f.exists()) {
+                    items.add("Yeniden adlandır");
+                    acts.add(() -> renameVaultFile(path));
+                    items.add("Taşı (diğer paneldeki klasöre)");
+                    acts.add(() -> moveVaultFile(path));
+                    items.add("Kasayı sil");
+                    acts.add(() -> deleteVaultFile(path));
+                }
                 items.add("Listeden kaldır (dosya silinmez)");
                 acts.add(() -> {
                     lockVault(path);
@@ -4666,6 +4706,101 @@ public class ExplorerActivity extends Activity {
                             reloadAll();
                             reloadVaults();
                         })).show();
+    }
+
+    private void replaceVaultPath(String oldPath, String newPath) {
+        List<String> l = vaultPaths();
+        int i = l.indexOf(oldPath);
+        if (i >= 0) l.set(i, newPath); else l.add(newPath);
+        saveVaultPaths(l);
+    }
+
+    private void renameVaultFile(final String path) {
+        final File f = new File(path);
+        final EditText e = input(f.getName().replaceFirst("(?i)\\.zip$", ""), "Yeni ad");
+        new L.Builder(this).setTitle("Yeniden adlandır").setView(padded(e))
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Tamam", (d, w) -> {
+                    String n = e.getText().toString().trim();
+                    if (n.isEmpty()) return;
+                    if (!n.toLowerCase(Locale.ROOT).endsWith(".zip")) n += ".zip";
+                    File to = new File(f.getParentFile(), n);
+                    if (to.exists()) {
+                        toast("Bu adda bir dosya zaten var: " + n);
+                        return;
+                    }
+                    lockVaultQuiet(path);
+                    if (!f.renameTo(to)) {
+                        toast("Yeniden adlandırılamadı");
+                        return;
+                    }
+                    replaceVaultPath(path, to.getAbsolutePath());
+                    reloadAll();
+                }).show();
+    }
+
+    private void moveVaultFile(final String path) {
+        final File f = new File(path);
+        VNode od = dirOf(other().current);
+        final File dest = od == null ? null : od.fs.localFile(od);
+        if (dest == null || !dest.isDirectory()) {
+            toast("Önce diğer panelde telefondaki bir klasöre dokunun");
+            return;
+        }
+        final File to = new File(dest, f.getName());
+        new L.Builder(this).setTitle(f.getName())
+                .setMessage(L.t("Şuraya taşınacak:") + "\n" + dest.getAbsolutePath())
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Taşı", (d, w) -> {
+                    if (to.exists()) {
+                        toast("Bu adda bir dosya zaten var: " + to.getName());
+                        return;
+                    }
+                    lockVaultQuiet(path);
+                    final boolean[] ok = {f.renameTo(to)};
+                    if (ok[0]) {
+                        replaceVaultPath(path, to.getAbsolutePath());
+                        reloadAll();
+                        return;
+                    }
+                    // Başka birime (SD kart) taşıma: kopyala + sil
+                    runOp("Taşınıyor", (pr, c) -> {
+                        VNode src = fsFor(f).node(f);
+                        VNode dd = fsFor(dest).node(dest);
+                        new FileOps(pr, c, this::status).copy(java.util.Collections.singletonList(src), dd, true);
+                        return null;
+                    }, () -> {
+                        if (to.exists()) replaceVaultPath(path, to.getAbsolutePath());
+                        reloadAll();
+                    });
+                }).show();
+    }
+
+    private void deleteVaultFile(final String path) {
+        final File f = new File(path);
+        new L.Builder(this).setTitle("Kasayı sil")
+                .setMessage(f.getName() + "\n\n" + L.t("Kasa dosyası ve içindeki her şey silinecek."))
+                .setNegativeButton("Vazgeç", null)
+                .setPositiveButton("Sil", (d, w) -> {
+                    lockVaultQuiet(path);
+                    VNode n = fsFor(f).node(f);
+                    boolean ok = prefs.getBoolean("trash", true) && moveToTrash(n);
+                    if (!ok) ok = f.delete();
+                    if (!ok) {
+                        toast("Silinemedi");
+                        return;
+                    }
+                    List<String> l = vaultPaths();
+                    l.remove(path);
+                    saveVaultPaths(l);
+                    toast(prefs.getBoolean("trash", true) ? "Kasa çöp kutusuna taşındı" : "Kasa silindi");
+                    reloadAll();
+                }).show();
+    }
+
+    private void lockVaultQuiet(String path) {
+        Zip4jFs fs = openVaults.remove(path);
+        if (fs != null) fs.close();
     }
 
     private void lockVault(String path) {
