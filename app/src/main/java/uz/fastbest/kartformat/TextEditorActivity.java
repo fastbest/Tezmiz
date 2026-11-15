@@ -43,8 +43,10 @@ public class TextEditorActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
         String path = getIntent().getStringExtra("path");
         if (path == null) {
             finish();
@@ -56,14 +58,14 @@ public class TextEditorActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF1E1F22);
+        root.setBackground(Theme.pageBg());
         root.setFitsSystemWindows(true);
         LinearLayout bar = new LinearLayout(this);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackgroundColor(0xFF111214);
+        bar.setBackgroundColor(Theme.BAR);
         bar.setPadding(32, 16, 16, 16);
         info = new TextView(this);
-        info.setTextColor(0xFFECECEC);
+        info.setTextColor(Theme.TXT);
         info.setTextSize(16);
         info.setSingleLine(true);
         info.setText(title != null ? title : file.getName());
@@ -71,7 +73,7 @@ public class TextEditorActivity extends Activity {
         if (!readOnly) {
             TextView save = new TextView(this);
             save.setText("💾 Kaydet");
-            save.setTextColor(0xFF4FC3F7);
+            save.setTextColor(Theme.ACCENT);
             save.setTextSize(16);
             save.setPadding(24, 8, 24, 8);
             save.setOnClickListener(v -> save(false));
@@ -81,8 +83,8 @@ public class TextEditorActivity extends Activity {
         edit = new EditText(this);
         edit.setTypeface(Typeface.MONOSPACE);
         edit.setTextSize(14);
-        edit.setTextColor(0xFFE0E0E0);
-        edit.setBackgroundColor(0xFF1E1F22);
+        edit.setTextColor(Theme.TXT);
+        edit.setBackgroundColor(Theme.GLASS ? Theme.ROW : Theme.SURF);
         edit.setGravity(Gravity.TOP | Gravity.START);
         edit.setHorizontallyScrolling(false);
         edit.setPadding(24, 16, 24, 16);

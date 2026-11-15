@@ -25,6 +25,7 @@ public class VideoActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
         paths = getIntent().getStringArrayListExtra("paths");

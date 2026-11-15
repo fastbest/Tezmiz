@@ -3753,7 +3753,8 @@ public class ExplorerActivity extends Activity {
 
     /** Tam ekran disk haritası. */
     private void showDiskMap(final VNode dir, final DiskMap.Node root) {
-        final android.app.Dialog dlg = new android.app.Dialog(this, android.R.style.Theme_Black_NoTitleBar);
+        final android.app.Dialog dlg = new android.app.Dialog(this, Theme.LIGHT ? android.R.style.Theme_Material_Light_NoActionBar
+                : android.R.style.Theme_Black_NoTitleBar);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setBackgroundColor(Theme.LIGHT ? 0xFFF3F4F8 : 0xFF2A2B2F);

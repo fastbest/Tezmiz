@@ -52,11 +52,11 @@ public class MusicActivity extends Activity {
     }
 
     private TextView button(String s, float size, View.OnClickListener l) {
-        TextView b = text(s, size, Color.WHITE);
+        TextView b = text(s, size, Theme.TXT);
         b.setGravity(Gravity.CENTER);
         GradientDrawable g = new GradientDrawable();
         g.setShape(GradientDrawable.OVAL);
-        g.setColor(0xFF2E3138);
+        g.setColor(Theme.FIELD);
         b.setBackground(g);
         b.setOnClickListener(l);
         return b;
@@ -64,28 +64,28 @@ public class MusicActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
         paths = getIntent().getStringArrayListExtra("paths");
         index = getIntent().getIntExtra("index", 0);
         if (paths == null || paths.isEmpty()) {
             finish();
             return;
         }
-        getWindow().setStatusBarColor(0xFF151619);
-        getWindow().setNavigationBarColor(0xFF151619);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(0xFF1C1D20);
+        root.setBackground(Theme.pageBg());
         root.setPadding(dp(24), dp(28), dp(24), dp(28));
 
         cover = new ImageView(this);
         cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
         GradientDrawable cb = new GradientDrawable();
-        cb.setColor(0xFF2A2B2F);
+        cb.setColor(Theme.GLASS ? Theme.ROW : Theme.SURF);
         cb.setCornerRadius(dp(14));
         cover.setBackground(cb);
         cover.setClipToOutline(true);
@@ -93,7 +93,7 @@ public class MusicActivity extends Activity {
         clp.width = ViewGroup.LayoutParams.MATCH_PARENT;
         root.addView(cover, clp);
 
-        title = text("", 20, Color.WHITE);
+        title = text("", 20, Theme.TXT);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
@@ -102,7 +102,7 @@ public class MusicActivity extends Activity {
         title.setPadding(0, dp(20), 0, dp(4));
         root.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        artist = text("", 14, 0xFFA4A9B1);
+        artist = text("", 14, Theme.SUB);
         artist.setGravity(Gravity.CENTER);
         artist.setSingleLine(true);
         root.addView(artist, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -110,11 +110,14 @@ public class MusicActivity extends Activity {
 
         seek = new SeekBar(this);
         seek.setPadding(dp(4), dp(18), dp(4), dp(4));
+        seek.setProgressTintList(android.content.res.ColorStateList.valueOf(Theme.ACCENT));
+        seek.setThumbTintList(android.content.res.ColorStateList.valueOf(Theme.ACCENT));
+        seek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Theme.TRACK));
         root.addView(seek, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout times = new LinearLayout(this);
-        pos = text("0:00", 12, 0xFFA4A9B1);
-        dur = text("0:00", 12, 0xFFA4A9B1);
+        pos = text("0:00", 12, Theme.SUB);
+        dur = text("0:00", 12, Theme.SUB);
         dur.setGravity(Gravity.END);
         times.addView(pos, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         times.addView(dur, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -126,6 +129,11 @@ public class MusicActivity extends Activity {
         ctl.setPadding(0, dp(16), 0, 0);
         TextView prev = button("⏮", 22, v -> step(-1));
         playBtn = button("⏸", 30, v -> toggle());
+        GradientDrawable pg = new GradientDrawable();
+        pg.setShape(GradientDrawable.OVAL);
+        pg.setColor(Theme.ACCENT);
+        playBtn.setBackground(pg);
+        playBtn.setTextColor(Color.WHITE);
         TextView next = button("⏭", 22, v -> step(1));
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(dp(60), dp(60));
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(80), dp(80));

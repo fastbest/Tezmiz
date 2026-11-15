@@ -141,6 +141,30 @@ public final class Theme {
         a.getWindow().setBackgroundDrawable(pageBg());
     }
 
+    /** XML'den kurulan eski ekranları temaya boyar. */
+    public static void recolor(View v) {
+        if (v instanceof android.widget.Button) {
+            android.widget.Button b = (android.widget.Button) v;
+            boolean primary = b.getCurrentTextColor() == 0xFFFFFFFF;
+            b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(primary ? ACCENT : FIELD));
+            b.setTextColor(primary ? 0xFFFFFFFF : TXT);
+        } else if (v instanceof android.widget.TextView) {
+            android.widget.TextView t = (android.widget.TextView) v;
+            int c = t.getCurrentTextColor();
+            t.setTextColor(c == 0xFFA4A9B1 ? SUB : TXT);
+            if (t.getBackground() != null) {
+                GradientDrawable g = new GradientDrawable();
+                g.setColor(GLASS ? ROW : SURF);
+                g.setCornerRadius(t.getResources().getDisplayMetrics().density * 14);
+                t.setBackground(g);
+            }
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) recolor(g.getChildAt(i));
+        }
+    }
+
     public static int dialogTheme() {
         return LIGHT ? android.R.style.Theme_Material_Light_Dialog_Alert
                 : android.R.style.Theme_Material_Dialog_Alert;

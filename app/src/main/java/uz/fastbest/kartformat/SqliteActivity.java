@@ -32,8 +32,10 @@ public class SqliteActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
         String path = getIntent().getStringExtra("path");
         try {
             db = SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READONLY
@@ -44,34 +46,32 @@ public class SqliteActivity extends Activity {
             finish();
             return;
         }
-        getWindow().setStatusBarColor(0xFF151619);
-        getWindow().setNavigationBarColor(0xFF151619);
         ScrollView sv = new ScrollView(this);
-        sv.setBackgroundColor(0xFF1C1D20);
+        sv.setBackground(Theme.pageBg());
         col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setPadding(dp(14), dp(14), dp(14), dp(14));
         sv.addView(col);
         setContentView(sv);
-        TextView head = text(new File(path).getName(), 20, Color.WHITE);
+        TextView head = text(new File(path).getName(), 20, Theme.TXT);
         head.setTypeface(Typeface.DEFAULT_BOLD);
         col.addView(head);
         List<String> tables = new ArrayList<>();
         try (Cursor c = db.rawQuery("SELECT name FROM sqlite_master WHERE type IN ('table','view') ORDER BY name", null)) {
             while (c.moveToNext()) tables.add(c.getString(0));
         } catch (Exception e) {
-            col.addView(text("Okunamadı: " + e.getMessage(), 14, 0xFFFF8A80));
+            col.addView(text("Okunamadı: " + e.getMessage(), 14, 0xFFE53935));
         }
-        col.addView(text(tables.size() + " tablo", 13, 0xFFA4A9B1));
+        col.addView(text(tables.size() + " tablo", 13, Theme.SUB));
         for (final String t : tables) {
             long n = -1;
             try (Cursor c = db.rawQuery("SELECT COUNT(*) FROM \"" + t.replace("\"", "\"\"") + "\"", null)) {
                 if (c.moveToFirst()) n = c.getLong(0);
             } catch (Exception ignored) {
             }
-            TextView row = text(t + (n >= 0 ? "   (" + n + " satır)" : ""), 16, Color.WHITE);
+            TextView row = text(t + (n >= 0 ? "   (" + n + " satır)" : ""), 16, Theme.TXT);
             row.setPadding(dp(10), dp(12), dp(10), dp(12));
-            row.setBackgroundColor(0xFF2A2B2F);
+            row.setBackgroundColor(Theme.GLASS ? Theme.ROW : Theme.SURF);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             lp.topMargin = dp(6);
@@ -119,13 +119,13 @@ public class SqliteActivity extends Activity {
     }
 
     private View cell(String s, boolean head) {
-        TextView v = text(s == null ? "" : s, 12, head ? Color.WHITE : 0xFFD0D3D8);
+        TextView v = text(s == null ? "" : s, 12, head ? Color.WHITE : Theme.TXT);
         if (head) v.setTypeface(Typeface.DEFAULT_BOLD);
         v.setMaxWidth(dp(220));
         v.setMaxLines(3);
         v.setEllipsize(TextUtils.TruncateAt.END);
         v.setPadding(dp(8), dp(5), dp(8), dp(5));
-        v.setBackgroundColor(head ? 0xFF1E5BB8 : 0xFF2A2B2F);
+        v.setBackgroundColor(head ? Theme.ACCENT : (Theme.GLASS ? Theme.ROW : Theme.SURF));
         TableRow.LayoutParams lp = new TableRow.LayoutParams();
         lp.setMargins(1, 1, 1, 1);
         v.setLayoutParams(lp);

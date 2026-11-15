@@ -47,29 +47,29 @@ public class ImageViewerActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
         paths = getIntent().getStringArrayListExtra("paths");
         index = getIntent().getIntExtra("index", 0);
         if (paths == null || paths.isEmpty()) {
             finish();
             return;
         }
-        getWindow().setStatusBarColor(Color.BLACK);
-        getWindow().setNavigationBarColor(Color.BLACK);
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.BLACK);
+        root.setBackground(Theme.pageBg());
         image = new ImageView(this);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         root.addView(image, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
         LinearLayout bar = new LinearLayout(this);
-        bar.setBackgroundColor(0x88000000);
+        bar.setBackgroundColor(Theme.alpha(Theme.solidBar(), 0xDD));
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(24, 16, 8, 16);
         caption = new TextView(this);
-        caption.setTextColor(Color.WHITE);
+        caption.setTextColor(Theme.TXT);
         caption.setTextSize(14);
         caption.setSingleLine(true);
         bar.addView(caption, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -134,7 +134,7 @@ public class ImageViewerActivity extends Activity {
     private TextView button(String t, View.OnClickListener l) {
         TextView b = new TextView(this);
         b.setText(t);
-        b.setTextColor(Color.WHITE);
+        b.setTextColor(Theme.TXT);
         b.setTextSize(22);
         b.setPadding(28, 4, 28, 4);
         b.setOnClickListener(l);

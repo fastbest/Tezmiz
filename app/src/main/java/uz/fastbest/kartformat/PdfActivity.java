@@ -36,8 +36,10 @@ public class PdfActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
         String path = getIntent().getStringExtra("path");
         try {
             fd = ParcelFileDescriptor.open(new File(path), ParcelFileDescriptor.MODE_READ_ONLY);
@@ -48,8 +50,6 @@ public class PdfActivity extends Activity {
             finish();
             return;
         }
-        getWindow().setStatusBarColor(0xFF151619);
-        getWindow().setNavigationBarColor(0xFF151619);
         width = getResources().getDisplayMetrics().widthPixels;
         int mem = (int) Math.min(Runtime.getRuntime().maxMemory() / 6, 96L << 20);
         cache = new LruCache<Integer, Bitmap>(mem) {
@@ -59,7 +59,7 @@ public class PdfActivity extends Activity {
             }
         };
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xFF3A3D44);
+        root.setBackground(Theme.pageBg());
         RecyclerView list = new RecyclerView(this);
         final LinearLayoutManager lm = new LinearLayoutManager(this);
         list.setLayoutManager(lm);
@@ -109,8 +109,9 @@ public class PdfActivity extends Activity {
         root.addView(list);
         pageLabel = new TextView(this);
         pageLabel.setTextColor(Color.WHITE);
+        pageLabel.setBackground(null);
         pageLabel.setTextSize(13);
-        pageLabel.setBackgroundColor(0xAA000000);
+        pageLabel.setBackgroundColor(Theme.alpha(Theme.ACCENT, 0xDD));
         pageLabel.setPadding(20, 8, 20, 8);
         root.addView(pageLabel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));

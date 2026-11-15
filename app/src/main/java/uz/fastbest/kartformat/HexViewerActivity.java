@@ -26,8 +26,10 @@ public class HexViewerActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
         String path = getIntent().getStringExtra("path");
         try {
             raf = new RandomAccessFile(new File(path), "r");
@@ -38,13 +40,13 @@ public class HexViewerActivity extends Activity {
         }
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF1E1F22);
+        root.setBackground(Theme.pageBg());
         root.setFitsSystemWindows(true);
         TextView head = new TextView(this);
         head.setText(new File(path).getName() + "   " + DiskOps.sizeText(length));
-        head.setTextColor(0xFFECECEC);
+        head.setTextColor(Theme.TXT);
         head.setPadding(24, 16, 24, 16);
-        head.setBackgroundColor(0xFF111214);
+        head.setBackgroundColor(Theme.BAR);
         root.addView(head);
         ListView list = new ListView(this);
         list.setFastScrollEnabled(true);
@@ -70,7 +72,7 @@ public class HexViewerActivity extends Activity {
                         : new TextView(HexViewerActivity.this);
                 t.setTypeface(Typeface.MONOSPACE);
                 t.setTextSize(11.5f);
-                t.setTextColor(0xFFDADADA);
+                t.setTextColor(Theme.TXT);
                 t.setPadding(12, 2, 12, 2);
                 t.setText(line(position * 16L));
                 return t;

@@ -89,10 +89,17 @@ public class FilesActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
         setContentView(R.layout.activity_files);
         L.tree(findViewById(android.R.id.content));
+        Theme.apply(this);
+        View content = ((android.view.ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
+        if (content != null) {
+            content.setBackground(Theme.pageBg());
+            Theme.recolor(content);
+        }
         pathText = findViewById(R.id.pathText);
         infoText = findViewById(R.id.infoText);
         progressText = findViewById(R.id.filesProgressText);

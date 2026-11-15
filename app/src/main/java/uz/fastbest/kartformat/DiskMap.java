@@ -207,13 +207,13 @@ public final class DiskMap {
             this.root = root;
             this.listener = l;
             dens = c.getResources().getDisplayMetrics().density;
-            edge.setColor(0xFF1C1D20);
+            edge.setColor(Theme.LIGHT ? 0xFFFFFFFF : 0xFF1C1D20);
             edge.setStrokeWidth(Math.max(1, dens * 0.8f));
             text.setColor(Color.WHITE);
             text.setTextSize(11 * dens);
             text.setShadowLayer(2 * dens, 0, 0, 0xCC000000);
             sel.setStyle(Paint.Style.STROKE);
-            sel.setColor(Color.WHITE);
+            sel.setColor(Theme.LIGHT ? Theme.TXT : Color.WHITE);
             sel.setStrokeWidth(3 * dens);
             selected = root;
             scale = new ScaleGestureDetector(c, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -383,7 +383,7 @@ public final class DiskMap {
                     return 0xFFB8692C;
                 case T_FREE:
                 case T_ROOT:
-                    return 0xFFE9A43C;
+                    return Theme.ACCENT;
                 default:
                     return 0xFFA9AC2C;
             }
@@ -391,7 +391,7 @@ public final class DiskMap {
 
         @Override
         protected void onDraw(Canvas cv) {
-            cv.drawColor(0xFF2A2B2F);
+            cv.drawColor(Theme.LIGHT ? 0xFFF3F4F8 : 0xFF2A2B2F);
             draw(cv, root);
             if (selected != null) {
                 r.set(sx(selected.depth), sy(selected.y0), sx(selected.depth + 1), sy(selected.y1));
