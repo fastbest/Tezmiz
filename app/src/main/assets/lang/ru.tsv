@@ -486,3 +486,15 @@ yazılır 	запись
 Dil	Язык
 Sistem dili	Язык системы
 Bir dosya seçin	Выберите файл
+Tara	Поиск
+Aynı WiFi'deki telefonları bul	Найти телефоны в той же сети WiFi
+Bağlantı isteği	Запрос на подключение
+bu telefonun dosyalarına erişmek istiyor. İzin verilsin mi?	хочет получить доступ к файлам этого телефона. Разрешить?
+Reddet	Отклонить
+Aranıyor… Diğer telefonda WiFi dosya paylaşımı › Sunucu açık olmalı.	Поиск… На другом телефоне должен быть включён Обмен файлами по WiFi › Сервер.
+Tarama başlatılamadı: 	Не удалось начать поиск: 
+Telefon bulunamadı. Diğer telefonda sunucunun açık ve iki telefonun aynı WiFi'de olduğundan emin olun.	Телефоны не найдены. Убедитесь, что на другом телефоне включён сервер и оба телефона в одной сети WiFi.
+Diğer telefonda onay bekleniyor	Ожидание подтверждения на другом телефоне
+Diğer telefon izin vermedi	Другой телефон не дал разрешения
+bağlandı	подключён
+Tarama desteklenmiyor	Поиск не поддерживается

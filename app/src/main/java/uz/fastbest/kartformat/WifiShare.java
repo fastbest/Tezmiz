@@ -28,6 +28,13 @@ final class WifiShare extends NanoHTTPD {
     private final String code;
     final int port;
 
+    /** Başka telefon eşleşmek istediğinde sorulur (HTTP iş parçacığında, cevap gelene kadar bekler). */
+    interface PairAsk {
+        boolean ask(String who);
+    }
+
+    volatile PairAsk pairAsk;
+
     private WifiShare(int port, File root, String code) {
         super(port);
         this.port = port;
@@ -116,6 +123,18 @@ final class WifiShare extends NanoHTTPD {
         try {
             @SuppressWarnings("deprecation")
             Map<String, String> parms = s.getParms();
+            if (s.getUri().equals("/hello")) {
+                return newFixedLengthResponse(Response.Status.OK, "text/plain", "hujjat");
+            }
+            if (s.getUri().equals("/pair")) {
+                // Diğer telefon "Tara" ile buldu; bu telefondaki kişi onaylarsa kod verilir
+                PairAsk a = pairAsk;
+                String who = parms.get("n");
+                if (a != null && a.ask(who == null ? "?" : who)) {
+                    return newFixedLengthResponse(Response.Status.OK, "text/plain", code);
+                }
+                return newFixedLengthResponse(Response.Status.FORBIDDEN, "text/plain", "reddedildi");
+            }
             String key = parms.get("k");
             if (key == null) key = s.getCookies().read("k");
             if (!code.equals(key)) {

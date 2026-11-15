@@ -444,6 +444,7 @@ public class ExplorerActivity extends Activity {
         } catch (RuntimeException ignored) {
         }
         if (wifi != null) wifi.stop();
+        unregisterNsd();
         if (ftpServer != null) ftpServer.stop();
         if (vault != null) vault.close();
         io.execute(() -> usb.close());
@@ -3790,6 +3791,12 @@ public class ExplorerActivity extends Activity {
             sv.parent = parent;
             sv.depth = parent.depth + 1;
             out.add(sv);
+            TNode scan = special("wifi:scan", K_ACTION, R.drawable.ic_search_file, "Tara",
+                    "Aynı WiFi'deki telefonları bul");
+            scan.action = this::scanPhones;
+            scan.parent = parent;
+            scan.depth = parent.depth + 1;
+            out.add(scan);
         }
         final List<FtpFs.Server> list = ftpServers();
         for (int i = 0; i < list.size(); i++) {
@@ -3992,10 +3999,252 @@ public class ExplorerActivity extends Activity {
 
     // ---------------------------------------------------------------- WiFi paylaşımı
 
+    // ------------------------------------------------ telefonlar arası: bulma ve eşleşme
+
+    private static final String NSD_TYPE = "_hujjatboss._tcp.";
+    private android.net.nsd.NsdManager.RegistrationListener nsdReg;
+
+    private void registerNsd(int port) {
+        try {
+            android.net.nsd.NsdManager nm = (android.net.nsd.NsdManager) getSystemService(NSD_SERVICE);
+            android.net.nsd.NsdServiceInfo si = new android.net.nsd.NsdServiceInfo();
+            si.setServiceName(deviceName());
+            si.setServiceType(NSD_TYPE);
+            si.setPort(port);
+            nsdReg = new android.net.nsd.NsdManager.RegistrationListener() {
+                @Override public void onRegistrationFailed(android.net.nsd.NsdServiceInfo s, int e) { }
+                @Override public void onUnregistrationFailed(android.net.nsd.NsdServiceInfo s, int e) { }
+                @Override public void onServiceRegistered(android.net.nsd.NsdServiceInfo s) { }
+                @Override public void onServiceUnregistered(android.net.nsd.NsdServiceInfo s) { }
+            };
+            nm.registerService(si, android.net.nsd.NsdManager.PROTOCOL_DNS_SD, nsdReg);
+        } catch (RuntimeException e) {
+            nsdReg = null;
+        }
+    }
+
+    private void unregisterNsd() {
+        if (nsdReg == null) return;
+        try {
+            ((android.net.nsd.NsdManager) getSystemService(NSD_SERVICE)).unregisterService(nsdReg);
+        } catch (RuntimeException ignored) {
+        }
+        nsdReg = null;
+    }
+
+    private static String deviceName() {
+        String m = Build.MODEL == null ? "Telefon" : Build.MODEL;
+        String b = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER;
+        if (!b.isEmpty() && !m.toLowerCase(Locale.ROOT).startsWith(b.toLowerCase(Locale.ROOT))) {
+            m = b.substring(0, 1).toUpperCase(Locale.ROOT) + b.substring(1) + " " + m;
+        }
+        return m;
+    }
+
+    /** Sunucu tarafı: başka telefon bağlanmak istediğinde sor (HTTP iş parçacığından çağrılır). */
+    private boolean askPair(final String who) {
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        final boolean[] ok = {false};
+        main.post(() -> {
+            if (isFinishing()) {
+                done.countDown();
+                return;
+            }
+            AlertDialog d = new L.Builder(this).setTitle("Bağlantı isteği")
+                    .setMessage(who + "\n\n" + L.t("bu telefonun dosyalarına erişmek istiyor. İzin verilsin mi?"))
+                    .setNegativeButton("Reddet", (x, w) -> done.countDown())
+                    .setPositiveButton("İzin ver", (x, w) -> {
+                        ok[0] = true;
+                        done.countDown();
+                    }).create();
+            d.setOnCancelListener(x -> done.countDown());
+            d.show();
+        });
+        try {
+            done.await(45, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+        }
+        return ok[0];
+    }
+
+    /** İstemci tarafı: aynı WiFi'deki, sunucusu açık telefonları bulur. */
+    private void scanPhones() {
+        final android.net.nsd.NsdManager nm = (android.net.nsd.NsdManager) getSystemService(NSD_SERVICE);
+        if (nm == null) {
+            toast("Tarama desteklenmiyor");
+            return;
+        }
+        if (WifiShare.address() == null) {
+            toast("WiFi'ye bağlı değilsiniz");
+            return;
+        }
+        android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext()
+                .getSystemService(WIFI_SERVICE);
+        final android.net.wifi.WifiManager.MulticastLock lock = wm == null ? null : wm.createMulticastLock("tara");
+        try {
+            if (lock != null) lock.acquire();
+        } catch (RuntimeException ignored) {
+        }
+        final List<String[]> found = new ArrayList<>();   // ad, adres, port
+        final ArrayAdapterLite list = new ArrayAdapterLite();
+        final java.util.ArrayDeque<android.net.nsd.NsdServiceInfo> queue = new java.util.ArrayDeque<>();
+        final boolean[] resolving = {false};
+        final String self = deviceName();
+        final Runnable[] next = new Runnable[1];
+        next[0] = () -> {
+            if (resolving[0] || queue.isEmpty()) return;
+            resolving[0] = true;
+            android.net.nsd.NsdServiceInfo si = queue.poll();
+            try {
+                nm.resolveService(si, new android.net.nsd.NsdManager.ResolveListener() {
+                    @Override
+                    public void onResolveFailed(android.net.nsd.NsdServiceInfo s, int e) {
+                        main.post(() -> {
+                            resolving[0] = false;
+                            next[0].run();
+                        });
+                    }
+
+                    @Override
+                    public void onServiceResolved(android.net.nsd.NsdServiceInfo s) {
+                        main.post(() -> {
+                            resolving[0] = false;
+                            if (s.getHost() != null) {
+                                String ip = s.getHost().getHostAddress();
+                                boolean mine = ip.equals(WifiShare.address()) && wifi != null && s.getPort() == wifi.port;
+                                boolean dup = false;
+                                for (String[] f : found) if (f[1].equals(ip) && f[2].equals("" + s.getPort())) dup = true;
+                                if (!mine && !dup) {
+                                    found.add(new String[]{s.getServiceName(), ip, "" + s.getPort()});
+                                    list.add(s.getServiceName() + "\n" + ip);
+                                }
+                            }
+                            next[0].run();
+                        });
+                    }
+                });
+            } catch (RuntimeException e) {
+                resolving[0] = false;
+            }
+        };
+        final android.net.nsd.NsdManager.DiscoveryListener dl = new android.net.nsd.NsdManager.DiscoveryListener() {
+            @Override public void onStartDiscoveryFailed(String t, int e) { }
+            @Override public void onStopDiscoveryFailed(String t, int e) { }
+            @Override public void onDiscoveryStarted(String t) { }
+            @Override public void onDiscoveryStopped(String t) { }
+            @Override public void onServiceLost(android.net.nsd.NsdServiceInfo s) { }
+
+            @Override
+            public void onServiceFound(android.net.nsd.NsdServiceInfo s) {
+                main.post(() -> {
+                    queue.add(s);
+                    next[0].run();
+                });
+            }
+        };
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(8), dp(20), dp(4));
+        final TextView info = label("Aranıyor… Diğer telefonda WiFi dosya paylaşımı › Sunucu açık olmalı.", 13, MUTED);
+        box.addView(info);
+        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        pb.setIndeterminate(true);
+        box.addView(pb);
+        android.widget.ListView lv = new android.widget.ListView(this);
+        lv.setAdapter(list.adapter(this));
+        box.addView(lv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(220)));
+        final AlertDialog dlg = new L.Builder(this).setTitle("Tara").setView(box)
+                .setNegativeButton("Kapat", null).create();
+        final Runnable stop = () -> {
+            try {
+                nm.stopServiceDiscovery(dl);
+            } catch (RuntimeException ignored) {
+            }
+            try {
+                if (lock != null && lock.isHeld()) lock.release();
+            } catch (RuntimeException ignored) {
+            }
+        };
+        dlg.setOnDismissListener(d -> stop.run());
+        lv.setOnItemClickListener((parent, view, pos, id) -> {
+            dlg.dismiss();
+            pairWith(found.get(pos)[0], found.get(pos)[1], Integer.parseInt(found.get(pos)[2]));
+        });
+        dlg.show();
+        try {
+            nm.discoverServices(NSD_TYPE, android.net.nsd.NsdManager.PROTOCOL_DNS_SD, dl);
+        } catch (RuntimeException e) {
+            info.setText(L.t("Tarama başlatılamadı: ") + e.getMessage());
+        }
+        main.postDelayed(() -> {
+            pb.setVisibility(View.GONE);
+            if (found.isEmpty() && dlg.isShowing()) {
+                info.setText(L.t("Telefon bulunamadı. Diğer telefonda sunucunun açık ve iki telefonun aynı WiFi'de olduğundan emin olun."));
+            }
+        }, 12000);
+    }
+
+    /** Bulunan telefondan izin ister; onaylanırsa cihazı kaydedip açar. */
+    private void pairWith(final String name, final String ip, final int port) {
+        final String[] got = {null};
+        runOp("Diğer telefonda onay bekleniyor", (pr, c) -> {
+            java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(
+                    "http://" + ip + ":" + port + "/pair?n=" + java.net.URLEncoder.encode(deviceName(), "UTF-8"))
+                    .openConnection();
+            h.setConnectTimeout(8000);
+            h.setReadTimeout(60000);
+            int code = h.getResponseCode();
+            if (code != 200) throw new IOException(L.t("Diğer telefon izin vermedi"));
+            try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(h.getInputStream()))) {
+                got[0] = r.readLine();
+            } finally {
+                h.disconnect();
+            }
+            return null;
+        }, () -> {
+            if (got[0] == null) return;
+            List<FtpFs.Server> list = ftpServers();
+            FtpFs.Server s = null;
+            for (FtpFs.Server x : list) {
+                if ("wifi".equals(x.type) && (x.host.equals(ip + ":" + port) || x.name.equals(name))) s = x;
+            }
+            if (s == null) {
+                s = new FtpFs.Server();
+                list.add(s);
+            }
+            s.type = "wifi";
+            s.name = name;
+            s.host = ip + ":" + port;
+            s.port = port;
+            s.user = "";
+            s.pass = got[0].trim();
+            s.path = "/";
+            saveFtp(list);
+            reloadFtp();
+            toast(name + " " + L.t("bağlandı"));
+        });
+    }
+
+    /** Basit metin listesi bağdaştırıcısı (tarama sonuçları için). */
+    private static final class ArrayAdapterLite {
+        private android.widget.ArrayAdapter<String> a;
+        private final List<String> pending = new ArrayList<>();
+
+        android.widget.ArrayAdapter<String> adapter(Context c) {
+            a = new android.widget.ArrayAdapter<>(c, android.R.layout.simple_list_item_1, new ArrayList<>(pending));
+            return a;
+        }
+
+        void add(String s) {
+            if (a != null) a.add(s); else pending.add(s);
+        }
+    }
+
     private void toggleWifi() {
         if (wifi != null) {
             wifi.stop();
             wifi = null;
+            unregisterNsd();
             toast("WiFi paylaşımı kapatıldı");
             reloadFtp();
             return;
@@ -4012,6 +4261,8 @@ public class ExplorerActivity extends Activity {
         wifiCode = String.valueOf(1000 + new java.security.SecureRandom().nextInt(9000));
         try {
             wifi = WifiShare.start(internal.rootFile(), wifiCode);
+            wifi.pairAsk = this::askPair;
+            registerNsd(wifi.port);
         } catch (IOException e) {
             toast("Sunucu başlatılamadı: " + e.getMessage());
             return;

@@ -483,3 +483,15 @@ yazılır 	writable
 Dil	Language
 Sistem dili	System language
 Bir dosya seçin	Choose a file
+Tara	Scan
+Aynı WiFi'deki telefonları bul	Find phones on the same WiFi
+Bağlantı isteği	Connection request
+bu telefonun dosyalarına erişmek istiyor. İzin verilsin mi?	wants to access this phone's files. Allow?
+Reddet	Deny
+Aranıyor… Diğer telefonda WiFi dosya paylaşımı › Sunucu açık olmalı.	Searching… On the other phone, WiFi file sharing › Server must be on.
+Tarama başlatılamadı: 	Could not start scan: 
+Telefon bulunamadı. Diğer telefonda sunucunun açık ve iki telefonun aynı WiFi'de olduğundan emin olun.	No phone found. Make sure the server is on in the other phone and both phones are on the same WiFi.
+Diğer telefonda onay bekleniyor	Waiting for approval on the other phone
+Diğer telefon izin vermedi	The other phone did not allow it
+bağlandı	connected
+Tarama desteklenmiyor	Scanning is not supported
