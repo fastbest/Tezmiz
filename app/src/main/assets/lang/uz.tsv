@@ -559,3 +559,17 @@ Silinemedi	O'chirib bo'lmadi
 Kartı sil	Kartani tozalash
 Tüm araçlar	Barcha asboblar
 Biçimlendirme, imaj yazma ve silme karttaki tüm dosyaları siler. Önce yedek alın.	Formatlash, obraz yozish va tozalash kartadagi barcha fayllarni o'chiradi. Avval zaxira oling.
+Arşiv oluştur	Arxiv yaratish
+Parola (isteğe bağlı)	Parol (ixtiyoriy)
+ZIP her yerde açılır. Parola verirseniz AES-256 ile şifrelenir.	ZIP hamma joyda ochiladi. Parol bersangiz AES-256 bilan shifrlanadi.
+7z en iyi sıkıştırmayı yapar. Parola verirseniz dosya adları da gizlenir.	7z eng yaxshi siqadi. Parol bersangiz fayl nomlari ham yashiriladi.
+TAR.GZ Linux ve Mac'te yaygındır; parola desteklemez.	TAR.GZ Linux va Mac'da keng tarqalgan; parolni qo'llamaydi.
+oluşturuldu	yaratildi
+içi • uzun bas: kapat	ichi • uzoq bosing: yopish
+Bu arşiv parolalı	Bu arxiv parolli
+Arşiv okunuyor	Arxiv o'qilmoqda
+Arşiv açılıyor	Arxiv ochilmoqda
+dosya	ta fayl
+klasörüne açıldı	papkasiga ochildi
+Sıkıştırılıyor	Siqilmoqda
+Dosya adı	Fayl nomi

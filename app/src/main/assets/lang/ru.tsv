@@ -565,3 +565,17 @@ Silinemedi	Не удалось удалить
 Kartı sil	Очистить карту
 Tüm araçlar	Все инструменты
 Biçimlendirme, imaj yazma ve silme karttaki tüm dosyaları siler. Önce yedek alın.	Форматирование, запись образа и очистка удаляют все файлы на карте. Сначала сделайте копию.
+Arşiv oluştur	Создать архив
+Parola (isteğe bağlı)	Пароль (необязательно)
+ZIP her yerde açılır. Parola verirseniz AES-256 ile şifrelenir.	ZIP открывается везде. С паролем шифруется AES-256.
+7z en iyi sıkıştırmayı yapar. Parola verirseniz dosya adları da gizlenir.	7z сжимает лучше всего. С паролем скрываются и имена файлов.
+TAR.GZ Linux ve Mac'te yaygındır; parola desteklemez.	TAR.GZ распространён в Linux и Mac; пароль не поддерживается.
+oluşturuldu	создан
+içi • uzun bas: kapat	содержимое • долгое нажатие: закрыть
+Bu arşiv parolalı	Архив защищён паролем
+Arşiv okunuyor	Чтение архива
+Arşiv açılıyor	Распаковка архива
+dosya	файлов
+klasörüne açıldı	распакован в папку
+Sıkıştırılıyor	Сжатие
+Dosya adı	Имя файла

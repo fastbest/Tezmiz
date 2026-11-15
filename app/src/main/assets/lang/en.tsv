@@ -562,3 +562,17 @@ Silinemedi	Could not delete
 Kartı sil	Wipe card
 Tüm araçlar	All tools
 Biçimlendirme, imaj yazma ve silme karttaki tüm dosyaları siler. Önce yedek alın.	Formatting, writing an image and wiping erase all files on the card. Make a backup first.
+Arşiv oluştur	Create archive
+Parola (isteğe bağlı)	Password (optional)
+ZIP her yerde açılır. Parola verirseniz AES-256 ile şifrelenir.	ZIP opens everywhere. With a password it is encrypted with AES-256.
+7z en iyi sıkıştırmayı yapar. Parola verirseniz dosya adları da gizlenir.	7z compresses best. With a password, file names are hidden too.
+TAR.GZ Linux ve Mac'te yaygındır; parola desteklemez.	TAR.GZ is common on Linux and Mac; it has no password support.
+oluşturuldu	created
+içi • uzun bas: kapat	contents • long press: close
+Bu arşiv parolalı	This archive is password-protected
+Arşiv okunuyor	Reading archive
+Arşiv açılıyor	Extracting archive
+dosya	files
+klasörüne açıldı	extracted to folder
+Sıkıştırılıyor	Compressing
+Dosya adı	File name

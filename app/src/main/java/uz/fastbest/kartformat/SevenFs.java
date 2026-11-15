@@ -77,8 +77,11 @@ public final class SevenFs implements Vfs {
         } catch (SevenZipException e) {
             raf.close();
             String m = String.valueOf(e.getMessage()).toLowerCase(Locale.ROOT);
+            String ext = title.toLowerCase(Locale.ROOT);
+            boolean maybeEncrypted = ext.endsWith(".7z") || ext.endsWith(".rar");
             if (m.contains("password") || m.contains("encrypt") || m.contains("headers error")
-                    || m.contains("wrong")) {
+                    || m.contains("wrong") || maybeEncrypted) {
+                // 7z/RAR'da dosya adları da şifreliyse arşiv parolasız hiç açılamaz
                 throw new PasswordNeeded(password != null);
             }
             throw new IOException("Arşiv açılamadı: " + e.getMessage(), e);

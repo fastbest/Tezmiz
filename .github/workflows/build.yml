@@ -49,14 +49,6 @@ jobs:
         with:
           gradle-version: 8.7
 
-      - name: 7-Zip kütüphanesini incele (geçici)
-        continue-on-error: true
-        run: |
-          A=$(find ~/.gradle -name '7-Zip-JBinding-4Android*.aar' | head -1); echo "$A"
-          mkdir -p /tmp/sz && cd /tmp/sz && unzip -o -q "$A" && unzip -l "$A" | head -30
-          unzip -o -q classes.jar -d cls
-          javap -c -p -classpath cls net.sf.sevenzipjbinding.SevenZip | grep -n -i -E "loadLibrary|static \{|initSevenZip|ensureLibraryIsInitialized" | head -40
-
       - name: Testler
         run: gradle --no-daemon testDebugUnitTest
 
