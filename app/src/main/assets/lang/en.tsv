@@ -304,7 +304,6 @@ Silerken çöp kutusu kullan	Use recycle bin when deleting
 Siliniyor	Deleting
 Siliniyor: 	Deleting: 
 Silinsin mi?	Delete?
-Sistem	System
 Solda göster	Show on the left
 Son dosyalar	Recent files
 Sonra	Later
@@ -525,9 +524,6 @@ Cam	Glass
 Renk	Color
 Yazı boyutu	Text size
 Ön izleme	Preview
-Sistem	System
-Açık	Light
-Koyu	Dark
 Turuncu	Orange
 Turkuaz	Turquoise
 Okyanus	Ocean
@@ -541,3 +537,6 @@ Küçük	Small
 Büyük	Large
 Çok büyük	Very large
 Kopyalanıyor	Copying
+tema:Açık	Light
+tema:Sistem	System
+tema:Koyu	Dark

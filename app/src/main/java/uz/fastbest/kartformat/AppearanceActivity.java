@@ -104,7 +104,12 @@ public class AppearanceActivity extends Activity {
         body.setPadding(dp(18), 0, dp(18), dp(30));
 
         body.addView(label("Tema"));
-        body.addView(segmented(Theme.THEMES, sp.getInt("tema", 2), k -> {
+        String[] themes = new String[Theme.THEMES.length];
+        for (int i = 0; i < themes.length; i++) {
+            String v = L.exact("tema:" + Theme.THEMES[i]);
+            themes[i] = v.startsWith("tema:") ? Theme.THEMES[i] : v;
+        }
+        body.addView(segmented(themes, sp.getInt("tema", 2), k -> {
             sp.edit().putInt("tema", k).commit();
             changed();
         }));

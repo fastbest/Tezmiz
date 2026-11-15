@@ -528,9 +528,6 @@ Cam	Стекло
 Renk	Цвет
 Yazı boyutu	Размер текста
 Ön izleme	Предпросмотр
-Sistem	Системная
-Açık	Светлая
-Koyu	Тёмная
 Turuncu	Оранжевый
 Turkuaz	Бирюзовый
 Okyanus	Океан
@@ -544,3 +541,6 @@ Küçük	Маленький
 Büyük	Крупный
 Çok büyük	Очень крупный
 Kopyalanıyor	Копирование
+tema:Açık	Светлая
+tema:Sistem	Системная
+tema:Koyu	Тёмная

@@ -303,7 +303,6 @@ Silerken çöp kutusu kullan	O'chirishda savatdan foydalanish
 Siliniyor	O'chirilmoqda
 Siliniyor: 	O'chirilmoqda: 
 Silinsin mi?	O'chirilsinmi?
-Sistem	Tizim
 Solda göster	Chapda ko'rsatish
 Son dosyalar	Oxirgi fayllar
 Sonra	Keyinroq
@@ -522,9 +521,6 @@ Cam	Shisha
 Renk	Rang
 Yazı boyutu	Yozuv o'lchami
 Ön izleme	Oldindan ko'rish
-Sistem	Tizim
-Açık	Yorug'
-Koyu	Qorong'i
 Turuncu	To'q sariq
 Turkuaz	Feruza
 Okyanus	Okean
@@ -538,3 +534,6 @@ Küçük	Kichik
 Büyük	Katta
 Çok büyük	Juda katta
 Kopyalanıyor	Nusxalanmoqda
+tema:Açık	Yorug'
+tema:Sistem	Tizim
+tema:Koyu	Qorong'i
