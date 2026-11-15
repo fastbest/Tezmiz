@@ -415,8 +415,9 @@ public class ExplorerActivity extends Activity {
         // Paneller + araç çubuğu: araç çubuğu sütunu etkin panelin yanında durur
         final int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
         FrameLayout body = new FrameLayout(this) {
-            float dx0, dy0;
+            float dx0, dy0, pos0;
             boolean swiping;
+            android.view.VelocityTracker vt;
 
             @Override
             public boolean onInterceptTouchEvent(android.view.MotionEvent e) {
@@ -431,6 +432,11 @@ public class ExplorerActivity extends Activity {
                         float dx = e.getX() - dx0, dy = e.getY() - dy0;
                         if (Math.abs(dx) > slop * 2 && Math.abs(dx) > Math.abs(dy) * 1.6f) {
                             swiping = true;
+                            dx0 = e.getX();
+                            if (paneAnim != null) paneAnim.cancel();
+                            pos0 = panePos;
+                            vt = android.view.VelocityTracker.obtain();
+                            vt.addMovement(e);
                             return true;
                         }
                         break;
@@ -442,13 +448,26 @@ public class ExplorerActivity extends Activity {
 
             @Override
             public boolean onTouchEvent(android.view.MotionEvent e) {
+                if (!swiping) return true;
+                if (vt != null) vt.addMovement(e);
                 int a = e.getActionMasked();
-                if (a == android.view.MotionEvent.ACTION_UP && swiping) {
-                    float dx = e.getX() - dx0;
-                    if (Math.abs(dx) > dp(48)) setActive(dx < 0 ? 1 : 0);
+                float span = Math.max(1, getWidth() - dp(60));
+                if (a == android.view.MotionEvent.ACTION_MOVE) {
+                    panePos = Math.max(0f, Math.min(1f, pos0 - (e.getX() - dx0) / span));
+                    applyPanePos(panePos);
+                } else if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
+                    float v = 0;
+                    if (vt != null) {
+                        vt.computeCurrentVelocity(1000);
+                        v = vt.getXVelocity();
+                        vt.recycle();
+                        vt = null;
+                    }
+                    int target;
+                    if (Math.abs(v) > dp(600)) target = v < 0 ? 1 : 0;
+                    else target = panePos >= 0.5f ? 1 : 0;
                     swiping = false;
-                } else if (a == android.view.MotionEvent.ACTION_CANCEL) {
-                    swiping = false;
+                    animatePaneTo(target);
                 }
                 return true;
             }
@@ -725,25 +744,30 @@ public class ExplorerActivity extends Activity {
     }
 
     private void setActive(int i) {
-        if (active == i) {
+        if (active == i && (landscape() || Math.abs(panePos - i) < 0.001f)) {
             updateToolbar();
             return;
         }
-        active = i;
         if (landscape() || panes[0] == null || paneRow.getWidth() <= 0) {
+            active = i;
             layoutPanes();
             return;
         }
+        animatePaneTo(i);
+    }
+
+    /** Dikey düzende paneli hedef tarafa yumuşakça oturtur. */
+    private void animatePaneTo(final int target) {
+        active = target;
         for (int k = 0; k < 2; k++) {
             Pane p = panes[k];
             p.chip.setBackground(round(k == active ? CHIP : 0xFF3A3D44, 0, 0, dp(7)));
             p.list.setAlpha(1f);
         }
         if (paneAnim != null) paneAnim.cancel();
-        final float from = panePos;
-        final float to = i;
-        paneAnim = ValueAnimator.ofFloat(from, to);
-        paneAnim.setDuration(280);
+        float dist = Math.abs(panePos - target);
+        paneAnim = ValueAnimator.ofFloat(panePos, target);
+        paneAnim.setDuration((long) Math.max(90, 260 * dist));
         paneAnim.setInterpolator(new DecelerateInterpolator(1.6f));
         paneAnim.addUpdateListener(a -> {
             panePos = (Float) a.getAnimatedValue();
