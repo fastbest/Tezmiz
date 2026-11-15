@@ -1239,6 +1239,7 @@ public class ExplorerActivity extends Activity {
         final TextView countDirs;
         final TextView countFiles;
         final ProgressBar spinner;
+        final ImageView badge;
         TNode node;
         int rowBgColor;
 
@@ -1280,6 +1281,10 @@ public class ExplorerActivity extends Activity {
                     ViewGroup.LayoutParams.MATCH_PARENT));
             spinner = new ProgressBar(ExplorerActivity.this, null, android.R.attr.progressBarStyleSmall);
             iconBox.addView(spinner, new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
+            badge = new ImageView(ExplorerActivity.this);
+            badge.setPadding(dp(1), dp(1), dp(1), dp(1));
+            badge.setBackground(round(0xFF202226, 0, 0, dp(8)));
+            iconBox.addView(badge, new FrameLayout.LayoutParams(dp(15), dp(15), Gravity.BOTTOM | Gravity.END));
             card.addView(iconBox, new LinearLayout.LayoutParams(dp(30), dp(30)));
 
             LinearLayout texts = new LinearLayout(ExplorerActivity.this);
@@ -1397,16 +1402,23 @@ public class ExplorerActivity extends Activity {
             } else {
                 icon.setImageDrawable(null);
             }
-            if (n.kind == K_FILE && n.node != null && IMAGES.contains(n.node.ext())) {
+            if (n.kind == K_FILE && n.node != null && hasThumb(n.node.ext())) {
                 File f = n.node.fs.localFile(n.node);
                 if (f != null && prefs.getBoolean("thumbs", true)) loadThumb(icon, f);
+            }
+            int bdg = n.kind == K_DIR && n.depth == 1 ? badgeFor(n.title) : 0;
+            if (bdg != 0) {
+                badge.setImageResource(bdg);
+                badge.setVisibility(View.VISIBLE);
+            } else {
+                badge.setVisibility(View.GONE);
             }
             title.setText(n.title);
             title.setTextSize((n.depth == 0 ? 14.5f : 14f) * fontScale());
             title.setTypeface(n.kind == K_FILE || n.kind == K_INFO ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             title.setTextColor(n.kind == K_INFO ? MUTED : TEXT);
 
-            boolean showCounts = n.expanded && n.dirs >= 0;
+            boolean showCounts = n.dirs >= 0 && (n.expanded || n.kind == K_DIR);
             counts.setVisibility(showCounts ? View.VISIBLE : View.GONE);
             if (showCounts) {
                 countDirs.setText(String.valueOf(n.dirs));
@@ -1450,6 +1462,115 @@ public class ExplorerActivity extends Activity {
         }
     }
 
+    private static int badgeFor(String name) {
+        switch (name.toLowerCase(Locale.ROOT)) {
+            case "dcim":
+            case "camera":
+                return R.drawable.ic_camera;
+            case "download":
+            case "downloads":
+                return R.drawable.ic_download;
+            case "music":
+            case "audiobooks":
+            case "podcasts":
+                return R.drawable.ic_file_audio;
+            case "movies":
+            case "video":
+            case "videos":
+                return R.drawable.ic_file_video;
+            case "pictures":
+                return R.drawable.ic_file_image;
+            case "documents":
+                return R.drawable.ic_file_doc;
+            default:
+                return 0;
+        }
+    }
+
+    private static boolean hasThumb(String e) {
+        return IMAGES.contains(e) || VIDEO.contains(e) || e.equals("apk") || e.equals("pdf")
+                || e.equals("mp3") || e.equals("m4a") || e.equals("flac") || e.equals("ogg");
+    }
+
+    /** Dosya türüne göre küçük resim üretir; olmazsa null. */
+    private Bitmap makeThumb(File f, int size) {
+        String n = f.getName();
+        int dot = n.lastIndexOf('.');
+        String e = dot < 0 ? "" : n.substring(dot + 1).toLowerCase(Locale.ROOT);
+        try {
+            if (IMAGES.contains(e)) return decodeSampled(f, size);
+            if (VIDEO.contains(e)) {
+                android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+                try {
+                    r.setDataSource(f.getAbsolutePath());
+                    Bitmap b = r.getFrameAtTime(1000000);
+                    return b == null ? null : scaleTo(b, size);
+                } finally {
+                    try { r.release(); } catch (Exception ignored) { }
+                }
+            }
+            if (AUDIO.contains(e)) {
+                android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+                try {
+                    r.setDataSource(f.getAbsolutePath());
+                    byte[] pic = r.getEmbeddedPicture();
+                    if (pic == null) return null;
+                    BitmapFactory.Options o = new BitmapFactory.Options();
+                    o.inJustDecodeBounds = true;
+                    BitmapFactory.decodeByteArray(pic, 0, pic.length, o);
+                    int ss = 1;
+                    while (o.outWidth / (ss * 2) >= size && o.outHeight / (ss * 2) >= size) ss *= 2;
+                    o = new BitmapFactory.Options();
+                    o.inSampleSize = ss;
+                    return BitmapFactory.decodeByteArray(pic, 0, pic.length, o);
+                } finally {
+                    try { r.release(); } catch (Exception ignored) { }
+                }
+            }
+            if (e.equals("apk")) {
+                PackageManager pm = getPackageManager();
+                PackageInfo pi = pm.getPackageArchiveInfo(f.getAbsolutePath(), 0);
+                if (pi == null || pi.applicationInfo == null) return null;
+                pi.applicationInfo.sourceDir = f.getAbsolutePath();
+                pi.applicationInfo.publicSourceDir = f.getAbsolutePath();
+                Drawable d = pi.applicationInfo.loadIcon(pm);
+                if (d == null) return null;
+                Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+                Canvas c = new Canvas(b);
+                d.setBounds(0, 0, size, size);
+                d.draw(c);
+                return b;
+            }
+            if (e.equals("pdf")) {
+                android.os.ParcelFileDescriptor fd = android.os.ParcelFileDescriptor.open(f,
+                        android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+                try (android.graphics.pdf.PdfRenderer pr = new android.graphics.pdf.PdfRenderer(fd)) {
+                    if (pr.getPageCount() == 0) return null;
+                    try (android.graphics.pdf.PdfRenderer.Page pg = pr.openPage(0)) {
+                        float k = (float) size / Math.max(pg.getWidth(), pg.getHeight());
+                        int w = Math.max(1, Math.round(pg.getWidth() * k));
+                        int h = Math.max(1, Math.round(pg.getHeight() * k));
+                        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+                        b.eraseColor(Color.WHITE);
+                        pg.render(b, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                        return b;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static Bitmap scaleTo(Bitmap b, int size) {
+        float k = (float) size / Math.max(b.getWidth(), b.getHeight());
+        if (k >= 1) return b;
+        Bitmap s = Bitmap.createScaledBitmap(b, Math.max(1, Math.round(b.getWidth() * k)),
+                Math.max(1, Math.round(b.getHeight() * k)), true);
+        if (s != b) b.recycle();
+        return s;
+    }
+
     private void loadThumb(final ImageView view, final File f) {
         final String key = f.getAbsolutePath() + ":" + f.lastModified();
         Bitmap b = thumbCache.get(key);
@@ -1460,7 +1581,7 @@ public class ExplorerActivity extends Activity {
         view.setTag(key);
         try {
             thumbs.execute(() -> {
-                Bitmap bm = decodeSampled(f, dp(38));
+                Bitmap bm = makeThumb(f, dp(40));
                 if (bm == null) return;
                 thumbCache.put(key, bm);
                 main.post(() -> {
@@ -1858,7 +1979,25 @@ public class ExplorerActivity extends Activity {
         parent.dirs = dirs;
         parent.files = files;
         List<TNode> out = new ArrayList<>();
-        for (VNode k : sorted) out.add(fileNode(parent, k));
+        int counted = 0;
+        for (VNode k : sorted) {
+            TNode t = fileNode(parent, k);
+            if (k.dir && counted < 400 && k.fs instanceof LocalFs) {
+                File f = k.fs.localFile(k);
+                String[] names = f == null ? null : f.list();
+                if (names != null) {
+                    counted++;
+                    int d = 0, fl = 0;
+                    for (String nm : names) {
+                        if (!hidden && nm.startsWith(".")) continue;
+                        if (new File(f, nm).isDirectory()) d++; else fl++;
+                    }
+                    t.dirs = d;
+                    t.files = fl;
+                }
+            }
+            out.add(t);
+        }
         return out;
     }
 
