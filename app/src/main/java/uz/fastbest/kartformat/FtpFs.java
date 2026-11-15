@@ -25,6 +25,8 @@ public final class FtpFs implements Vfs {
         public String user = "anonymous";
         public String pass = "";
         public String path = "/";
+        /** "ftp" ya da "smb" (Windows paylaşımı / NAS). */
+        public String type = "ftp";
     }
 
     private final Server s;

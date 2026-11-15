@@ -1719,7 +1719,7 @@ public class ExplorerActivity extends Activity {
         out.add(special("fav", K_GROUP, R.drawable.ic_star, "Sık kullanılanlar", null));
         out.add(special("recent", K_GROUP, R.drawable.ic_clock, "Son dosyalar", null));
         out.add(special("apps", K_GROUP, R.drawable.ic_apps, "Uygulama yöneticisi", null));
-        out.add(special("ftp", K_GROUP, R.drawable.ic_network, "FTP sunucuları", null));
+        out.add(special("ftp", K_GROUP, R.drawable.ic_network, "Ağ (FTP / LAN)", null));
         TNode wifiNode = special("wifi", K_ACTION, R.drawable.ic_wifi, "WiFi dosya paylaşımı",
                 wifi == null ? "Kapalı" : "http://" + WifiShare.address() + ":" + wifi.port);
         if (wifi != null) wifiNode.right2 = "Kod " + wifiCode;
@@ -2437,7 +2437,7 @@ public class ExplorerActivity extends Activity {
 
     private void askShownRoots() {
         final String[] keys = {"fav", "recent", "apps", "ftp", "wifi", "vault", "tools"};
-        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "FTP sunucuları",
+        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "Ağ (FTP / LAN)",
                 "WiFi dosya paylaşımı", "Kasa", "USB kart araçları"};
         final Set<String> hid = new HashSet<>(Arrays.asList(prefs.getString("hiddenRoots", "").split(",")));
         final boolean[] on = new boolean[keys.length];
@@ -3288,6 +3288,7 @@ public class ExplorerActivity extends Activity {
             sv.user = f[3];
             sv.pass = new String(Base64.decode(f[4], Base64.NO_WRAP));
             sv.path = f[5];
+            if (f.length > 6 && !f[6].isEmpty()) sv.type = f[6];
             out.add(sv);
         }
         return out;
@@ -3299,7 +3300,7 @@ public class ExplorerActivity extends Activity {
             sb.append(s.name.replace("\t", " ")).append('\t').append(s.host.trim()).append('\t')
                     .append(s.port).append('\t').append(s.user.replace("\t", " ")).append('\t')
                     .append(Base64.encodeToString(s.pass.getBytes(), Base64.NO_WRAP)).append('\t')
-                    .append(s.path.replace("\t", " ")).append('\n');
+                    .append(s.path.replace("\t", " ")).append('\t').append(s.type).append('\n');
         }
         prefs.edit().putString("ftp", sb.toString()).apply();
     }
@@ -3310,16 +3311,17 @@ public class ExplorerActivity extends Activity {
         for (int i = 0; i < list.size(); i++) {
             final int idx = i;
             final FtpFs.Server s = list.get(i);
-            FtpFs fs = new FtpFs(s);
+            boolean smb = "smb".equals(s.type);
+            Vfs fs = smb ? new SmbFs(s) : new FtpFs(s);
             TNode t = new TNode();
             t.kind = K_VOLUME;
             t.parent = parent;
             t.depth = parent.depth + 1;
-            t.key = "ftpsrv:" + s.host + ":" + s.port + ":" + s.user;
+            t.key = (smb ? "smbsrv:" : "ftpsrv:") + s.host + ":" + s.port + ":" + s.user + ":" + s.path;
             t.node = fs.root();
             t.icon = R.drawable.ic_network;
             t.title = s.name;
-            t.sub = s.user + "@" + s.host + ":" + s.port + s.path;
+            t.sub = smb ? "LAN  " + s.host + s.path : "FTP  " + s.user + "@" + s.host + ":" + s.port + s.path;
             t.onLong = () -> new AlertDialog.Builder(this).setTitle(s.name)
                     .setItems(new String[]{"Düzenle", "Sil"}, (d, w) -> {
                         if (w == 0) {
@@ -3339,7 +3341,7 @@ public class ExplorerActivity extends Activity {
         add.key = "ftp:add";
         add.icon = R.drawable.ic_t_newfolder;
         add.title = "Sunucu ekle";
-        add.sub = "Bilgisayar, modem ya da NAS'taki FTP sunucusu";
+        add.sub = "FTP ya da Windows paylaşımı (LAN / SMB), NAS";
         add.action = () -> editFtp(-1);
         out.add(add);
         return out;
@@ -3355,6 +3357,36 @@ public class ExplorerActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(20), dp(8), dp(20), 0);
+        final boolean[] smb = {"smb".equals(s.type)};
+        final LinearLayout typeRow = new LinearLayout(this);
+        typeRow.setPadding(0, dp(4), 0, dp(10));
+        final TextView tFtp = label("FTP", 14, TEXT);
+        final TextView tSmb = label("LAN (SMB)", 14, TEXT);
+        final EditText[] portRef = new EditText[1];
+        final EditText[] pathRef = new EditText[1];
+        final Runnable paint = () -> {
+            tFtp.setBackground(round(smb[0] ? 0xFF3A3D44 : CHIP, 0, 0, dp(6)));
+            tSmb.setBackground(round(smb[0] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+        };
+        for (final TextView tv : new TextView[]{tFtp, tSmb}) {
+            tv.setGravity(Gravity.CENTER);
+            tv.setPadding(0, dp(8), 0, dp(8));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+            if (tv == tSmb) lp.leftMargin = dp(6);
+            typeRow.addView(tv, lp);
+            tv.setOnClickListener(v -> {
+                smb[0] = tv == tSmb;
+                paint.run();
+                if (portRef[0] != null) {
+                    String cur = portRef[0].getText().toString().trim();
+                    if (smb[0] && (cur.equals("21") || cur.isEmpty())) portRef[0].setText("445");
+                    if (!smb[0] && (cur.equals("445") || cur.isEmpty())) portRef[0].setText("21");
+                }
+                if (pathRef[0] != null) pathRef[0].setHint(smb[0] ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü");
+            });
+        }
+        paint.run();
+        box.addView(typeRow);
         final EditText name = input(idx >= 0 ? s.name : "", "Ad (ör. Bilgisayarım)");
         final EditText host = input(idx >= 0 ? s.host : "", "Adres (ör. 192.168.1.10)");
         final EditText port = input(String.valueOf(s.port), "Port");
@@ -3362,11 +3394,13 @@ public class ExplorerActivity extends Activity {
         final EditText user = input(s.user, "Kullanıcı adı");
         final EditText pass = input(s.pass, "Parola");
         pass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        final EditText path = input(s.path, "Başlangıç klasörü");
+        final EditText path = input(s.path, smb[0] ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü");
+        portRef[0] = port;
+        pathRef[0] = path;
         for (View v : new View[]{name, host, port, user, pass, path}) box.addView(v);
         ScrollView sv = new ScrollView(this);
         sv.addView(box);
-        new AlertDialog.Builder(this).setTitle(idx >= 0 ? "Sunucuyu düzenle" : "FTP sunucusu ekle")
+        new AlertDialog.Builder(this).setTitle(idx >= 0 ? "Sunucuyu düzenle" : "Sunucu ekle")
                 .setView(sv)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Kaydet", (d, w) -> {
@@ -3380,9 +3414,10 @@ public class ExplorerActivity extends Activity {
                     try {
                         s.port = Integer.parseInt(port.getText().toString().trim());
                     } catch (NumberFormatException e) {
-                        s.port = 21;
+                        s.port = smb[0] ? 445 : 21;
                     }
-                    s.user = user.getText().toString().trim().isEmpty() ? "anonymous"
+                    s.type = smb[0] ? "smb" : "ftp";
+                    s.user = user.getText().toString().trim().isEmpty() ? (smb[0] ? "guest" : "anonymous")
                             : user.getText().toString().trim();
                     s.pass = pass.getText().toString();
                     s.path = path.getText().toString().trim().isEmpty() ? "/"
