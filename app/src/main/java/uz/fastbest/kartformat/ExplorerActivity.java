@@ -2709,9 +2709,14 @@ public class ExplorerActivity extends Activity {
     private void checksum(final VNode n) {
         final String[] res = new String[1];
         runOp("Sağlama toplamı", (pr, c) -> {
-            java.security.MessageDigest md5 = java.security.MessageDigest.getInstance("MD5");
-            java.security.MessageDigest sha1 = java.security.MessageDigest.getInstance("SHA-1");
-            java.security.MessageDigest sha256 = java.security.MessageDigest.getInstance("SHA-256");
+            java.security.MessageDigest md5, sha1, sha256;
+            try {
+                md5 = java.security.MessageDigest.getInstance("MD5");
+                sha1 = java.security.MessageDigest.getInstance("SHA-1");
+                sha256 = java.security.MessageDigest.getInstance("SHA-256");
+            } catch (java.security.NoSuchAlgorithmException ex) {
+                throw new IOException(ex.getMessage());
+            }
             long done = 0;
             try (InputStream in = n.fs.open(n)) {
                 byte[] buf = new byte[1 << 16];
