@@ -51,7 +51,13 @@ public final class ArchiveFs implements Vfs {
             } catch (Exception ex) {
                 throw new IOException("RAR açılamadı (RAR5 desteklenmiyor olabilir): " + ex.getMessage());
             }
-            if (rar.isEncrypted()) throw new IOException("Şifreli RAR desteklenmiyor");
+            boolean enc;
+            try {
+                enc = rar.isEncrypted();
+            } catch (Exception ex) {
+                enc = false;
+            }
+            if (enc) throw new IOException("Şifreli RAR desteklenmiyor");
             for (FileHeader h : rar.getFileHeaders()) {
                 if (++count > 200000) throw new IOException("Arşivde çok fazla dosya var");
                 String name = h.getFileName().replace('\\', '/');
