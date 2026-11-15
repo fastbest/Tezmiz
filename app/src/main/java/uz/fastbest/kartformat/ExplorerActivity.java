@@ -242,15 +242,16 @@ public class ExplorerActivity extends Activity {
         }
 
         refreshRoots();
-        // Açılışta dahili depolama sol panelde açık gelsin
-        Pane p = panes[0];
+        // Açılışta dahili depolama sol panelde açık gelsin (ya da son açık klasörler)
         if (hasStorageAccess()) {
-            for (TNode r : p.roots) {
-                if (("vol:" + internal.rootFile().getAbsolutePath()).equals(r.key)) {
-                    p.current = r;
-                    expand(p, r);
-                }
+            for (int i = 0; i < 2; i++) {
+                String last = prefs.getBoolean("restoreLast", true) ? prefs.getString("last" + i, null) : null;
+                if (last == null && i == 1) continue;
+                startReveal(panes[i], last);
             }
+        }
+        if (prefs.getBoolean("fullscreen", false)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         }
         setActive(0);
         if (!hasStorageAccess()) askStorageAccess();
@@ -266,6 +267,68 @@ public class ExplorerActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshRoots();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        SharedPreferences.Editor e = prefs.edit();
+        for (int i = 0; i < 2; i++) {
+            TNode c = panes[i] == null ? null : panes[i].current;
+            if (c != null && c.kind == K_FILE) c = c.parent;
+            File f = c != null && c.node != null && c.node.fs instanceof LocalFs ? c.node.fs.localFile(c.node) : null;
+            if (f != null) e.putString("last" + i, f.getAbsolutePath()); else e.remove("last" + i);
+        }
+        e.apply();
+    }
+
+    /** Panelde verilen yerel yola kadar klasörleri sırayla açar. */
+    private final String[] revealTarget = new String[2];
+
+    private void startReveal(Pane p, String path) {
+        String rootPath = internal.rootFile().getAbsolutePath();
+        TNode best = null;
+        int bestLen = -1;
+        for (TNode r : p.roots) {
+            if (r.kind != K_VOLUME || r.node == null) continue;
+            File rf = r.node.fs.localFile(r.node);
+            if (rf == null) continue;
+            String rp = rf.getAbsolutePath();
+            boolean match = path == null ? rp.equals(rootPath)
+                    : (path.equals(rp) || path.startsWith(rp.endsWith("/") ? rp : rp + "/"));
+            if (match && rp.length() > bestLen) {
+                best = r;
+                bestLen = rp.length();
+            }
+        }
+        if (best == null) return;
+        revealTarget[p.index] = path;
+        p.current = best;
+        expand(p, best);
+    }
+
+    private void continueReveal(Pane p, TNode n) {
+        String target = revealTarget[p.index];
+        if (target == null || p.current != n) return;
+        File nf = n.node == null ? null : n.node.fs.localFile(n.node);
+        if (nf == null || target.equals(nf.getAbsolutePath())) {
+            revealTarget[p.index] = null;
+            int pos = p.visible.indexOf(n);
+            if (pos >= 0) p.scrollTo(pos - 2);
+            return;
+        }
+        for (TNode k : n.children) {
+            if (k.node == null || !k.expandable()) continue;
+            File kf = k.node.fs.localFile(k.node);
+            if (kf == null) continue;
+            String kp = kf.getAbsolutePath();
+            if (target.equals(kp) || target.startsWith(kp + "/")) {
+                p.current = k;
+                expand(p, k);
+                return;
+            }
+        }
+        revealTarget[p.index] = null;
     }
 
     @Override
@@ -299,8 +362,23 @@ public class ExplorerActivity extends Activity {
             p.refresh();
             return;
         }
-        if (!goUp(p)) super.onBackPressed();
+        if (goUp(p)) return;
+        if (prefs.getBoolean("confirmExit", false)) {
+            new AlertDialog.Builder(this).setMessage("Uygulamadan çıkılsın mı?")
+                    .setPositiveButton("Çık", (d, w) -> finish())
+                    .setNegativeButton("Vazgeç", null).show();
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        if (now - lastBack < 2000) {
+            super.onBackPressed();
+        } else {
+            lastBack = now;
+            toast("Çıkmak için tekrar basın");
+        }
     }
+
+    private long lastBack;
 
     private void findOtherVolumes() {
         otherVolumes.clear();
@@ -624,6 +702,7 @@ public class ExplorerActivity extends Activity {
             line.setBackgroundColor(0xFF2A2C30);
             col.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
             toolViews.add(new View[]{b, icon, name});
+            name.setVisibility(prefs.getBoolean("toolLabels", true) ? View.VISIBLE : View.GONE);
         }
         sv.addView(col);
         return sv;
@@ -1083,6 +1162,7 @@ public class ExplorerActivity extends Activity {
             super.onDraw(cv);
             TNode n = node;
             if (n == null) return;
+            boolean guides = prefs.getBoolean("guides", true);
             int h = getHeight(), w = getWidth();
             float mid = h / 2f;
             float r = dp(5);
@@ -1092,11 +1172,11 @@ public class ExplorerActivity extends Activity {
                 if (!p.expanded) continue;
                 float x = cx(a.depth - 1);
                 if (ancOrSelf(cur, p)) {            // p, seçili klasörün içinde: tüm çocuklar çizilir
-                    if (a != n && !isLast(a)) cv.drawLine(x, 0, x, h, line);
+                    if (a != n && !isLast(a)) if (guides) cv.drawLine(x, 0, x, h, line);
                 } else if (cur != null && ancOrSelf(p, cur)) {   // p, seçili klasörün atası
                     TNode c = chainChild(p);
                     if (c != null && a != c && p.children.indexOf(a) < p.children.indexOf(c)) {
-                        cv.drawLine(x, 0, x, h, line);
+                        if (guides) cv.drawLine(x, 0, x, h, line);
                     }
                 }
             }
@@ -1114,20 +1194,20 @@ public class ExplorerActivity extends Activity {
                 if (elbow) {
                     float x = cx(n.depth - 1);
                     float endX = dp(3) + dp(14) * n.depth;
-                    if (!last) cv.drawLine(x, 0, x, h, line);
-                    else cv.drawLine(x, 0, x, mid - r, line);
+                    if (!last) if (guides) cv.drawLine(x, 0, x, h, line);
+                    else if (guides) cv.drawLine(x, 0, x, mid - r, line);
                     path.reset();
                     path.moveTo(x, mid - r);
                     path.quadTo(x, mid, x + r, mid);
                     path.lineTo(endX, mid);
-                    cv.drawPath(path, line);
+                    if (guides) cv.drawPath(path, line);
                 }
             }
             // açık klasörün ok altından aşağı inen çizgi
             if (n.expanded && !n.children.isEmpty() && cur != null
                     && (ancOrSelf(cur, n) || ancOrSelf(n, cur))) {
                 float x = cx(n.depth);
-                cv.drawLine(x, mid + dp(8), x, h, line);
+                if (guides) cv.drawLine(x, mid + dp(8), x, h, line);
             }
             // açık klasör çerçevesi
             if (inFrame) {
@@ -1172,7 +1252,7 @@ public class ExplorerActivity extends Activity {
             card.setOrientation(LinearLayout.HORIZONTAL);
             card.setGravity(Gravity.CENTER_VERTICAL);
             card.setPadding(dp(3), dp(4), dp(6), dp(4));
-            card.setMinimumHeight(dp(40));
+            card.setMinimumHeight(dp(rowHeightDp()));
             root.addView(card);
             View divider = new View(ExplorerActivity.this);
             divider.setBackgroundColor(0xFF45484F);
@@ -1208,20 +1288,20 @@ public class ExplorerActivity extends Activity {
             title = label("", 14, TEXT);
             title.setMaxLines(2);
             title.setEllipsize(TextUtils.TruncateAt.MIDDLE);
-            sub = label("", 11, MUTED);
+            sub = label("", 11 * fontScale(), MUTED);
             sub.setSingleLine(true);
             sub.setEllipsize(TextUtils.TruncateAt.END);
-            path = label("", 11, MUTED);
+            path = label("", 11 * fontScale(), MUTED);
             path.setSingleLine(true);
             path.setEllipsize(TextUtils.TruncateAt.START);
             counts = new LinearLayout(ExplorerActivity.this);
             counts.setGravity(Gravity.CENTER_VERTICAL);
             counts.addView(iconView(R.drawable.ic_meta_folder, 12));
-            countDirs = label("", 11, MUTED);
+            countDirs = label("", 11 * fontScale(), MUTED);
             countDirs.setPadding(dp(4), 0, dp(14), 0);
             counts.addView(countDirs);
             counts.addView(iconView(R.drawable.ic_meta_file, 12));
-            countFiles = label("", 11, MUTED);
+            countFiles = label("", 11 * fontScale(), MUTED);
             countFiles.setPadding(dp(4), 0, 0, 0);
             counts.addView(countFiles);
             texts.addView(title);
@@ -1319,10 +1399,10 @@ public class ExplorerActivity extends Activity {
             }
             if (n.kind == K_FILE && n.node != null && IMAGES.contains(n.node.ext())) {
                 File f = n.node.fs.localFile(n.node);
-                if (f != null) loadThumb(icon, f);
+                if (f != null && prefs.getBoolean("thumbs", true)) loadThumb(icon, f);
             }
             title.setText(n.title);
-            title.setTextSize(n.depth == 0 ? 14.5f : 14f);
+            title.setTextSize((n.depth == 0 ? 14.5f : 14f) * fontScale());
             title.setTypeface(n.kind == K_FILE || n.kind == K_INFO ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             title.setTextColor(n.kind == K_INFO ? MUTED : TEXT);
 
@@ -1681,6 +1761,7 @@ public class ExplorerActivity extends Activity {
                 n.children = fk;
                 p.refresh();
                 for (TNode k : reopen) expand(p, k);
+                continueReveal(p, n);
             });
         });
     }
@@ -1741,8 +1822,9 @@ public class ExplorerActivity extends Activity {
     private Comparator<VNode> comparator() {
         final String sort = prefs.getString("sort", "name");
         final boolean desc = prefs.getBoolean("desc", false);
+        final boolean foldersFirst = prefs.getBoolean("foldersFirst", true);
         return (a, b) -> {
-            if (a.dir != b.dir) return a.dir ? -1 : 1;
+            if (foldersFirst && a.dir != b.dir) return a.dir ? -1 : 1;
             int r;
             switch (sort) {
                 case "size":
@@ -2442,10 +2524,112 @@ public class ExplorerActivity extends Activity {
                 .show();
     }
 
+    private float fontScale() {
+        switch (prefs.getInt("fontSize", 1)) {
+            case 0: return 0.9f;
+            case 2: return 1.15f;
+            default: return 1f;
+        }
+    }
+
+    private int rowHeightDp() {
+        switch (prefs.getInt("rowHeight", 1)) {
+            case 0: return 34;
+            case 2: return 50;
+            default: return 40;
+        }
+    }
+
+    /** Görünüm ve davranış ayarları. */
+    private void showSettings() {
+        final String[][] toggles = {
+                {"hidden", "Gizli dosyaları göster", "0"},
+                {"foldersFirst", "Klasörler önce", "1"},
+                {"thumbs", "Küçük resimler", "1"},
+                {"guides", "Ağaç çizgileri", "1"},
+                {"toolLabels", "Araç çubuğu yazıları", "1"},
+                {"restoreLast", "Açılışta son klasörler", "1"},
+                {"confirmExit", "Çıkarken onay sor", "0"},
+                {"fullscreen", "Tam ekran", "0"},
+        };
+        final String[][] choices = {
+                {"fontSize", "Yazı boyutu", "Küçük", "Orta", "Büyük"},
+                {"rowHeight", "Satır yüksekliği", "Sıkı", "Normal", "Geniş"},
+        };
+        ScrollView sv = new ScrollView(this);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(18), dp(8), dp(18), dp(8));
+        sv.addView(col);
+        final int[] choice = new int[choices.length];
+        for (int i = 0; i < choices.length; i++) {
+            final int ci = i;
+            choice[i] = prefs.getInt(choices[i][0], 1);
+            col.addView(label(choices[i][1], 13, MUTED));
+            final LinearLayout seg = new LinearLayout(this);
+            seg.setPadding(0, dp(6), 0, dp(12));
+            final List<TextView> btns = new ArrayList<>();
+            for (int k = 0; k < 3; k++) {
+                final int kk = k;
+                TextView b = label(choices[i][2 + k], 14, TEXT);
+                b.setGravity(Gravity.CENTER);
+                b.setPadding(0, dp(8), 0, dp(8));
+                btns.add(b);
+                b.setOnClickListener(v -> {
+                    choice[ci] = kk;
+                    for (int m = 0; m < btns.size(); m++) {
+                        btns.get(m).setBackground(round(m == kk ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+                    }
+                });
+                b.setBackground(round(k == choice[i] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+                if (k > 0) lp.leftMargin = dp(6);
+                seg.addView(b, lp);
+            }
+            col.addView(seg);
+        }
+        final android.widget.Switch[] sw = new android.widget.Switch[toggles.length];
+        for (int i = 0; i < toggles.length; i++) {
+            sw[i] = new android.widget.Switch(this);
+            sw[i].setText(toggles[i][1]);
+            sw[i].setTextColor(TEXT);
+            sw[i].setTextSize(15);
+            sw[i].setPadding(0, dp(10), 0, dp(10));
+            sw[i].setChecked(prefs.getBoolean(toggles[i][0], "1".equals(toggles[i][2])));
+            col.addView(sw[i]);
+        }
+        new AlertDialog.Builder(this).setTitle("Ayarlar").setView(sv)
+                .setPositiveButton("Kaydet", (d, w) -> {
+                    SharedPreferences.Editor e = prefs.edit();
+                    boolean reload = false, restart = false;
+                    for (int i = 0; i < toggles.length; i++) {
+                        boolean old = prefs.getBoolean(toggles[i][0], "1".equals(toggles[i][2]));
+                        if (old != sw[i].isChecked()) {
+                            if (toggles[i][0].equals("hidden") || toggles[i][0].equals("foldersFirst")) reload = true;
+                            if (toggles[i][0].equals("fullscreen") || toggles[i][0].equals("toolLabels")) restart = true;
+                        }
+                        e.putBoolean(toggles[i][0], sw[i].isChecked());
+                    }
+                    for (int i = 0; i < choices.length; i++) e.putInt(choices[i][0], choice[i]);
+                    e.apply();
+                    if (restart) {
+                        recreate();
+                        return;
+                    }
+                    for (Pane p : panes) {
+                        p.list.getRecycledViewPool().clear();
+                        p.list.setAdapter(null);
+                        p.list.setAdapter(p.adapter);
+                    }
+                    if (reload) reloadAll();
+                })
+                .setNegativeButton("Vazgeç", null).show();
+    }
+
     private void showMenu() {
         final boolean hidden = prefs.getBoolean("hidden", false);
         String[] opts = {
-                (hidden ? "✓ " : "") + "Gizli dosyaları göster",
+                "Ayarlar",
                 "Panelleri değiştir",
                 "WiFi dosya paylaşımı",
                 "USB kart araçları",
@@ -2455,8 +2639,7 @@ public class ExplorerActivity extends Activity {
         new AlertDialog.Builder(this).setItems(opts, (d, w) -> {
             switch (w) {
                 case 0:
-                    prefs.edit().putBoolean("hidden", !hidden).apply();
-                    reloadAll();
+                    showSettings();
                     break;
                 case 1:
                     setActive(1 - active);
