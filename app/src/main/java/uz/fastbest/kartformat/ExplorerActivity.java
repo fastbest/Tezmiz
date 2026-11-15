@@ -678,7 +678,7 @@ public class ExplorerActivity extends Activity {
         }
         for (int i = 0; i < 2; i++) {
             Pane p = panes[i];
-            p.chip.setBackground(round(i == active ? CHIP : 0xFF3A3D44, 0, 0, dp(7)));
+            p.updateChip();
             p.box.setBackgroundColor(i == active || !land ? BG : BG_DIM);
             p.list.setAlpha(i == active || !land ? 1f : 0.82f);
         }
@@ -761,7 +761,7 @@ public class ExplorerActivity extends Activity {
         active = target;
         for (int k = 0; k < 2; k++) {
             Pane p = panes[k];
-            p.chip.setBackground(round(k == active ? CHIP : 0xFF3A3D44, 0, 0, dp(7)));
+            p.updateChip();
             p.list.setAlpha(1f);
         }
         if (paneAnim != null) paneAnim.cancel();
@@ -791,7 +791,8 @@ public class ExplorerActivity extends Activity {
         final int index;
         final FrameLayout box;
         final LinearLayout content;
-        final TextView chip;
+        final LinearLayout chip;
+        final android.widget.HorizontalScrollView chipScroll;
         final LinearLayout strip;
         final VerticalLabel stripLabel;
         final ImageView stripIcon;
@@ -809,23 +810,15 @@ public class ExplorerActivity extends Activity {
 
             content = new LinearLayout(ExplorerActivity.this);
             content.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout chipRow = new LinearLayout(ExplorerActivity.this);
-            chipRow.setPadding(dp(6), dp(6), dp(6), dp(4));
-            chip = label("", 13.5f, Color.WHITE);
-            chip.setSingleLine(true);
-            chip.setEllipsize(TextUtils.TruncateAt.END);
-            chip.setPadding(dp(8), dp(5), dp(12), dp(5));
-            chip.setCompoundDrawablePadding(dp(6));
+            chipScroll = new android.widget.HorizontalScrollView(ExplorerActivity.this);
+            chipScroll.setHorizontalScrollBarEnabled(false);
+            chipScroll.setPadding(dp(5), dp(5), dp(5), dp(4));
+            chipScroll.setClipToPadding(false);
+            chip = new LinearLayout(ExplorerActivity.this);
+            chip.setOrientation(LinearLayout.HORIZONTAL);
             chip.setGravity(Gravity.CENTER_VERTICAL);
-            chip.setOnClickListener(v -> {
-                setActive(index);
-                if (current != null) {
-                    int pos = visible.indexOf(current);
-                    if (pos >= 0) Pane.this.scrollTo(Math.max(0, pos - 2));
-                }
-            });
-            chipRow.addView(chip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            chipScroll.addView(chip);
+            View chipRow = chipScroll;
             content.addView(chipRow);
             list = new RecyclerView(ExplorerActivity.this);
             lm = new LinearLayoutManager(ExplorerActivity.this);
@@ -901,21 +894,101 @@ public class ExplorerActivity extends Activity {
             while (root != null && root.parent != null) root = root.parent;
             String t = root != null ? root.title : "Kart Format";
             int icon = root != null && root.icon != 0 ? root.icon : R.drawable.ic_phone;
-            String where = "";
-            if (current != null && current != root && current.node != null) {
-                where = "  ›  " + (current.kind == K_FILE && current.parent != null
-                        ? current.parent.title : current.title);
+            // köke kadar zincir (dosya seçiliyse klasöründen başlar)
+            List<TNode> chain = new ArrayList<>();
+            TNode c = current != null && current.kind == K_FILE && current.parent != null
+                    ? current.parent : current;
+            for (TNode x = c; x != null; x = x.parent) chain.add(0, x);
+            if (chain.isEmpty()) chain.add(null);
+            int from = Math.max(0, chain.size() - 3);
+            chip.removeAllViews();
+            boolean on = index == active;
+            for (int k = from; k < chain.size(); k++) {
+                final TNode seg = chain.get(k);
+                boolean first = k == from, last = k == chain.size() - 1;
+                TextView tv = label(seg == null ? t : (k == from && from > 0 ? "… " : "") + seg.title,
+                        13f, on ? Color.WHITE : 0xFFC9CDD3);
+                tv.setSingleLine(true);
+                tv.setEllipsize(TextUtils.TruncateAt.END);
+                tv.setMaxWidth(dp(150));
+                tv.setGravity(Gravity.CENTER_VERTICAL);
+                tv.setPadding(first ? dp(7) : dp(13), dp(4), dp(11), dp(4));
+                int fill = on ? (last ? CHIP : 0xFF27406B) : (last ? 0xFF4A4D55 : 0xFF3A3D44);
+                tv.setBackground(new CrumbBg(fill, on ? 0xFF6E9BE0 : 0xFF5F646C, first));
+                if (first && k == 0) {
+                    Drawable d = getDrawable(icon);
+                    if (d != null) d.setBounds(0, 0, dp(16), dp(16));
+                    tv.setCompoundDrawables(d, null, null, null);
+                    tv.setCompoundDrawablePadding(dp(5));
+                }
+                tv.setOnClickListener(v -> {
+                    setActive(index);
+                    if (seg != null) {
+                        current = seg;
+                        refresh();
+                        int pos = visible.indexOf(seg);
+                        if (pos >= 0) scrollTo(pos - 2);
+                    }
+                });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, dp(28));
+                if (!first) lp.leftMargin = -dp(5);
+                chip.addView(tv, lp);
             }
-            chip.setText(t + where);
-            Drawable d = getDrawable(icon);
-            if (d != null) d.setBounds(0, 0, dp(18), dp(18));
-            chip.setCompoundDrawables(d, null, null, null);
+            chipScroll.post(() -> chipScroll.fullScroll(View.FOCUS_RIGHT));
             stripIcon.setImageResource(icon);
             String label = current == null ? t
                     : current.kind == K_FILE && current.parent != null ? current.parent.title
                     : current.title;
             stripLabel.setText(label);
         }
+    }
+
+    /** Yol çubuğu parçası: sağ ucu ok biçimli, ilk parça dışında sol ucu çentikli. */
+    final class CrumbBg extends Drawable {
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final boolean first;
+
+        CrumbBg(int fillColor, int edgeColor, boolean first) {
+            this.first = first;
+            fill.setColor(fillColor);
+            edge.setColor(edgeColor);
+            edge.setStyle(Paint.Style.STROKE);
+            edge.setStrokeWidth(dp(1));
+        }
+
+        @Override
+        public void draw(Canvas cv) {
+            android.graphics.Rect b = getBounds();
+            float a = dp(8), r = dp(4), o = dp(0.5f);
+            Path p = new Path();
+            float l = b.left + o, t = b.top + o, rt = b.right - o, bt = b.bottom - o;
+            if (first) {
+                p.moveTo(l + r, t);
+            } else {
+                p.moveTo(l, t);
+            }
+            p.lineTo(rt - a, t);
+            p.lineTo(rt, (t + bt) / 2);
+            p.lineTo(rt - a, bt);
+            if (first) {
+                p.lineTo(l + r, bt);
+                p.quadTo(l, bt, l, bt - r);
+                p.lineTo(l, t + r);
+                p.quadTo(l, t, l + r, t);
+            } else {
+                p.lineTo(l, bt);
+                p.lineTo(l + a, (t + bt) / 2);
+                p.close();
+            }
+            cv.drawPath(p, fill);
+            cv.drawPath(p, edge);
+        }
+
+        @Override public void setAlpha(int alpha) { }
+        @Override public void setColorFilter(android.graphics.ColorFilter cf) { }
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
     }
 
     // ---------------------------------------------------------------- satır çizimi
@@ -1087,6 +1160,7 @@ public class ExplorerActivity extends Activity {
         final TextView countFiles;
         final ProgressBar spinner;
         TNode node;
+        int rowBgColor;
 
         Row(Pane pane) {
             this.pane = pane;
@@ -1174,8 +1248,8 @@ public class ExplorerActivity extends Activity {
             card.addView(right);
 
             check = new ImageView(ExplorerActivity.this);
-            check.setPadding(dp(3), dp(3), dp(3), dp(3));
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(19), dp(19));
+            check.setPadding(dp(2), dp(2), dp(2), dp(2));
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(26), dp(26));
             cp.leftMargin = dp(6);
             card.addView(check, cp);
             check.setOnClickListener(v -> {
@@ -1279,14 +1353,20 @@ public class ExplorerActivity extends Activity {
 
             if (n.fileish()) {
                 check.setVisibility(View.VISIBLE);
-                if (sel) check.setImageResource(R.drawable.ic_check);
-                else check.setImageDrawable(null);
-                check.setBackground(sel ? round(ACCENT, 0, 0, dp(4))
-                        : round(Color.TRANSPARENT, 0xFF5F646C, dp(1.5f), dp(4)));
+                check.setImageResource(R.drawable.ic_check);
+                check.setBackground(null);
+                check.setColorFilter(sel ? ACCENT : 0xFF4E5157);
             } else {
                 check.setVisibility(View.GONE);
             }
             root.setPadding(dp(3), n.depth == 0 ? dp(3) : dp(1), dp(3), dp(1));
+            int bgc = n.depth == 0 ? 0xFF33353A : 0xFF17181B;
+            if (rowBgColor != bgc) {
+                rowBgColor = bgc;
+                root.setBackground(new android.graphics.drawable.RippleDrawable(
+                        android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+                        new android.graphics.drawable.ColorDrawable(bgc), null));
+            }
         }
     }
 
