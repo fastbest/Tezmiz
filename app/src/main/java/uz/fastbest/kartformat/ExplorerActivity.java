@@ -47,18 +47,20 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.MimeTypeMap;
-import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -769,7 +771,8 @@ public class ExplorerActivity extends Activity {
         final LinearLayout strip;
         final VerticalLabel stripLabel;
         final ImageView stripIcon;
-        final ListView list;
+        final RecyclerView list;
+        final LinearLayoutManager lm;
         final TreeAdapter adapter;
         final List<TNode> roots = new ArrayList<>();
         final List<TNode> visible = new ArrayList<>();
@@ -794,26 +797,26 @@ public class ExplorerActivity extends Activity {
                 setActive(index);
                 if (current != null) {
                     int pos = visible.indexOf(current);
-                    if (pos >= 0) Pane.this.list.setSelection(Math.max(0, pos - 2));
+                    if (pos >= 0) Pane.this.scrollTo(Math.max(0, pos - 2));
                 }
             });
             chipRow.addView(chip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT));
             content.addView(chipRow);
-            list = new ListView(ExplorerActivity.this);
-            list.setDivider(null);
-            list.setFastScrollEnabled(true);
-            list.setDrawSelectorOnTop(true);
-            list.setCacheColorHint(Color.TRANSPARENT);
+            list = new RecyclerView(ExplorerActivity.this);
+            lm = new LinearLayoutManager(ExplorerActivity.this);
+            list.setLayoutManager(lm);
+            list.setVerticalScrollBarEnabled(true);
+            list.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+            DefaultItemAnimator anim = new DefaultItemAnimator();
+            anim.setAddDuration(180);
+            anim.setRemoveDuration(150);
+            anim.setMoveDuration(180);
+            anim.setChangeDuration(0);
+            anim.setSupportsChangeAnimations(false);
+            list.setItemAnimator(anim);
             adapter = new TreeAdapter(this);
             list.setAdapter(adapter);
-            list.setOnItemClickListener((parent, view, pos, id) -> {
-                if (pos < visible.size()) onTap(this, visible.get(pos));
-            });
-            list.setOnItemLongClickListener((parent, view, pos, id) -> {
-                if (pos < visible.size()) onLongTap(this, visible.get(pos));
-                return true;
-            });
             content.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             box.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
@@ -839,13 +842,29 @@ public class ExplorerActivity extends Activity {
 
         /** Görünen listeyi ağaçtan yeniden üretir. */
         void refresh() {
+            final List<TNode> old = new ArrayList<>(visible);
             visible.clear();
             for (TNode r : roots) flatten(r, visible);
             if (current != null && !visible.contains(current)) current = null;
             selected.retainAll(new HashSet<>(visible));
-            adapter.notifyDataSetChanged();
+            if (old.isEmpty() || old.size() + visible.size() > 4000 || !list.isLaidOut()) {
+                adapter.notifyDataSetChanged();
+            } else {
+                final List<TNode> now = visible;
+                DiffUtil.calculateDiff(new DiffUtil.Callback() {
+                    @Override public int getOldListSize() { return old.size(); }
+                    @Override public int getNewListSize() { return now.size(); }
+                    @Override public boolean areItemsTheSame(int o, int n) { return old.get(o) == now.get(n); }
+                    @Override public boolean areContentsTheSame(int o, int n) { return false; }
+                    @Override public Object getChangePayload(int o, int n) { return "bind"; }
+                }, false).dispatchUpdatesTo(adapter);
+            }
             updateChip();
             if (index == active) updateToolbar();
+        }
+
+        void scrollTo(int pos) {
+            lm.scrollToPositionWithOffset(Math.max(0, pos), 0);
         }
 
         private void flatten(TNode n, List<TNode> out) {
@@ -877,33 +896,39 @@ public class ExplorerActivity extends Activity {
 
     // ---------------------------------------------------------------- satır çizimi
 
-    final class TreeAdapter extends BaseAdapter {
+    static final class Holder extends RecyclerView.ViewHolder {
+        final Row row;
+
+        Holder(Row row) {
+            super(row.root);
+            this.row = row;
+        }
+    }
+
+    final class TreeAdapter extends RecyclerView.Adapter<Holder> {
         private final Pane pane;
 
         TreeAdapter(Pane pane) {
             this.pane = pane;
+            setHasStableIds(false);
         }
 
         @Override
-        public int getCount() {
+        public int getItemCount() {
             return pane.visible.size();
         }
 
         @Override
-        public Object getItem(int position) {
-            return pane.visible.get(position);
+        public Holder onCreateViewHolder(ViewGroup parent, int viewType) {
+            Row r = new Row(pane);
+            r.root.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            return new Holder(r);
         }
 
         @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            Row row = convertView == null ? new Row(pane) : (Row) convertView.getTag();
-            row.bind(pane.visible.get(position));
-            return row.root;
+        public void onBindViewHolder(Holder h, int position) {
+            h.row.bind(pane.visible.get(position));
         }
     }
 
@@ -1138,6 +1163,17 @@ public class ExplorerActivity extends Activity {
             });
 
             root.setTag(this);
+            TypedValue tv = new TypedValue();
+            if (getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true)) {
+                root.setBackgroundResource(tv.resourceId);
+            }
+            root.setOnClickListener(v -> {
+                if (node != null && pane.visible.contains(node)) onTap(pane, node);
+            });
+            root.setOnLongClickListener(v -> {
+                if (node != null && pane.visible.contains(node)) onLongTap(pane, node);
+                return true;
+            });
         }
 
         void bind(TNode n) {
@@ -1655,7 +1691,7 @@ public class ExplorerActivity extends Activity {
             p.current.expanded = false;
             p.refresh();
             int pos = p.visible.indexOf(p.current);
-            if (pos >= 0) p.list.setSelection(Math.max(0, pos - 2));
+            if (pos >= 0) p.scrollTo(pos - 2);
             return true;
         }
         return false;
@@ -2249,7 +2285,7 @@ public class ExplorerActivity extends Activity {
         p.roots.add(at, g);
         p.current = g;
         p.refresh();
-        p.list.setSelection(at);
+        p.scrollTo(at);
     }
 
     private void askSearch() {
