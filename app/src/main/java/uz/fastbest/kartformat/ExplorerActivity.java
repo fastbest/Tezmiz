@@ -2409,7 +2409,11 @@ public class ExplorerActivity extends Activity {
             if (f.getAbsolutePath().startsWith(v.rootFile().getAbsolutePath())) return v;
         }
         if (f.getAbsolutePath().startsWith(internal.rootFile().getAbsolutePath())) return internal;
-        return new LocalFs(f.getName(), f);
+        // Depolama birimleri dışında (ör. uygulama önbelleği): dosyanın klasörünü kök al,
+        // yoksa dosyanın kendisi "klasör" sanılıp açılamıyordu
+        File base = f.isDirectory() ? f : f.getParentFile();
+        if (base == null) base = f;
+        return new LocalFs(base.getName(), base);
     }
 
     private Comparator<VNode> comparator() {
