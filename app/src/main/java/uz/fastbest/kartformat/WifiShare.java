@@ -134,6 +134,43 @@ final class WifiShare extends NanoHTTPD {
                 File made = new File(d, LocalFs.unique(d, n));
                 if (!made.mkdir()) throw new IOException("Klasör oluşturulamadı");
                 r = redirect("/?p=" + enc(rel(d)));
+            } else if (uri.equals("/ls")) {
+                // Başka bir Kart Format'ın okuyacağı sade liste: tür \t ad \t boyut \t zaman
+                File d = resolve(parms.get("p"));
+                File[] fs = d.listFiles();
+                StringBuilder sb = new StringBuilder();
+                if (fs != null) {
+                    for (File f : fs) {
+                        sb.append(f.isDirectory() ? 'd' : 'f').append('\t').append(f.getName()).append('\t')
+                                .append(f.isDirectory() ? 0 : f.length()).append('\t')
+                                .append(f.lastModified()).append('\n');
+                    }
+                }
+                r = newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", sb.toString());
+            } else if (uri.equals("/put") && s.getMethod() == Method.PUT) {
+                File d = resolve(parms.get("p"));
+                String n = CardVolume.checkName(parms.get("n"));
+                Map<String, String> files = new HashMap<>();
+                s.parseBody(files);
+                String tmp = files.get("content");
+                if (tmp == null) throw new IOException("veri gelmedi");
+                File out = new File(d, LocalFs.unique(d, n));
+                try (InputStream in = new FileInputStream(tmp);
+                     OutputStream o = new BufferedOutputStream(new FileOutputStream(out), 256 * 1024)) {
+                    byte[] buf = new byte[1 << 16];
+                    int k;
+                    while ((k = in.read(buf)) > 0) o.write(buf, 0, k);
+                }
+                r = newFixedLengthResponse(Response.Status.OK, "text/plain", out.getName());
+            } else if (uri.equals("/rm")) {
+                File f = resolve(parms.get("p"));
+                if (f.equals(root.getCanonicalFile()) || !deleteRec(f)) throw new IOException("silinemedi");
+                r = newFixedLengthResponse(Response.Status.OK, "text/plain", "ok");
+            } else if (uri.equals("/mv")) {
+                File f = resolve(parms.get("p"));
+                File to = resolve(parms.get("to"));
+                if (to.exists() || !f.renameTo(to)) throw new IOException("taşınamadı");
+                r = newFixedLengthResponse(Response.Status.OK, "text/plain", "ok");
             } else {
                 r = listing(parms.get("p"));
             }
@@ -143,6 +180,12 @@ final class WifiShare extends NanoHTTPD {
             return newFixedLengthResponse(Response.Status.BAD_REQUEST, "text/plain; charset=utf-8",
                     "Hata: " + e.getMessage());
         }
+    }
+
+    private static boolean deleteRec(File f) {
+        File[] k = f.isDirectory() ? f.listFiles() : null;
+        if (k != null) for (File c : k) deleteRec(c);
+        return f.delete();
     }
 
     private static Response redirect(String to) {

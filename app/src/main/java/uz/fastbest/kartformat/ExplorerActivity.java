@@ -341,6 +341,7 @@ public class ExplorerActivity extends Activity {
         } catch (RuntimeException ignored) {
         }
         if (wifi != null) wifi.stop();
+        if (ftpServer != null) ftpServer.stop();
         if (vault != null) vault.close();
         io.execute(() -> usb.close());
         io.shutdown();
@@ -1786,12 +1787,10 @@ public class ExplorerActivity extends Activity {
         out.add(special("recent", K_GROUP, R.drawable.ic_clock, "Son dosyalar", null));
         out.add(special("apps", K_GROUP, R.drawable.ic_apps, "Uygulama yöneticisi", null));
         out.add(special("trash", K_GROUP, R.drawable.ic_t_delete, "Çöp kutusu", "Uzun bas: geri yükle"));
-        out.add(special("ftp", K_GROUP, R.drawable.ic_network, "Ağ (FTP / LAN)", null));
-        TNode wifiNode = special("wifi", K_ACTION, R.drawable.ic_wifi, "WiFi dosya paylaşımı",
-                wifi == null ? "Kapalı" : "http://" + WifiShare.address() + ":" + wifi.port);
-        if (wifi != null) wifiNode.right2 = "Kod " + wifiCode;
-        wifiNode.action = this::toggleWifi;
-        out.add(wifiNode);
+        out.add(special("ftp", K_GROUP, R.drawable.ic_lan, "FTP", null));
+        out.add(special("lan", K_GROUP, R.drawable.ic_network, "LAN", null));
+        out.add(special("web", K_GROUP, R.drawable.ic_cloud, "Web depolama", null));
+        out.add(special("wifi", K_GROUP, R.drawable.ic_wifi, "WiFi dosya paylaşımı", null));
         if (vault == null) {
             TNode v = special("vault", K_ACTION, R.drawable.ic_vault, "Kasa", "Şifreli dosyalar");
             v.action = () -> openVault(p);
@@ -2180,9 +2179,19 @@ public class ExplorerActivity extends Activity {
             case "trash":
                 return this::trashChildren;
             case "apps":
-                return parent -> appChildren(parent, prefs.getBoolean("systemApps", false));
+                return this::appGroups;
+            case "apps:user":
+                return parent -> appChildren(parent, false);
+            case "apps:sys":
+                return parent -> appChildren(parent, true);
             case "ftp":
-                return this::ftpChildren;
+                return parent -> netChildren(parent, "ftp");
+            case "lan":
+                return parent -> netChildren(parent, "lan");
+            case "web":
+                return parent -> netChildren(parent, "web");
+            case "wifi":
+                return parent -> netChildren(parent, "wifi");
             default:
                 return null;   // geçici gruplar (arama, analiz) hazır gelir
         }
@@ -2636,8 +2645,8 @@ public class ExplorerActivity extends Activity {
     }
 
     private void askShownRoots() {
-        final String[] keys = {"fav", "recent", "apps", "trash", "ftp", "wifi", "vault", "tools"};
-        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "Çöp kutusu", "Ağ (FTP / LAN)",
+        final String[] keys = {"fav", "recent", "apps", "trash", "ftp", "lan", "web", "wifi", "vault", "tools"};
+        String[] names = {"Sık kullanılanlar", "Son dosyalar", "Uygulama yöneticisi", "Çöp kutusu", "FTP", "LAN", "Web depolama",
                 "WiFi dosya paylaşımı", "Kasa", "USB kart araçları"};
         final Set<String> hid = new HashSet<>(Arrays.asList(prefs.getString("hiddenRoots", "").split(",")));
         final boolean[] on = new boolean[keys.length];
@@ -3485,26 +3494,26 @@ public class ExplorerActivity extends Activity {
 
     // ---------------------------------------------------------------- uygulama yöneticisi
 
+    private List<TNode> appGroups(TNode parent) {
+        List<TNode> out = new ArrayList<>();
+        TNode u = special("apps:user", K_GROUP, R.drawable.ic_download, "Yüklü", null);
+        TNode y = special("apps:sys", K_GROUP, R.drawable.ic_folder, "Sistem", null);
+        for (TNode t : new TNode[]{u, y}) {
+            t.parent = parent;
+            t.depth = parent.depth + 1;
+            out.add(t);
+        }
+        return out;
+    }
+
     private List<TNode> appChildren(TNode parent, final boolean system) {
         PackageManager pm = getPackageManager();
         List<TNode> out = new ArrayList<>();
-        TNode toggle = new TNode();
-        toggle.kind = K_ACTION;
-        toggle.parent = parent;
-        toggle.depth = parent.depth + 1;
-        toggle.key = "apps:toggle";
-        toggle.icon = R.drawable.ic_t_selectall;
-        toggle.title = system ? "Yalnızca yüklenen uygulamalar" : "Sistem uygulamalarını da göster";
-        toggle.action = () -> {
-            prefs.edit().putBoolean("systemApps", !system).apply();
-            for (Pane p : panes) for (TNode r : p.roots) if ("apps".equals(r.key) && r.expanded) expand(p, r);
-        };
-        out.add(toggle);
         List<Object[]> rows = new ArrayList<>();
         for (ApplicationInfo a : pm.getInstalledApplications(0)) {
             boolean sys = (a.flags & ApplicationInfo.FLAG_SYSTEM) != 0
                     && (a.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
-            if (sys && !system) continue;
+            if (sys != system) continue;
             rows.add(new Object[]{String.valueOf(pm.getApplicationLabel(a)), a});
         }
         Collections.sort(rows, (x, y) -> ((String) x[0]).compareToIgnoreCase((String) y[0]));
@@ -3630,30 +3639,53 @@ public class ExplorerActivity extends Activity {
         prefs.edit().putString("ftp", sb.toString()).apply();
     }
 
-    private List<TNode> ftpChildren(TNode parent) {
+    /** Ağ bölümleri: ftp (FTP+SFTP+telefonun FTP sunucusu), lan (SMB), web (WebDAV), wifi (telefonlar). */
+    private List<TNode> netChildren(TNode parent, final String group) {
         List<TNode> out = new ArrayList<>();
+        if (group.equals("ftp")) {
+            TNode sv = special("ftp:server", K_ACTION, R.drawable.ic_ftp, "Sunucu",
+                    ftpServer == null ? "Devre dışı"
+                            : "ftp://" + WifiShare.address() + ":" + ftpServer.port + "   kullanıcı: kart   parola: " + ftpPass);
+            sv.right2 = ftpServer == null ? "Kapalı" : "Açık";
+            sv.action = this::toggleFtpServer;
+            sv.parent = parent;
+            sv.depth = parent.depth + 1;
+            out.add(sv);
+        } else if (group.equals("wifi")) {
+            TNode sv = special("wifi:server", K_ACTION, R.drawable.ic_server, "Sunucu",
+                    wifi == null ? "Devre dışı" : "http://" + WifiShare.address() + ":" + wifi.port + "   kod: " + wifiCode);
+            sv.right2 = wifi == null ? "Kapalı" : "Açık";
+            sv.action = this::toggleWifi;
+            sv.parent = parent;
+            sv.depth = parent.depth + 1;
+            out.add(sv);
+        }
         final List<FtpFs.Server> list = ftpServers();
         for (int i = 0; i < list.size(); i++) {
             final int idx = i;
             final FtpFs.Server s = list.get(i);
-            boolean smb = "smb".equals(s.type);
-            Vfs fs = smb ? new SmbFs(s) : "sftp".equals(s.type) ? new SftpFs(s)
-                    : "webdav".equals(s.type) ? new WebDavFs(s) : new FtpFs(s);
+            String g = s.type.equals("smb") ? "lan" : s.type.equals("webdav") ? "web"
+                    : s.type.equals("wifi") ? "wifi" : "ftp";
+            if (!g.equals(group)) continue;
+            Vfs fs = s.type.equals("smb") ? new SmbFs(s) : s.type.equals("sftp") ? new SftpFs(s)
+                    : s.type.equals("webdav") ? new WebDavFs(s) : s.type.equals("wifi") ? new WifiFs(s)
+                    : new FtpFs(s);
             TNode t = new TNode();
             t.kind = K_VOLUME;
             t.parent = parent;
             t.depth = parent.depth + 1;
-            t.key = (s.type + "srv:") + s.host + ":" + s.port + ":" + s.user + ":" + s.path;
+            t.key = s.type + "srv:" + s.host + ":" + s.port + ":" + s.user + ":" + s.path;
             t.node = fs.root();
-            t.icon = R.drawable.ic_network;
+            t.icon = group.equals("web") ? R.drawable.ic_cloud : group.equals("wifi") ? R.drawable.ic_phone_link
+                    : group.equals("lan") ? R.drawable.ic_lan : R.drawable.ic_network;
             t.title = s.name;
-            t.sub = (smb ? "LAN" : s.type.toUpperCase(Locale.ROOT)) + "  " + s.user + "@" + s.host
-                    + (smb ? "" : ":" + s.port) + s.path;
-            if ("webdav".equals(s.type)) t.icon = R.drawable.ic_network;
+            t.sub = s.type.equals("wifi") ? s.host : (s.type.equals("smb") ? "" : s.type.toUpperCase(Locale.ROOT) + "  ")
+                    + (s.user.isEmpty() || s.user.equals("anonymous") || s.user.equals("guest") ? "" : s.user + "@")
+                    + s.host + s.path;
             t.onLong = () -> new AlertDialog.Builder(this).setTitle(s.name)
                     .setItems(new String[]{"Düzenle", "Sil"}, (d, w) -> {
                         if (w == 0) {
-                            editFtp(idx);
+                            editFtp(idx, s.type);
                         } else {
                             list.remove(idx);
                             saveFtp(list);
@@ -3666,28 +3698,87 @@ public class ExplorerActivity extends Activity {
         add.kind = K_ACTION;
         add.parent = parent;
         add.depth = parent.depth + 1;
-        add.key = "ftp:add";
-        add.icon = R.drawable.ic_t_newfolder;
-        add.title = "Sunucu ekle";
-        add.sub = "FTP ya da Windows paylaşımı (LAN / SMB), NAS";
-        add.action = () -> editFtp(-1);
+        add.key = group + ":add";
+        add.icon = R.drawable.ic_add;
+        add.title = group.equals("wifi") ? "Cihaz ekle" : "Sunucu ekle";
+        add.sub = group.equals("wifi") ? "Kart Format açık başka bir telefon (adres ve kod)"
+                : group.equals("lan") ? "Windows paylaşımı ya da NAS (SMB)"
+                : group.equals("web") ? "WebDAV: Nextcloud, Yandex Disk, NAS…" : "FTP ya da SFTP (SSH) sunucusu";
+        final String def = group.equals("lan") ? "smb" : group.equals("web") ? "webdav"
+                : group.equals("wifi") ? "wifi" : "ftp";
+        add.action = () -> editFtp(-1, def);
         out.add(add);
         return out;
     }
 
-    private void reloadFtp() {
-        for (Pane p : panes) for (TNode r : p.roots) if ("ftp".equals(r.key) && r.expanded) expand(p, r);
+    private MiniFtpServer ftpServer;
+    private String ftpPass;
+
+    private void toggleFtpServer() {
+        if (ftpServer != null) {
+            ftpServer.stop();
+            ftpServer = null;
+            toast("FTP sunucusu kapatıldı");
+            reloadFtp();
+            return;
+        }
+        if (!hasStorageAccess()) {
+            askStorageAccess();
+            return;
+        }
+        String ip = WifiShare.address();
+        if (ip == null) {
+            toast("WiFi'ye bağlı değilsiniz");
+            return;
+        }
+        ftpPass = String.valueOf(1000 + new java.security.SecureRandom().nextInt(9000));
+        MiniFtpServer srv = null;
+        for (int port = 2121; port < 2131 && srv == null; port++) {
+            try {
+                MiniFtpServer t = new MiniFtpServer(internal.rootFile(), port, "kart", ftpPass);
+                t.start();
+                srv = t;
+            } catch (IOException ignored) {
+            }
+        }
+        if (srv == null) {
+            toast("FTP sunucusu başlatılamadı");
+            return;
+        }
+        ftpServer = srv;
+        reloadFtp();
+        new AlertDialog.Builder(this).setTitle("FTP sunucusu açık")
+                .setMessage("Bilgisayardan (Windows Gezgini adres çubuğu ya da FileZilla) bağlanın:\n\n"
+                        + "ftp://" + ip + ":" + srv.port + "\n\nKullanıcı: kart\nParola: " + ftpPass
+                        + "\n\nUygulama açıkken çalışır; işiniz bitince kapatın.")
+                .setPositiveButton("Tamam", null).show();
     }
 
-    private void editFtp(final int idx) {
+    private void reloadFtp() {
+        for (Pane p : panes) {
+            for (TNode r : p.roots) {
+                if (r.expanded && r.key != null && (r.key.equals("ftp") || r.key.equals("lan")
+                        || r.key.equals("web") || r.key.equals("wifi"))) expand(p, r);
+            }
+        }
+    }
+
+    private void editFtp(final int idx, final String defType) {
         final List<FtpFs.Server> list = ftpServers();
         final FtpFs.Server s = idx >= 0 ? list.get(idx) : new FtpFs.Server();
+        if (idx < 0) {
+            s.type = defType;
+            s.port = defType.equals("smb") ? 445 : defType.equals("webdav") ? 443
+                    : defType.equals("wifi") ? 8080 : defType.equals("sftp") ? 22 : 21;
+            if (defType.equals("smb")) s.user = "guest";
+            if (defType.equals("wifi")) s.user = "";
+        }
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(20), dp(8), dp(20), 0);
-        final String[] types = {"ftp", "sftp", "smb", "webdav"};
-        final String[] typeNames = {"FTP", "SFTP", "LAN", "WebDAV"};
-        final int[] defPorts = {21, 22, 445, 443};
+        final String[] types = {"ftp", "sftp", "smb", "webdav", "wifi"};
+        final String[] typeNames = {"FTP", "SFTP", "LAN", "WebDAV", "Telefon"};
+        final int[] defPorts = {21, 22, 445, 443, 8080};
         final int[] type = {Math.max(0, Arrays.asList(types).indexOf(s.type))};
         final LinearLayout typeRow = new LinearLayout(this);
         typeRow.setPadding(0, dp(4), 0, dp(10));
@@ -3775,7 +3866,7 @@ public class ExplorerActivity extends Activity {
             wifi.stop();
             wifi = null;
             toast("WiFi paylaşımı kapatıldı");
-            refreshRoots();
+            reloadFtp();
             return;
         }
         if (!hasStorageAccess()) {
@@ -3794,7 +3885,7 @@ public class ExplorerActivity extends Activity {
             toast("Sunucu başlatılamadı: " + e.getMessage());
             return;
         }
-        refreshRoots();
+        reloadFtp();
         new AlertDialog.Builder(this).setTitle("WiFi dosya paylaşımı açık")
                 .setMessage("Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n"
                         + "http://" + ip + ":" + wifi.port + "\n\nKod: " + wifiCode
