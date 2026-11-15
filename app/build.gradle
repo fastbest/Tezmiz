@@ -10,8 +10,8 @@ android {
         applicationId 'uz.fastbest.kartformat'
         minSdk 21
         targetSdk 34
-        versionCode 24
-        versionName '5.6'
+        versionCode 25
+        versionName '5.7'
     }
 
     signingConfigs {
@@ -71,4 +71,6 @@ dependencies {
     implementation 'com.github.junrar:junrar:7.5.5'
     // Windows paylaşımı / NAS (SMB2-3) istemcisi (Apache-2.0)
     implementation 'com.hierynomus:smbj:0.13.0'
+    // SFTP (SSH) istemcisi (BSD)
+    implementation 'com.github.mwiede:jsch:0.2.20'
 }

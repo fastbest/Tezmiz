@@ -3312,16 +3312,19 @@ public class ExplorerActivity extends Activity {
             final int idx = i;
             final FtpFs.Server s = list.get(i);
             boolean smb = "smb".equals(s.type);
-            Vfs fs = smb ? new SmbFs(s) : new FtpFs(s);
+            Vfs fs = smb ? new SmbFs(s) : "sftp".equals(s.type) ? new SftpFs(s)
+                    : "webdav".equals(s.type) ? new WebDavFs(s) : new FtpFs(s);
             TNode t = new TNode();
             t.kind = K_VOLUME;
             t.parent = parent;
             t.depth = parent.depth + 1;
-            t.key = (smb ? "smbsrv:" : "ftpsrv:") + s.host + ":" + s.port + ":" + s.user + ":" + s.path;
+            t.key = (s.type + "srv:") + s.host + ":" + s.port + ":" + s.user + ":" + s.path;
             t.node = fs.root();
             t.icon = R.drawable.ic_network;
             t.title = s.name;
-            t.sub = smb ? "LAN  " + s.host + s.path : "FTP  " + s.user + "@" + s.host + ":" + s.port + s.path;
+            t.sub = (smb ? "LAN" : s.type.toUpperCase(Locale.ROOT)) + "  " + s.user + "@" + s.host
+                    + (smb ? "" : ":" + s.port) + s.path;
+            if ("webdav".equals(s.type)) t.icon = R.drawable.ic_network;
             t.onLong = () -> new AlertDialog.Builder(this).setTitle(s.name)
                     .setItems(new String[]{"Düzenle", "Sil"}, (d, w) -> {
                         if (w == 0) {
@@ -3357,34 +3360,43 @@ public class ExplorerActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(20), dp(8), dp(20), 0);
-        final boolean[] smb = {"smb".equals(s.type)};
+        final String[] types = {"ftp", "sftp", "smb", "webdav"};
+        final String[] typeNames = {"FTP", "SFTP", "LAN", "WebDAV"};
+        final int[] defPorts = {21, 22, 445, 443};
+        final int[] type = {Math.max(0, Arrays.asList(types).indexOf(s.type))};
         final LinearLayout typeRow = new LinearLayout(this);
         typeRow.setPadding(0, dp(4), 0, dp(10));
-        final TextView tFtp = label("FTP", 14, TEXT);
-        final TextView tSmb = label("LAN (SMB)", 14, TEXT);
         final EditText[] portRef = new EditText[1];
         final EditText[] pathRef = new EditText[1];
+        final EditText[] hostRef = new EditText[1];
+        final TextView[] tbs = new TextView[types.length];
         final Runnable paint = () -> {
-            tFtp.setBackground(round(smb[0] ? 0xFF3A3D44 : CHIP, 0, 0, dp(6)));
-            tSmb.setBackground(round(smb[0] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+            for (int k = 0; k < tbs.length; k++) tbs[k].setBackground(round(k == type[0] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+            if (pathRef[0] != null) pathRef[0].setHint(type[0] == 2 ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü");
+            if (hostRef[0] != null) hostRef[0].setHint(type[0] == 3 ? "Adres (ör. https://webdav.yandex.ru)" : "Adres (ör. 192.168.1.10)");
         };
-        for (final TextView tv : new TextView[]{tFtp, tSmb}) {
+        for (int k = 0; k < types.length; k++) {
+            final int kk = k;
+            TextView tv = label(typeNames[k], 13, TEXT);
+            tbs[k] = tv;
             tv.setGravity(Gravity.CENTER);
             tv.setPadding(0, dp(8), 0, dp(8));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-            if (tv == tSmb) lp.leftMargin = dp(6);
+            if (k > 0) lp.leftMargin = dp(4);
             typeRow.addView(tv, lp);
             tv.setOnClickListener(v -> {
-                smb[0] = tv == tSmb;
-                paint.run();
+                int old = type[0];
+                type[0] = kk;
                 if (portRef[0] != null) {
                     String cur = portRef[0].getText().toString().trim();
-                    if (smb[0] && (cur.equals("21") || cur.isEmpty())) portRef[0].setText("445");
-                    if (!smb[0] && (cur.equals("445") || cur.isEmpty())) portRef[0].setText("21");
+                    if (cur.isEmpty() || cur.equals(String.valueOf(defPorts[old]))) {
+                        portRef[0].setText(String.valueOf(defPorts[kk]));
+                    }
                 }
-                if (pathRef[0] != null) pathRef[0].setHint(smb[0] ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü");
+                paint.run();
             });
         }
+        final boolean[] smb = {false};
         paint.run();
         box.addView(typeRow);
         final EditText name = input(idx >= 0 ? s.name : "", "Ad (ör. Bilgisayarım)");
@@ -3394,9 +3406,11 @@ public class ExplorerActivity extends Activity {
         final EditText user = input(s.user, "Kullanıcı adı");
         final EditText pass = input(s.pass, "Parola");
         pass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        final EditText path = input(s.path, smb[0] ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü");
+        final EditText path = input(s.path, "Başlangıç klasörü");
         portRef[0] = port;
         pathRef[0] = path;
+        hostRef[0] = host;
+        paint.run();
         for (View v : new View[]{name, host, port, user, pass, path}) box.addView(v);
         ScrollView sv = new ScrollView(this);
         sv.addView(box);
@@ -3414,9 +3428,10 @@ public class ExplorerActivity extends Activity {
                     try {
                         s.port = Integer.parseInt(port.getText().toString().trim());
                     } catch (NumberFormatException e) {
-                        s.port = smb[0] ? 445 : 21;
+                        s.port = defPorts[type[0]];
                     }
-                    s.type = smb[0] ? "smb" : "ftp";
+                    s.type = types[type[0]];
+                    smb[0] = type[0] == 2;
                     s.user = user.getText().toString().trim().isEmpty() ? (smb[0] ? "guest" : "anonymous")
                             : user.getText().toString().trim();
                     s.pass = pass.getText().toString();
