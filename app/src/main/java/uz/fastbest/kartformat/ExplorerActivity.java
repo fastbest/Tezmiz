@@ -1,6 +1,7 @@
 package uz.fastbest.kartformat;
 
 import android.Manifest;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
@@ -37,6 +38,7 @@ import android.text.TextUtils;
 import android.util.Base64;
 import android.util.LruCache;
 import android.util.TypedValue;
+import android.view.animation.DecelerateInterpolator;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -589,43 +591,108 @@ public class ExplorerActivity extends Activity {
         }
     }
 
+    private float panePos;            // 0 = sol panel açık, 1 = sağ panel açık
+    private ValueAnimator paneAnim;
+    private boolean paneRowHooked;
+
     private void layoutPanes() {
         if (panes[0] == null) return;
         boolean land = landscape();
+        if (paneAnim != null) paneAnim.cancel();
         paneRow.removeAllViews();
         stripHolder.removeAllViews();
+        stripHolder.setVisibility(View.GONE);
+        if (!paneRowHooked) {
+            paneRowHooked = true;
+            paneRow.addOnLayoutChangeListener((v, l, t, r, bt, ol, ot, or, ob) -> {
+                if (r - l != or - ol && !landscape()) applyPanePos(panePos);
+            });
+        }
         for (int i = 0; i < 2; i++) {
             Pane p = panes[i];
-            boolean show = land || i == active;
             p.chip.setBackground(round(i == active ? CHIP : 0xFF3A3D44, 0, 0, dp(7)));
             p.box.setBackgroundColor(i == active || !land ? BG : BG_DIM);
             p.list.setAlpha(i == active || !land ? 1f : 0.82f);
-            if (show) {
+            if (land) {
+                p.strip.setVisibility(View.GONE);
+                p.content.setTranslationX(0);
+                p.content.setAlpha(1f);
+                FrameLayout.LayoutParams cp = (FrameLayout.LayoutParams) p.content.getLayoutParams();
+                cp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                p.content.setLayoutParams(cp);
                 paneRow.addView(p.box, new LinearLayout.LayoutParams(0,
                         ViewGroup.LayoutParams.MATCH_PARENT, 1));
-                if (land && i == 0) {
+                if (i == 0) {
                     View sep = new View(this);
                     sep.setBackgroundColor(0xFF131416);
                     paneRow.addView(sep, new LinearLayout.LayoutParams(dp(2),
                             ViewGroup.LayoutParams.MATCH_PARENT));
                 }
             } else {
-                // Diğer panel, araç çubuğunun üstünde küçük bir şerit olarak durur
-                stripHolder.addView(p.strip, new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                paneRow.addView(p.box, new LinearLayout.LayoutParams(dp(100),
+                        ViewGroup.LayoutParams.MATCH_PARENT));
             }
         }
-        stripHolder.setVisibility(land ? View.GONE : View.VISIBLE);
+        if (!land) {
+            panePos = active;
+            applyPanePos(panePos);
+        }
         updateToolbar();
     }
 
-    private void setActive(int i) {
-        if (active != i) {
-            active = i;
-            layoutPanes();
-        } else {
-            updateToolbar();
+    /** Dikey düzende iki panelin genişliğini ve kenar şeritlerini ayarlar. pos: 0..1 */
+    private void applyPanePos(float pos) {
+        int w = paneRow.getWidth();
+        if (w <= 0) {
+            paneRow.post(() -> { if (!landscape()) applyPanePos(panePos); });
+            return;
         }
+        int sw = dp(28);
+        int contentW = w - sw;
+        int w0 = Math.round(sw + (w - 2 * sw) * (1 - pos));
+        int w1 = w - w0;
+        int[] ws = {w0, w1};
+        for (int i = 0; i < 2; i++) {
+            Pane p = panes[i];
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) p.box.getLayoutParams();
+            if (lp.width != ws[i]) { lp.width = ws[i]; p.box.setLayoutParams(lp); }
+            FrameLayout.LayoutParams cp = (FrameLayout.LayoutParams) p.content.getLayoutParams();
+            if (cp.width != contentW) { cp.width = contentW; p.content.setLayoutParams(cp); }
+            p.content.setTranslationX(i == 0 ? ws[0] - contentW : 0);
+            float stripA = i == 0 ? pos : 1 - pos;
+            p.strip.setAlpha(stripA);
+            p.strip.setVisibility(stripA <= 0.01f ? View.GONE : View.VISIBLE);
+            p.content.setAlpha(1f - 0.55f * stripA);
+        }
+    }
+
+    private void setActive(int i) {
+        if (active == i) {
+            updateToolbar();
+            return;
+        }
+        active = i;
+        if (landscape() || panes[0] == null || paneRow.getWidth() <= 0) {
+            layoutPanes();
+            return;
+        }
+        for (int k = 0; k < 2; k++) {
+            Pane p = panes[k];
+            p.chip.setBackground(round(k == active ? CHIP : 0xFF3A3D44, 0, 0, dp(7)));
+            p.list.setAlpha(1f);
+        }
+        if (paneAnim != null) paneAnim.cancel();
+        final float from = panePos;
+        final float to = i;
+        paneAnim = ValueAnimator.ofFloat(from, to);
+        paneAnim.setDuration(280);
+        paneAnim.setInterpolator(new DecelerateInterpolator(1.6f));
+        paneAnim.addUpdateListener(a -> {
+            panePos = (Float) a.getAnimatedValue();
+            applyPanePos(panePos);
+        });
+        paneAnim.start();
+        updateToolbar();
     }
 
     private void toast(String s) {
@@ -640,7 +707,7 @@ public class ExplorerActivity extends Activity {
 
     final class Pane {
         final int index;
-        final LinearLayout box;
+        final FrameLayout box;
         final LinearLayout content;
         final TextView chip;
         final LinearLayout strip;
@@ -655,8 +722,7 @@ public class ExplorerActivity extends Activity {
 
         Pane(int index) {
             this.index = index;
-            box = new LinearLayout(ExplorerActivity.this);
-            box.setOrientation(LinearLayout.HORIZONTAL);
+            box = new FrameLayout(ExplorerActivity.this);
 
             content = new LinearLayout(ExplorerActivity.this);
             content.setOrientation(LinearLayout.VERTICAL);
@@ -693,7 +759,8 @@ public class ExplorerActivity extends Activity {
                 return true;
             });
             content.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-            box.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
+            box.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
 
             strip = new LinearLayout(ExplorerActivity.this);
             strip.setOrientation(LinearLayout.VERTICAL);
@@ -703,7 +770,7 @@ public class ExplorerActivity extends Activity {
             stripIcon = iconView(R.drawable.ic_phone, 26);
             strip.addView(stripIcon);
             ImageView arrow = iconView(R.drawable.ic_tree_closed, 18);
-            arrow.setRotation(index == 0 ? 180 : 0);
+            arrow.setRotation(index == 0 ? 0 : 180);
             LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(18), dp(18));
             alp.topMargin = dp(3);
             strip.addView(arrow, alp);
@@ -711,6 +778,10 @@ public class ExplorerActivity extends Activity {
             stripLabel.setPadding(0, dp(4), 0, dp(4));
             strip.addView(stripLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             strip.setOnClickListener(v -> setActive(index));
+            strip.setClickable(true);
+            box.addView(strip, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            strip.setVisibility(View.GONE);
         }
 
         /** Görünen listeyi ağaçtan yeniden üretir. */
