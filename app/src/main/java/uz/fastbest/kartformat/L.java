@@ -156,7 +156,7 @@ public final class L {
     /** Başlık, ileti, düğme ve seçenekleri çeviren AlertDialog.Builder. */
     public static class Builder extends AlertDialog.Builder {
         public Builder(Context c) {
-            super(c);
+            super(c, Theme.dialogTheme());
         }
 
         @Override

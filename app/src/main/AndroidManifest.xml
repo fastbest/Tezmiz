@@ -124,6 +124,11 @@
             android:theme="@style/ExplorerTheme" />
 
         <activity
+            android:name=".AppearanceActivity"
+            android:exported="false"
+            android:theme="@style/ExplorerTheme" />
+
+        <activity
             android:name=".PdfActivity"
             android:exported="false"
             android:theme="@style/ExplorerTheme" />

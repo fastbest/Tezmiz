@@ -89,18 +89,36 @@ public class ExplorerActivity extends Activity {
 
     // ---------------------------------------------------------------- görünüm sabitleri
 
-    private static final int BG = 0xFF2A2B2F;
-    private static final int BG_DIM = 0xFF232427;
-    private static final int TOP = 0xFF151619;
-    private static final int TOOL_BG = 0xFF1C1D20;
-    private static final int TEXT = 0xFFF2F2F2;
-    private static final int MUTED = 0xFFA4A9B1;
-    private static final int ACCENT = 0xFF29B6F6;
-    private static final int ORANGE = 0xFFFF9800;
-    private static final int SELECT = 0x553D8BD6;
-    private static final int BAR = 0xFF4DB6AC;
-    private static final int BAR_BG = 0xFF44474D;
-    private static final int CHIP = 0xFF1E5BB8;
+    // Renkler temadan gelir (Görünüm ekranı); applyTheme() atar
+    private static int BG, BG_DIM, TOP, TOOL_BG, TEXT, MUTED, ACCENT, ORANGE, SELECT, BAR, BAR_BG, CHIP,
+            ROOT_ROW, ITEM_ROW, DIVIDER, FIELD, SURF, CHIP_DIM, GUIDE, DIM;
+
+    private static void applyTheme() {
+        BG = Theme.GLASS ? Color.TRANSPARENT : Theme.BG;
+        BG_DIM = Theme.GLASS ? Theme.alpha(Theme.LIGHT ? 0xFFFFFFFF : 0xFF000000, 0x14)
+                : Theme.mix(Theme.BG, Theme.LIGHT ? 0xFF000000 : 0xFFFFFFFF, 0.96f);
+        TOP = Theme.BAR;
+        TOOL_BG = Theme.BAR;
+        TEXT = Theme.TXT;
+        MUTED = Theme.SUB;
+        ACCENT = Theme.ACCENT;
+        ORANGE = Theme.ACCENT;
+        SELECT = Theme.alpha(Theme.ACCENT, 0x44);
+        BAR = Theme.ACCENT;
+        BAR_BG = Theme.TRACK;
+        CHIP = Theme.ACCENT;
+        ROOT_ROW = Theme.ROW;
+        ITEM_ROW = Theme.GLASS ? Color.TRANSPARENT : Theme.BG;
+        DIVIDER = Theme.LINE;
+        FIELD = Theme.FIELD;
+        SURF = Theme.GLASS ? Theme.solidBar() : Theme.SURF;
+        CHIP_DIM = Theme.GLASS ? Theme.alpha(Theme.ACCENT, 0x66)
+                : Theme.mix(Theme.ACCENT, Theme.BG, Theme.LIGHT ? 0.45f : 0.38f);
+        GUIDE = Theme.mix(Theme.ACCENT, Theme.LIGHT ? 0xFF000000 : 0xFF808080, 0.7f);
+        DIM = Theme.DIM;
+    }
+
+    private int themeStamp;
 
     private static final Set<String> IMAGES = set("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic",
             "heif");
@@ -226,6 +244,9 @@ public class ExplorerActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         L.init(this);
+        Theme.apply(this);
+        applyTheme();
+        themeStamp = Theme.stamp;
         prefs = getSharedPreferences("gezgin", MODE_PRIVATE);
         internal = new LocalFs("Dahili depolama", Environment.getExternalStorageDirectory());
         findOtherVolumes();
@@ -371,6 +392,11 @@ public class ExplorerActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Theme.load(this);
+        if (themeStamp != Theme.stamp) {
+            recreate();
+            return;
+        }
         refreshRoots();
         if (usb.isOpen()) {
             io.execute(() -> {
@@ -591,6 +617,11 @@ public class ExplorerActivity extends Activity {
         return t;
     }
 
+    private static ImageView tinted(ImageView v) {
+        v.setColorFilter(MUTED);
+        return v;
+    }
+
     private ImageView iconView(int res, int sizeDp) {
         ImageView v = new ImageView(this);
         v.setImageResource(res);
@@ -607,12 +638,9 @@ public class ExplorerActivity extends Activity {
     }
 
     private void buildUi() {
-        getWindow().setStatusBarColor(TOP);
-        getWindow().setNavigationBarColor(TOP);
-
         LinearLayout rootView = new LinearLayout(this);
         rootView.setOrientation(LinearLayout.VERTICAL);
-        rootView.setBackgroundColor(BG);
+        rootView.setBackground(Theme.pageBg());
         rootView.setFitsSystemWindows(true);
 
         // Üst çubuk
@@ -689,7 +717,7 @@ public class ExplorerActivity extends Activity {
                 return true;
             }
         };
-        body.setBackgroundColor(0xFF131416);
+        body.setBackgroundColor(DIVIDER);
         paneRow = body;
         panes[0] = new Pane(0);
         panes[1] = new Pane(1);
@@ -710,7 +738,7 @@ public class ExplorerActivity extends Activity {
         rightCol.addView(buildToolbar(), new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         colWrap = new FrameLayout(this);
-        colWrap.setBackgroundColor(0xFF131416);
+        colWrap.setBackgroundColor(DIVIDER);
         colWrap.addView(rightCol, new FrameLayout.LayoutParams(dp(58),
                 ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER_HORIZONTAL));
         body.addView(colWrap, new FrameLayout.LayoutParams(dp(60),
@@ -752,6 +780,7 @@ public class ExplorerActivity extends Activity {
     private View topButton(int res, View.OnClickListener l) {
         ImageView b = new ImageView(this);
         b.setImageResource(res);
+        b.setColorFilter(TEXT);
         b.setPadding(dp(13), dp(13), dp(13), dp(13));
         b.setLayoutParams(new LinearLayout.LayoutParams(dp(50), dp(50)));
         b.setOnClickListener(l);
@@ -822,7 +851,7 @@ public class ExplorerActivity extends Activity {
             b.setPadding(dp(1), dp(7), dp(1), dp(6));
             b.setBackgroundResource(themeRes(android.R.attr.selectableItemBackground));
             ImageView icon = iconView((Integer) t[0], 28);
-            TextView name = label((String) t[1], 9.5f, 0xFFD0D3D8);
+            TextView name = label((String) t[1], 9.5f, TEXT);
             name.setGravity(Gravity.CENTER);
             name.setSingleLine(true);
             name.setPadding(0, dp(3), 0, 0);
@@ -838,7 +867,7 @@ public class ExplorerActivity extends Activity {
             });
             col.addView(b);
             View line = new View(this);
-            line.setBackgroundColor(0xFF2A2C30);
+            line.setBackgroundColor(DIVIDER);
             col.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
             toolViews.add(new View[]{b, icon, name});
             name.setVisibility(prefs.getBoolean("toolLabels", true) ? View.VISIBLE : View.GONE);
@@ -1070,7 +1099,7 @@ public class ExplorerActivity extends Activity {
             strip = new LinearLayout(ExplorerActivity.this);
             strip.setOrientation(LinearLayout.VERTICAL);
             strip.setGravity(Gravity.CENTER_HORIZONTAL);
-            strip.setBackgroundColor(0xFF26272B);
+            strip.setBackgroundColor(TOOL_BG);
             strip.setPadding(0, dp(6), 0, dp(6));
             stripIcon = iconView(R.drawable.ic_phone, 26);
             strip.addView(stripIcon);
@@ -1079,7 +1108,7 @@ public class ExplorerActivity extends Activity {
             LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(18), dp(18));
             alp.topMargin = dp(3);
             strip.addView(arrow, alp);
-            stripLabel = new VerticalLabel(ExplorerActivity.this, dp(14), 0xFFE0E3E8);
+            stripLabel = new VerticalLabel(ExplorerActivity.this, dp(14), TEXT);
             stripLabel.setPadding(0, dp(4), 0, dp(4));
             strip.addView(stripLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             strip.setOnClickListener(v -> setActive(index));
@@ -1139,7 +1168,7 @@ public class ExplorerActivity extends Activity {
                 final TNode seg = chain.get(k);
                 boolean first = k == from, last = k == chain.size() - 1;
                 TextView tv = label(seg == null ? t : (k == from && from > 0 ? "… " : "") + seg.title,
-                        13f, on ? Color.WHITE : 0xFFC9CDD3);
+                        13f, on ? Color.WHITE : TEXT);
                 tv.setText(seg == null ? L.exact(t) : (k == from && from > 0 ? "… " : "")
                         + (seg.depth == 0 ? L.exact(seg.title) : seg.title));
                 tv.setSingleLine(true);
@@ -1147,8 +1176,8 @@ public class ExplorerActivity extends Activity {
                 tv.setMaxWidth(dp(150));
                 tv.setGravity(Gravity.CENTER_VERTICAL);
                 tv.setPadding(first ? dp(7) : dp(13), dp(4), dp(11), dp(4));
-                int fill = on ? (last ? CHIP : 0xFF27406B) : (last ? 0xFF4A4D55 : 0xFF3A3D44);
-                tv.setBackground(new CrumbBg(fill, on ? 0xFF6E9BE0 : 0xFF5F646C, first));
+                int fill = on ? (last ? CHIP : CHIP_DIM) : (last ? Theme.OUTLINE : FIELD);
+                tv.setBackground(new CrumbBg(fill, on ? Theme.mix(CHIP, 0xFFFFFFFF, 0.75f) : Theme.OUTLINE, first));
                 if (first && k == 0) {
                     Drawable d = getDrawable(icon);
                     if (d != null) d.setBounds(0, 0, dp(16), dp(16));
@@ -1274,7 +1303,7 @@ public class ExplorerActivity extends Activity {
         GuideCard(Context c) {
             super(c);
             setWillNotDraw(false);
-            line.setColor(0xFFA8733C);
+            line.setColor(GUIDE);
             line.setStyle(Paint.Style.STROKE);
             line.setStrokeWidth(dp(1.2f));
             line.setStrokeCap(Paint.Cap.ROUND);
@@ -1427,7 +1456,7 @@ public class ExplorerActivity extends Activity {
             card.setMinimumHeight(dp(rowHeightDp()));
             root.addView(card);
             View divider = new View(ExplorerActivity.this);
-            divider.setBackgroundColor(0xFF45484F);
+            divider.setBackgroundColor(DIVIDER);
             LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 1);
             dlp.leftMargin = dp(8);
@@ -1454,7 +1483,7 @@ public class ExplorerActivity extends Activity {
             iconBox.addView(spinner, new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
             badge = new ImageView(ExplorerActivity.this);
             badge.setPadding(dp(1), dp(1), dp(1), dp(1));
-            badge.setBackground(round(0xFF202226, 0, 0, dp(8)));
+            badge.setBackground(round(SURF, 0, 0, dp(8)));
             iconBox.addView(badge, new FrameLayout.LayoutParams(dp(15), dp(15), Gravity.BOTTOM | Gravity.END));
             card.addView(iconBox, new LinearLayout.LayoutParams(dp(30), dp(30)));
 
@@ -1472,11 +1501,11 @@ public class ExplorerActivity extends Activity {
             path.setEllipsize(TextUtils.TruncateAt.START);
             counts = new LinearLayout(ExplorerActivity.this);
             counts.setGravity(Gravity.CENTER_VERTICAL);
-            counts.addView(iconView(R.drawable.ic_meta_folder, 12));
+            counts.addView(tinted(iconView(R.drawable.ic_meta_folder, 12)));
             countDirs = label("", 11 * fontScale(), MUTED);
             countDirs.setPadding(dp(4), 0, dp(14), 0);
             counts.addView(countDirs);
-            counts.addView(iconView(R.drawable.ic_meta_file, 12));
+            counts.addView(tinted(iconView(R.drawable.ic_meta_file, 12)));
             countFiles = label("", 11 * fontScale(), MUTED);
             countFiles.setPadding(dp(4), 0, 0, 0);
             counts.addView(countFiles);
@@ -1491,7 +1520,7 @@ public class ExplorerActivity extends Activity {
             right.setGravity(Gravity.END);
             right1 = label("", 11, MUTED);
             right1.setGravity(Gravity.END);
-            right2 = label("", 11, 0xFFC9CDD3);
+            right2 = label("", 11, TEXT);
             right2.setGravity(Gravity.END);
             bar = new ProgressBar(ExplorerActivity.this, null, android.R.attr.progressBarStyleHorizontal);
             bar.setMax(1000);
@@ -1621,16 +1650,16 @@ public class ExplorerActivity extends Activity {
                 check.setVisibility(View.VISIBLE);
                 check.setImageResource(R.drawable.ic_check);
                 check.setBackground(null);
-                check.setColorFilter(sel ? ACCENT : 0xFF4E5157);
+                check.setColorFilter(sel ? ACCENT : Theme.alpha(DIM, 0x99));
             } else {
                 check.setVisibility(View.GONE);
             }
             root.setPadding(dp(3), n.depth == 0 ? dp(3) : dp(1), dp(3), dp(1));
-            int bgc = n.depth == 0 ? 0xFF33353A : 0xFF17181B;
+            int bgc = n.depth == 0 ? ROOT_ROW : ITEM_ROW;
             if (rowBgColor != bgc) {
                 rowBgColor = bgc;
                 root.setBackground(new android.graphics.drawable.RippleDrawable(
-                        android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+                        android.content.res.ColorStateList.valueOf(Theme.alpha(Theme.LIGHT ? 0xFF000000 : 0xFFFFFFFF, 0x26)),
                         new android.graphics.drawable.ColorDrawable(bgc), null));
             }
         }
@@ -2072,12 +2101,12 @@ public class ExplorerActivity extends Activity {
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setBackgroundColor(0xFF232427);
+        col.setBackgroundColor(SURF);
         TextView head = label(multi ? p.selected.size() + " öğe" : n.title, 17, TEXT);
         head.setSingleLine(true);
         head.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         head.setPadding(dp(18), dp(14), dp(18), dp(14));
-        head.setBackgroundColor(0xFF2E3035);
+        head.setBackgroundColor(TOP);
         col.addView(head);
         ScrollView sv = new ScrollView(this);
         LinearLayout list = new LinearLayout(this);
@@ -2105,7 +2134,7 @@ public class ExplorerActivity extends Activity {
         }
         dlg.show();
         if (dlg.getWindow() != null) {
-            dlg.getWindow().setBackgroundDrawable(round(0xFF232427, 0xFF3A3D44, dp(1), dp(6)));
+            dlg.getWindow().setBackgroundDrawable(round(SURF, Theme.OUTLINE, dp(1), dp(6)));
             android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
             int w = Math.min(dp(330), (int) (dm.widthPixels * 0.66f));
             int want = dp(50) + items.size() * dp(48);
@@ -3388,11 +3417,7 @@ public class ExplorerActivity extends Activity {
     }
 
     private float fontScale() {
-        switch (prefs.getInt("fontSize", 1)) {
-            case 0: return 0.9f;
-            case 2: return 1.15f;
-            default: return 1f;
-        }
+        return Theme.SCALE;
     }
 
     private int rowHeightDp() {
@@ -3417,7 +3442,6 @@ public class ExplorerActivity extends Activity {
                 {"fullscreen", "Tam ekran", "0"},
         };
         final String[][] choices = {
-                {"fontSize", "Yazı boyutu", "Küçük", "Orta", "Büyük"},
                 {"rowHeight", "Satır yüksekliği", "Sıkı", "Normal", "Geniş"},
         };
         ScrollView sv = new ScrollView(this);
@@ -3442,10 +3466,10 @@ public class ExplorerActivity extends Activity {
                 b.setOnClickListener(v -> {
                     choice[ci] = kk;
                     for (int m = 0; m < btns.size(); m++) {
-                        btns.get(m).setBackground(round(m == kk ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+                        btns.get(m).setBackground(round(m == kk ? CHIP : FIELD, 0, 0, dp(6)));
                     }
                 });
-                b.setBackground(round(k == choice[i] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+                b.setBackground(round(k == choice[i] ? CHIP : FIELD, 0, 0, dp(6)));
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
                 if (k > 0) lp.leftMargin = dp(6);
                 seg.addView(b, lp);
@@ -3472,6 +3496,9 @@ public class ExplorerActivity extends Activity {
             }).show();
         });
         col.addView(langRow, 0);
+        final TextView look = label(L.t("Görünüm") + "  ›", 15, TEXT);
+        look.setPadding(0, dp(12), 0, dp(12));
+        col.addView(look, 0);
         final android.widget.Switch[] sw = new android.widget.Switch[toggles.length];
         for (int i = 0; i < toggles.length; i++) {
             sw[i] = new android.widget.Switch(this);
@@ -3482,7 +3509,12 @@ public class ExplorerActivity extends Activity {
             sw[i].setChecked(prefs.getBoolean(toggles[i][0], "1".equals(toggles[i][2])));
             col.addView(sw[i]);
         }
-        new L.Builder(this).setTitle("Ayarlar").setView(sv)
+        final AlertDialog[] settingsDlg = new AlertDialog[1];
+        look.setOnClickListener(v -> {
+            if (settingsDlg[0] != null) settingsDlg[0].dismiss();
+            startActivity(new Intent(this, AppearanceActivity.class));
+        });
+        settingsDlg[0] = new L.Builder(this).setTitle("Ayarlar").setView(sv)
                 .setPositiveButton("Kaydet", (d, w) -> {
                     SharedPreferences.Editor e = prefs.edit();
                     boolean reload = false, restart = false;
@@ -3659,12 +3691,12 @@ public class ExplorerActivity extends Activity {
         final android.app.Dialog dlg = new android.app.Dialog(this, android.R.style.Theme_Black_NoTitleBar);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setBackgroundColor(0xFF2A2B2F);
+        col.setBackgroundColor(Theme.LIGHT ? 0xFFF3F4F8 : 0xFF2A2B2F);
         final TextView info = label("", 13, TEXT);
         info.setSingleLine(true);
         info.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         info.setPadding(dp(12), dp(8), dp(12), dp(8));
-        info.setBackgroundColor(0xFF1F2023);
+        info.setBackgroundColor(Theme.solidBar());
         final DiskMap.MapView[] mv = new DiskMap.MapView[1];
         final Runnable showInfo = () -> {
             DiskMap.Node n = mv[0].selected();
@@ -3695,7 +3727,7 @@ public class ExplorerActivity extends Activity {
         col.addView(mv[0], new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         LinearLayout bar = new LinearLayout(this);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackgroundColor(0xFF1F2023);
+        bar.setBackgroundColor(Theme.solidBar());
         bar.setPadding(dp(6), dp(4), dp(6), dp(4));
         TextView close = label("✕", 20, TEXT);
         close.setPadding(dp(12), dp(6), dp(12), dp(6));
@@ -4022,7 +4054,7 @@ public class ExplorerActivity extends Activity {
         final EditText[] hostRef = new EditText[1];
         final TextView[] tbs = new TextView[types.length];
         final Runnable paint = () -> {
-            for (int k = 0; k < tbs.length; k++) tbs[k].setBackground(round(k == type[0] ? CHIP : 0xFF3A3D44, 0, 0, dp(6)));
+            for (int k = 0; k < tbs.length; k++) tbs[k].setBackground(round(k == type[0] ? CHIP : FIELD, 0, 0, dp(6)));
             if (pathRef[0] != null) pathRef[0].setHint(L.t(type[0] == 2 ? "Paylaşım adı ve klasör (ör. /Belgeler)" : "Başlangıç klasörü"));
             if (hostRef[0] != null) hostRef[0].setHint(L.t(type[0] == 3 ? "Adres (ör. https://webdav.yandex.ru)" : "Adres (ör. 192.168.1.10)"));
         };
@@ -4593,7 +4625,7 @@ public class ExplorerActivity extends Activity {
         final boolean setup = saltB == null || verB == null;
         if (setup) {
             box.addView(pass2);
-            box.addView(label("Parolayı unutursanız kasadaki dosyalar açılamaz.", 13, 0xFF888888));
+            box.addView(label("Parolayı unutursanız kasadaki dosyalar açılamaz.", 13, MUTED));
         }
         new L.Builder(this).setTitle(setup ? "Kasa parolası belirle" : "Kasayı aç")
                 .setView(box)
