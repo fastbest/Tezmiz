@@ -20,6 +20,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.Drawable;
@@ -906,26 +907,49 @@ public class ExplorerActivity extends Activity {
         }
     }
 
-    /** Ağaç bağlantı çizgilerini (X-plore gibi) çizen satır kapsayıcısı. */
+    /** Ağaç bağlantı çizgilerini ve açık klasör çerçevesini (X-plore gibi) çizen satır kapsayıcısı. */
     final class GuideCard extends LinearLayout {
         private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private TNode node;
+        private final Paint frame = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
+        private TNode node, cur;
+        private boolean inFrame, frameFirst, frameLast;
 
         GuideCard(Context c) {
             super(c);
             setWillNotDraw(false);
             line.setColor(0xFFA8733C);
-            line.setStrokeWidth(dp(1));
+            line.setStyle(Paint.Style.STROKE);
+            line.setStrokeWidth(dp(1.2f));
+            line.setStrokeCap(Paint.Cap.ROUND);
+            frame.setColor(ORANGE);
+            frame.setStyle(Paint.Style.STROKE);
+            frame.setStrokeWidth(dp(2));
         }
 
-        void setNode(TNode n) {
+        void set(TNode n, TNode current, boolean in, boolean first, boolean last) {
             node = n;
+            cur = current;
+            inFrame = in;
+            frameFirst = first;
+            frameLast = last;
             invalidate();
         }
 
         private boolean isLast(TNode n) {
             TNode p = n.parent;
             return p == null || p.children.isEmpty() || p.children.get(p.children.size() - 1) == n;
+        }
+
+        /** a, x'in atası ya da kendisi mi? */
+        private boolean ancOrSelf(TNode a, TNode x) {
+            for (TNode t = x; t != null; t = t.parent) if (t == a) return true;
+            return false;
+        }
+
+        private TNode chainChild(TNode p) {
+            for (TNode t = cur; t != null; t = t.parent) if (t.parent == p) return t;
+            return null;
         }
 
         private float cx(int k) {
@@ -937,21 +961,59 @@ public class ExplorerActivity extends Activity {
             super.onDraw(cv);
             TNode n = node;
             if (n == null) return;
-            int h = getHeight();
-            int d = n.depth;
-            // üstteki atalardan devam eden dikey çizgiler
-            TNode a = n.parent;
-            for (int L = d - 1; L >= 1 && a != null; L--, a = a.parent) {
-                if (!isLast(a)) cv.drawLine(cx(L - 1), 0, cx(L - 1), h, line);
+            int h = getHeight(), w = getWidth();
+            float mid = h / 2f;
+            float r = dp(5);
+            // dikey geçiş çizgileri
+            for (TNode a = n; a.parent != null; a = a.parent) {
+                TNode p = a.parent;
+                if (!p.expanded) continue;
+                float x = cx(a.depth - 1);
+                if (ancOrSelf(cur, p)) {            // p, seçili klasörün içinde: tüm çocuklar çizilir
+                    if (a != n && !isLast(a)) cv.drawLine(x, 0, x, h, line);
+                } else if (cur != null && ancOrSelf(p, cur)) {   // p, seçili klasörün atası
+                    TNode c = chainChild(p);
+                    if (c != null && a != c && p.children.indexOf(a) < p.children.indexOf(c)) {
+                        cv.drawLine(x, 0, x, h, line);
+                    }
+                }
             }
-            if (d >= 1) {
-                float x = cx(d - 1);
-                cv.drawLine(x, 0, x, isLast(n) ? h / 2f : h, line);
-                cv.drawLine(x, h / 2f, dp(3) + dp(14) * d, h / 2f, line);
+            // kendi satırının dirseği
+            TNode p = n.parent;
+            if (p != null && p.expanded && n.depth >= 1) {
+                boolean elbow = false, last = false;
+                if (cur != null && ancOrSelf(cur, p)) {
+                    elbow = true;
+                    last = isLast(n);
+                } else if (cur != null && ancOrSelf(p, cur)) {
+                    elbow = chainChild(p) == n;
+                    last = true;
+                }
+                if (elbow) {
+                    float x = cx(n.depth - 1);
+                    float endX = dp(3) + dp(14) * n.depth;
+                    if (!last) cv.drawLine(x, 0, x, h, line);
+                    else cv.drawLine(x, 0, x, mid - r, line);
+                    path.reset();
+                    path.moveTo(x, mid - r);
+                    path.quadTo(x, mid, x + r, mid);
+                    path.lineTo(endX, mid);
+                    cv.drawPath(path, line);
+                }
             }
-            if (n.expanded && !n.children.isEmpty()) {
-                float x = cx(d);
-                cv.drawLine(x, h / 2f + dp(8), x, h, line);
+            // açık klasörün ok altından aşağı inen çizgi
+            if (n.expanded && !n.children.isEmpty() && cur != null
+                    && (ancOrSelf(cur, n) || ancOrSelf(n, cur))) {
+                float x = cx(n.depth);
+                cv.drawLine(x, mid + dp(8), x, h, line);
+            }
+            // açık klasör çerçevesi
+            if (inFrame) {
+                float o = dp(1);
+                cv.drawLine(o, 0, o, h, frame);
+                cv.drawLine(w - o, 0, w - o, h, frame);
+                if (frameFirst) cv.drawLine(0, o, w, o, frame);
+                if (frameLast) cv.drawLine(0, h - o, w, h - o, frame);
             }
         }
     }
@@ -1082,10 +1144,30 @@ public class ExplorerActivity extends Activity {
             node = n;
             boolean isCurrent = n == pane.current;
             boolean sel = pane.selected.contains(n);
-            card.setBackground(round(sel ? SELECT : Color.TRANSPARENT,
-                    isCurrent ? ORANGE : 0, dp(2), dp(6)));
+            card.setBackground(round(sel ? SELECT : Color.TRANSPARENT, 0, 0, 0));
             indent.setLayoutParams(new LinearLayout.LayoutParams(dp(14) * n.depth, 1));
-            card.setNode(n);
+            {
+                TNode cur = pane.current;
+                boolean in = false, first = false, last = false;
+                if (cur != null) {
+                    boolean group = cur.expanded && !cur.children.isEmpty();
+                    if (n == cur) {
+                        in = true;
+                        first = true;
+                        last = !group;
+                    } else if (group) {
+                        for (TNode t = n.parent; t != null; t = t.parent) if (t == cur) in = true;
+                        if (in) {
+                            int pos = pane.visible.indexOf(n);
+                            TNode next = pos >= 0 && pos + 1 < pane.visible.size() ? pane.visible.get(pos + 1) : null;
+                            boolean nextIn = false;
+                            for (TNode t = next == null ? null : next.parent; t != null; t = t.parent) if (t == cur) nextIn = true;
+                            last = !nextIn;
+                        }
+                    }
+                }
+                card.set(n, cur, in, first, last);
+            }
             if (n.expandable()) {
                 arrow.setVisibility(View.VISIBLE);
                 arrow.setImageResource(n.expanded ? R.drawable.ic_tree_open : R.drawable.ic_tree_closed);
