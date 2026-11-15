@@ -2055,28 +2055,32 @@ public class ExplorerActivity extends Activity {
                 }
             }
             expand(p, n);
-            scrollToTop(p, n);
         }
     }
 
-    /** Açılan klasörü listenin en üstüne yumuşakça getirir. */
+    /**
+     * Açılan klasörün içi ekrana sığmıyorsa liste, içindekiler görünecek kadar kaydırılır;
+     * klasör en fazla en üste kadar çıkar. İçi azsa hiç kaydırılmaz.
+     */
     private void scrollToTop(Pane p, TNode n) {
         final int pos = p.visible.indexOf(n);
         if (pos < 0) return;
-        androidx.recyclerview.widget.LinearSmoothScroller sc =
-                new androidx.recyclerview.widget.LinearSmoothScroller(this) {
-                    @Override
-                    protected int getVerticalSnapPreference() {
-                        return SNAP_TO_START;
-                    }
-
-                    @Override
-                    protected float calculateSpeedPerPixel(android.util.DisplayMetrics dm) {
-                        return 45f / dm.densityDpi;
-                    }
-                };
-        sc.setTargetPosition(pos);
-        p.lm.startSmoothScroll(sc);
+        View v = p.lm.findViewByPosition(pos);
+        if (v == null) {
+            p.lm.scrollToPositionWithOffset(pos, 0);
+            return;
+        }
+        int rowH = Math.max(v.getHeight(), dp(40));
+        int kids = 0;
+        for (int i = pos + 1; i < p.visible.size(); i++) {
+            if (p.visible.get(i).depth <= n.depth) break;
+            kids++;
+        }
+        int top = v.getTop();
+        int listH = p.list.getHeight();
+        int need = top + rowH * (1 + kids) + dp(8) - listH;
+        int by = Math.max(0, Math.min(need, top));
+        if (by > 0) p.list.smoothScrollBy(0, by);
     }
 
     private TNode info(TNode parent, String text, String kind) {
