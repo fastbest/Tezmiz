@@ -49,6 +49,13 @@ jobs:
         with:
           gradle-version: 8.7
 
+      - name: Testler
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Test raporu
+        if: failure()
+        run: find app/build/test-results -name '*.xml' -exec cat {} \; | head -200
+
       - name: APK derle
         run: gradle --no-daemon assembleDebug
 
