@@ -18,7 +18,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Build;
@@ -30,6 +33,7 @@ import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.util.Base64;
 import android.util.LruCache;
 import android.util.TypedValue;
@@ -39,8 +43,8 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.MimeTypeMap;
 import android.widget.BaseAdapter;
-import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -60,24 +64,35 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** X-plore benzeri iki panelli dosya yöneticisi. */
+/** X-plore benzeri ağaç görünümlü, iki panelli dosya yöneticisi. */
 public class ExplorerActivity extends Activity {
 
-    private static final int BG = 0xFF1E1F22;
-    private static final int BG_PANE = 0xFF26272B;
-    private static final int BG_ACTIVE = 0xFF2E3036;
-    private static final int TEXT = 0xFFECECEC;
-    private static final int MUTED = 0xFF9DA3AD;
-    private static final int ACCENT = 0xFF4FC3F7;
+    // ---------------------------------------------------------------- görünüm sabitleri
+
+    private static final int BG = 0xFF2A2B2F;
+    private static final int BG_DIM = 0xFF232427;
+    private static final int TOP = 0xFF151619;
+    private static final int TOOL_BG = 0xFF1C1D20;
+    private static final int TEXT = 0xFFF2F2F2;
+    private static final int MUTED = 0xFFA4A9B1;
+    private static final int ACCENT = 0xFF29B6F6;
+    private static final int ORANGE = 0xFFFF9800;
+    private static final int SELECT = 0x553D8BD6;
+    private static final int BAR = 0xFF4DB6AC;
+    private static final int BAR_BG = 0xFF44474D;
+    private static final int CHIP = 0xFF1E5BB8;
 
     private static final Set<String> IMAGES = set("jpg", "jpeg", "png", "gif", "webp", "bmp", "heic",
             "heif");
@@ -90,11 +105,56 @@ public class ExplorerActivity extends Activity {
             "m4v", "wmv", "flv");
     private static final Set<String> ARCHIVES = set("zip", "7z", "tar", "gz", "tgz", "xz", "txz",
             "bz2", "tbz2", "iso", "rar", "jar");
+    private static final Set<String> DOCS = set("doc", "docx", "odt", "rtf");
+    private static final Set<String> SHEETS = set("xls", "xlsx", "ods");
 
     private static Set<String> set(String... s) {
         Set<String> out = new HashSet<>();
         Collections.addAll(out, s);
         return out;
+    }
+
+    // ---------------------------------------------------------------- ağaç düğümü
+
+    static final int K_VOLUME = 0;
+    static final int K_DIR = 1;
+    static final int K_FILE = 2;
+    static final int K_GROUP = 3;
+    static final int K_ACTION = 4;
+    static final int K_APP = 5;
+    static final int K_INFO = 6;
+
+    static final class TNode {
+        int kind;
+        int depth;
+        TNode parent;
+        boolean expanded;
+        List<TNode> children = new ArrayList<>();
+        String key;
+        String title;
+        String sub;
+        String path;
+        String right1;
+        String right2;
+        float bar = -1;
+        int icon;
+        Drawable drawable;
+        VNode node;
+        ApplicationInfo app;
+        Runnable action;
+        Runnable onLong;
+        String group;
+        boolean temp;
+        int dirs = -1;
+        int files = -1;
+
+        boolean expandable() {
+            return kind == K_VOLUME || kind == K_DIR || kind == K_GROUP;
+        }
+
+        boolean fileish() {
+            return (kind == K_DIR || kind == K_FILE) && node != null;
+        }
     }
 
     // ---------------------------------------------------------------- durum
@@ -125,8 +185,8 @@ public class ExplorerActivity extends Activity {
     private LinearLayout statusBar;
     private ProgressBar statusProgress;
     private TextView statusText;
-    private Button statusCancel;
-    private TextView titleView;
+    private TextView statusCancel;
+    private final List<View[]> toolViews = new ArrayList<>();
 
     private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
         @Override
@@ -134,20 +194,17 @@ public class ExplorerActivity extends Activity {
             String a = intent.getAction();
             if (UsbSession.ACTION_PERMISSION.equals(a)) {
                 if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                    openUsb(null);
+                    openUsb();
                 } else {
                     toast("USB izni verilmedi");
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(a)) {
                 cancelled.set(true);
                 io.execute(() -> usb.close());
-                for (Pane p : panes) {
-                    if (p.fs instanceof CardFs) p.showHome();
-                }
-                refreshHome();
+                refreshRoots();
                 toast("Kart okuyucu çıkarıldı");
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(a)) {
-                refreshHome();
+                refreshRoots();
             }
         }
     };
@@ -175,8 +232,17 @@ public class ExplorerActivity extends Activity {
             registerReceiver(usbReceiver, f);
         }
 
-        panes[0].showHome();
-        panes[1].showHome();
+        refreshRoots();
+        // Açılışta dahili depolama sol panelde açık gelsin
+        Pane p = panes[0];
+        if (hasStorageAccess()) {
+            for (TNode r : p.roots) {
+                if (("vol:" + internal.rootFile().getAbsolutePath()).equals(r.key)) {
+                    p.current = r;
+                    expand(p, r);
+                }
+            }
+        }
         setActive(0);
         if (!hasStorageAccess()) askStorageAccess();
     }
@@ -184,13 +250,13 @@ public class ExplorerActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        refreshHome();
+        refreshRoots();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        refreshHome();
+        refreshRoots();
     }
 
     @Override
@@ -221,10 +287,10 @@ public class ExplorerActivity extends Activity {
         Pane p = panes[active];
         if (!p.selected.isEmpty()) {
             p.selected.clear();
-            p.adapter.notifyDataSetChanged();
+            p.refresh();
             return;
         }
-        if (!p.goBack()) super.onBackPressed();
+        if (!goUp(p)) super.onBackPressed();
     }
 
     private void findOtherVolumes() {
@@ -237,7 +303,7 @@ public class ExplorerActivity extends Activity {
             int a = p.indexOf("/Android/data/");
             if (a <= 0) continue;
             File root = new File(p.substring(0, a));
-            otherVolumes.add(new LocalFs("SD kart (" + root.getName() + ")", root));
+            otherVolumes.add(new LocalFs("SD kart", root));
         }
     }
 
@@ -277,10 +343,10 @@ public class ExplorerActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
-        refreshHome();
+        refreshRoots();
     }
 
-    // ---------------------------------------------------------------- arayüz
+    // ---------------------------------------------------------------- arayüz iskeleti
 
     private int dp(float v) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v,
@@ -291,9 +357,32 @@ public class ExplorerActivity extends Activity {
         return getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     }
 
+    private TextView label(String text, float size, int color) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        return t;
+    }
+
+    private ImageView iconView(int res, int sizeDp) {
+        ImageView v = new ImageView(this);
+        v.setImageResource(res);
+        v.setLayoutParams(new LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp)));
+        return v;
+    }
+
+    private static GradientDrawable round(int fill, int stroke, float strokePx, float radiusPx) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(fill);
+        g.setCornerRadius(radiusPx);
+        if (stroke != 0) g.setStroke((int) strokePx, stroke);
+        return g;
+    }
+
     private void buildUi() {
-        getWindow().setStatusBarColor(0xFF111214);
-        getWindow().setNavigationBarColor(0xFF111214);
+        getWindow().setStatusBarColor(TOP);
+        getWindow().setNavigationBarColor(TOP);
 
         LinearLayout rootView = new LinearLayout(this);
         rootView.setOrientation(LinearLayout.VERTICAL);
@@ -304,17 +393,15 @@ public class ExplorerActivity extends Activity {
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setBackgroundColor(0xFF111214);
-        top.setPadding(dp(14), dp(6), dp(4), dp(6));
-        titleView = new TextView(this);
-        titleView.setText("Kart Format");
-        titleView.setTextColor(TEXT);
-        titleView.setTextSize(21);
-        titleView.setTypeface(Typeface.DEFAULT_BOLD);
-        top.addView(titleView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        top.addView(topButton("🔍", v -> askSearch()));
-        top.addView(topButton("⇅", v -> askSort()));
-        top.addView(topButton("⋮", v -> showMenu()));
+        top.setBackgroundColor(TOP);
+        top.setPadding(dp(16), 0, dp(4), 0);
+        top.setMinimumHeight(dp(58));
+        TextView title = label("Kart Format", 23, TEXT);
+        title.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        top.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        top.addView(topButton(R.drawable.ic_m_search, v -> askSearch()));
+        top.addView(topButton(R.drawable.ic_m_sort, v -> askSort()));
+        top.addView(topButton(R.drawable.ic_m_menu, v -> showMenu()));
         rootView.addView(top);
 
         // Paneller + araç çubuğu
@@ -324,93 +411,120 @@ public class ExplorerActivity extends Activity {
         paneRow.setOrientation(LinearLayout.HORIZONTAL);
         panes[0] = new Pane(0);
         panes[1] = new Pane(1);
-        paneRow.addView(panes[0].box);
-        paneRow.addView(panes[1].box);
         body.addView(paneRow, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        body.addView(buildToolbar(), new LinearLayout.LayoutParams(dp(78),
+        body.addView(buildToolbar(), new LinearLayout.LayoutParams(dp(82),
                 ViewGroup.LayoutParams.MATCH_PARENT));
         rootView.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-        // Alt durum çubuğu
+        // Alt işlem çubuğu
         statusBar = new LinearLayout(this);
         statusBar.setOrientation(LinearLayout.VERTICAL);
-        statusBar.setBackgroundColor(0xFF111214);
-        statusBar.setPadding(dp(12), dp(6), dp(12), dp(6));
+        statusBar.setBackgroundColor(TOP);
+        statusBar.setPadding(dp(14), dp(8), dp(10), dp(8));
         statusBar.setVisibility(View.GONE);
-        statusProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        statusProgress.setMax(1000);
-        statusBar.addView(statusProgress);
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        statusText = label("", 13, MUTED);
+        statusText = label("", 14, TEXT);
         statusText.setSingleLine(true);
+        statusText.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         row.addView(statusText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        statusCancel = new Button(this, null, android.R.attr.borderlessButtonStyle);
-        statusCancel.setText("İptal");
-        statusCancel.setTextColor(0xFFFF6E6E);
-        statusCancel.setAllCaps(false);
+        statusCancel = label("İptal", 15, 0xFFFF7A7A);
+        statusCancel.setPadding(dp(14), dp(6), dp(8), dp(6));
         statusCancel.setOnClickListener(v -> {
             cancelled.set(true);
             statusCancel.setEnabled(false);
+            statusCancel.setText("İptal ediliyor…");
         });
         row.addView(statusCancel);
         statusBar.addView(row);
+        statusProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        statusProgress.setMax(1000);
+        statusProgress.setProgressDrawable(barDrawable());
+        statusBar.addView(statusProgress, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(5)));
         rootView.addView(statusBar);
 
         setContentView(rootView);
         layoutPanes();
     }
 
-    private TextView topButton(String text, View.OnClickListener l) {
-        TextView b = new TextView(this);
-        b.setText(text);
-        b.setTextSize(22);
-        b.setTextColor(TEXT);
-        b.setGravity(Gravity.CENTER);
-        b.setPadding(dp(10), dp(4), dp(10), dp(4));
+    private View topButton(int res, View.OnClickListener l) {
+        ImageView b = new ImageView(this);
+        b.setImageResource(res);
+        b.setPadding(dp(13), dp(13), dp(13), dp(13));
+        b.setLayoutParams(new LinearLayout.LayoutParams(dp(50), dp(50)));
         b.setOnClickListener(l);
+        b.setBackgroundResource(themeRes(android.R.attr.selectableItemBackgroundBorderless));
         return b;
     }
 
-    private TextView label(String text, float size, int color) {
-        TextView t = new TextView(this);
-        t.setText(text);
-        t.setTextSize(size);
-        t.setTextColor(color);
-        return t;
+    private int themeRes(int attr) {
+        TypedValue tv = new TypedValue();
+        getTheme().resolveAttribute(attr, tv, true);
+        return tv.resourceId;
     }
+
+    /** Teal doluluk çubuğu. */
+    private Drawable barDrawable() {
+        GradientDrawable bg = round(BAR_BG, 0, 0, dp(2));
+        GradientDrawable fg = round(BAR, 0, 0, dp(2));
+        LayerDrawable ld = new LayerDrawable(new Drawable[]{bg,
+                new ClipDrawable(fg, Gravity.START, ClipDrawable.HORIZONTAL)});
+        ld.setId(0, android.R.id.background);
+        ld.setId(1, android.R.id.progress);
+        return ld;
+    }
+
+    private static final int T_UP = 0;
+    private static final int T_NEWFOLDER = 1;
+    private static final int T_RENAME = 2;
+    private static final int T_COPY = 3;
+    private static final int T_MOVE = 4;
+    private static final int T_DELETE = 5;
+    private static final int T_ZIP = 6;
+    private static final int T_EXTRACT = 7;
+    private static final int T_SHARE = 8;
+    private static final int T_OPENWITH = 9;
+    private static final int T_INFO = 10;
+    private static final int T_SELECTALL = 11;
+    private static final int T_ANALYSIS = 12;
+    private static final int T_STAR = 13;
+    private static final int T_REFRESH = 14;
 
     private View buildToolbar() {
         ScrollView sv = new ScrollView(this);
-        sv.setBackgroundColor(0xFF18191C);
+        sv.setBackgroundColor(TOOL_BG);
+        sv.setVerticalScrollBarEnabled(false);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         Object[][] tools = {
-                {"⬆", "Üst klasör", (Runnable) () -> panes[active].goBack()},
-                {"📂", "Yeni klasör", (Runnable) this::askNewFolder},
-                {"✏️", "Yeniden adlandır", (Runnable) this::askRename},
-                {"📋", "Kopyala", (Runnable) () -> copySelected(false)},
-                {"➡️", "Taşı", (Runnable) () -> copySelected(true)},
-                {"🗑", "Sil", (Runnable) this::askDelete},
-                {"🗜", "ZIP oluştur", (Runnable) this::askZip},
-                {"📦", "Arşivi aç", (Runnable) this::extractSelected},
-                {"↗️", "Paylaş", (Runnable) this::shareSelected},
-                {"🧭", "Birlikte aç", (Runnable) this::openWithSelected},
-                {"ℹ️", "Özellikler", (Runnable) this::showProperties},
-                {"☑️", "Tümünü seç", (Runnable) this::selectAll},
-                {"📊", "Disk analizi", (Runnable) this::analyzeCurrent},
-                {"⭐", "Sık kullanılan", (Runnable) this::addFavorite},
-                {"⟳", "Yenile", (Runnable) () -> panes[active].reload()},
+                {R.drawable.ic_t_up, "Üst klasör", (Runnable) () -> goUp(panes[active])},
+                {R.drawable.ic_t_newfolder, "Yeni klasör", (Runnable) this::askNewFolder},
+                {R.drawable.ic_t_rename, "Yeniden adlandır", (Runnable) this::askRename},
+                {R.drawable.ic_t_copy, "Kopyala", (Runnable) () -> copySelected(false)},
+                {R.drawable.ic_t_move, "Taşı", (Runnable) () -> copySelected(true)},
+                {R.drawable.ic_t_delete, "Sil", (Runnable) this::askDelete},
+                {R.drawable.ic_t_zip, "ZIP oluştur", (Runnable) this::askZip},
+                {R.drawable.ic_t_extract, "Arşivi aç", (Runnable) this::extractSelected},
+                {R.drawable.ic_t_share, "Paylaş", (Runnable) this::shareSelected},
+                {R.drawable.ic_t_openwith, "Birlikte aç", (Runnable) this::openWithSelected},
+                {R.drawable.ic_t_info, "Özellikler", (Runnable) this::showProperties},
+                {R.drawable.ic_t_selectall, "Tümünü seç", (Runnable) this::selectAll},
+                {R.drawable.ic_t_analysis, "Disk analizi", (Runnable) this::analyzeCurrent},
+                {R.drawable.ic_t_star, "Sık kullanılan", (Runnable) this::addFavorite},
+                {R.drawable.ic_t_refresh, "Yenile", (Runnable) () -> reloadPane(panes[active])},
         };
         for (Object[] t : tools) {
             LinearLayout b = new LinearLayout(this);
             b.setOrientation(LinearLayout.VERTICAL);
             b.setGravity(Gravity.CENTER);
-            b.setPadding(dp(2), dp(8), dp(2), dp(8));
-            TextView icon = label((String) t[0], 24, TEXT);
-            icon.setGravity(Gravity.CENTER);
-            TextView name = label((String) t[1], 11, MUTED);
+            b.setPadding(dp(2), dp(9), dp(2), dp(9));
+            b.setBackgroundResource(themeRes(android.R.attr.selectableItemBackground));
+            ImageView icon = iconView((Integer) t[0], 34);
+            TextView name = label((String) t[1], 11, 0xFFD0D3D8);
             name.setGravity(Gravity.CENTER);
+            name.setMaxLines(2);
+            name.setPadding(0, dp(3), 0, 0);
             b.addView(icon);
             b.addView(name);
             final Runnable r = (Runnable) t[2];
@@ -422,81 +536,87 @@ public class ExplorerActivity extends Activity {
                 r.run();
             });
             col.addView(b);
+            View line = new View(this);
+            line.setBackgroundColor(0xFF2A2C30);
+            col.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
+            toolViews.add(new View[]{b, icon, name});
         }
         sv.addView(col);
         return sv;
     }
 
+    /** Uygulanamayan araçları soluk gösterir. */
+    private void updateToolbar() {
+        Pane p = panes[active];
+        if (p == null || panes[1 - active] == null) return;
+        List<VNode> targets = targets(p);
+        VNode dir = dirOf(p.current);
+        boolean any = !targets.isEmpty();
+        boolean single = targets.size() == 1;
+        boolean singleFile = single && !targets.get(0).dir;
+        boolean writable = any && targets.get(0).fs.writable();
+        VNode otherDir = dirOf(other().current);
+        boolean[] on = new boolean[15];
+        on[T_UP] = p.current != null && (p.current.parent != null || p.current.expanded);
+        on[T_NEWFOLDER] = dir != null && dir.fs.writable();
+        on[T_RENAME] = single && writable;
+        on[T_COPY] = any && otherDir != null;
+        on[T_MOVE] = any && writable && otherDir != null;
+        on[T_DELETE] = any && writable;
+        on[T_ZIP] = any;
+        on[T_EXTRACT] = singleFile && ARCHIVES.contains(targets.get(0).ext());
+        on[T_SHARE] = any;
+        on[T_OPENWITH] = singleFile;
+        on[T_INFO] = any || dir != null;
+        on[T_SELECTALL] = dir != null;
+        on[T_ANALYSIS] = dir != null;
+        on[T_STAR] = dir != null && dir.fs instanceof LocalFs;
+        on[T_REFRESH] = true;
+        for (int i = 0; i < toolViews.size() && i < on.length; i++) {
+            toolViews.get(i)[1].setAlpha(on[i] ? 1f : 0.28f);
+            toolViews.get(i)[2].setAlpha(on[i] ? 1f : 0.4f);
+        }
+    }
+
     private void layoutPanes() {
         if (panes[0] == null) return;
         boolean land = landscape();
+        paneRow.removeAllViews();
         for (int i = 0; i < 2; i++) {
             Pane p = panes[i];
             boolean wide = land || i == active;
-            p.box.setLayoutParams(wide
-                    ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1)
-                    : new LinearLayout.LayoutParams(dp(40), ViewGroup.LayoutParams.MATCH_PARENT));
             p.content.setVisibility(wide ? View.VISIBLE : View.GONE);
             p.strip.setVisibility(wide ? View.GONE : View.VISIBLE);
-            p.header.setBackgroundColor(i == active ? 0xFF1565C0 : 0xFF33353B);
-            p.box.setBackgroundColor(i == active ? BG_ACTIVE : BG_PANE);
+            p.chip.setBackground(round(i == active ? CHIP : 0xFF3A3D44, 0, 0, dp(8)));
+            p.box.setBackgroundColor(i == active || !land ? BG : BG_DIM);
+            p.list.setAlpha(i == active || !land ? 1f : 0.82f);
+            paneRow.addView(p.box, wide
+                    ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1)
+                    : new LinearLayout.LayoutParams(dp(46), ViewGroup.LayoutParams.MATCH_PARENT));
+            if (i == 0) {
+                View sep = new View(this);
+                sep.setBackgroundColor(0xFF111214);
+                paneRow.addView(sep, new LinearLayout.LayoutParams(dp(2), ViewGroup.LayoutParams.MATCH_PARENT));
+            }
         }
-        // Dar panel her zaman kenarda: etkin panel 0 ise dar panel sağda, değilse solda
-        paneRow.removeAllViews();
-        paneRow.addView(panes[0].box);
-        paneRow.addView(panes[1].box);
+        updateToolbar();
     }
 
     private void setActive(int i) {
-        active = i;
-        layoutPanes();
-        updateTitle();
-    }
-
-    private void updateTitle() {
-        Pane p = panes[active];
-        titleView.setText(p.title == null ? "Kart Format" : p.title);
+        if (active != i) {
+            active = i;
+            layoutPanes();
+        } else {
+            updateToolbar();
+        }
     }
 
     private void toast(String s) {
         Toast.makeText(this, s, s.length() > 60 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT).show();
     }
 
-    // ---------------------------------------------------------------- liste öğeleri
-
-    static final class Item {
-        String title;
-        String sub;
-        String icon;
-        VNode node;
-        float bar = -1;
-        Runnable click;
-        Runnable longClick;
-        Drawable drawable;
-        ApplicationInfo app;
-    }
-
-    private String nodeSub(VNode n) {
-        String date = n.modified > 0
-                ? new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.ROOT).format(new Date(n.modified))
-                : "";
-        if (n.dir) return date;
-        return DiskOps.sizeText(Math.max(0, n.size)) + (date.isEmpty() ? "" : "   " + date);
-    }
-
-    private String iconFor(VNode n) {
-        if (n.dir) return "📁";
-        String e = n.ext();
-        if (IMAGES.contains(e)) return "🖼";
-        if (VIDEO.contains(e)) return "🎬";
-        if (AUDIO.contains(e)) return "🎵";
-        if (e.equals("apk")) return "🤖";
-        if (ARCHIVES.contains(e)) return "🗜";
-        if (e.equals("pdf")) return "📕";
-        if (TEXTS.contains(e)) return "📝";
-        if (e.equals("doc") || e.equals("docx")) return "📘";
-        if (e.equals("xls") || e.equals("xlsx")) return "📗";
-        return "📄";
+    private Pane other() {
+        return panes[1 - active];
     }
 
     // ---------------------------------------------------------------- panel
@@ -505,18 +625,16 @@ public class ExplorerActivity extends Activity {
         final int index;
         final LinearLayout box;
         final LinearLayout content;
-        final TextView header;
-        final TextView strip;
+        final TextView chip;
+        final LinearLayout strip;
+        final VerticalLabel stripLabel;
+        final ImageView stripIcon;
         final ListView list;
-        final ItemAdapter adapter;
-        final List<Item> items = new ArrayList<>();
-        final Set<Item> selected = new LinkedHashSet<>();
-        String mode = "home";
-        String title;
-        Vfs fs;
-        VNode dir;
-        VNode analysisDir;
-        int loadToken;
+        final TreeAdapter adapter;
+        final List<TNode> roots = new ArrayList<>();
+        final List<TNode> visible = new ArrayList<>();
+        final Set<TNode> selected = new LinkedHashSet<>();
+        TNode current;
 
         Pane(int index) {
             this.index = index;
@@ -525,191 +643,116 @@ public class ExplorerActivity extends Activity {
 
             content = new LinearLayout(ExplorerActivity.this);
             content.setOrientation(LinearLayout.VERTICAL);
-            header = label("", 14, TEXT);
-            header.setPadding(dp(10), dp(6), dp(10), dp(6));
-            header.setSingleLine(true);
-            header.setEllipsize(android.text.TextUtils.TruncateAt.START);
-            header.setOnClickListener(v -> setActive(index));
-            content.addView(header);
+            LinearLayout chipRow = new LinearLayout(ExplorerActivity.this);
+            chipRow.setPadding(dp(6), dp(6), dp(6), dp(4));
+            chip = label("", 15, Color.WHITE);
+            chip.setSingleLine(true);
+            chip.setEllipsize(TextUtils.TruncateAt.END);
+            chip.setPadding(dp(10), dp(6), dp(12), dp(6));
+            chip.setCompoundDrawablePadding(dp(6));
+            chip.setGravity(Gravity.CENTER_VERTICAL);
+            chip.setOnClickListener(v -> {
+                setActive(index);
+                if (current != null) {
+                    int pos = visible.indexOf(current);
+                    if (pos >= 0) list.setSelection(Math.max(0, pos - 2));
+                }
+            });
+            chipRow.addView(chip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(chipRow);
             list = new ListView(ExplorerActivity.this);
             list.setDivider(null);
             list.setFastScrollEnabled(true);
-            adapter = new ItemAdapter(this);
+            list.setSelector(android.R.color.transparent);
+            list.setCacheColorHint(Color.TRANSPARENT);
+            adapter = new TreeAdapter(this);
             list.setAdapter(adapter);
             list.setOnItemClickListener((parent, view, pos, id) -> {
-                setActive(index);
-                if (busy) return;
-                Item it = items.get(pos);
-                if (!selected.isEmpty() && it.node != null) {
-                    toggle(it);
-                } else if (it.click != null) {
-                    it.click.run();
-                }
+                if (pos < visible.size()) onTap(this, visible.get(pos));
             });
             list.setOnItemLongClickListener((parent, view, pos, id) -> {
-                setActive(index);
-                if (busy) return true;
-                Item it = items.get(pos);
-                if (it.longClick != null) {
-                    it.longClick.run();
-                } else if (it.node != null) {
-                    toggle(it);
-                }
+                if (pos < visible.size()) onLongTap(this, visible.get(pos));
                 return true;
             });
             content.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             box.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
 
-            strip = label("", 15, MUTED);
+            strip = new LinearLayout(ExplorerActivity.this);
+            strip.setOrientation(LinearLayout.VERTICAL);
             strip.setGravity(Gravity.CENTER_HORIZONTAL);
-            strip.setPadding(dp(4), dp(12), dp(4), dp(12));
+            strip.setBackgroundColor(BG_DIM);
+            strip.setPadding(0, dp(10), 0, dp(10));
+            stripIcon = iconView(R.drawable.ic_phone, 30);
+            strip.addView(stripIcon);
+            ImageView arrow = iconView(R.drawable.ic_tree_closed, 22);
+            arrow.setRotation(index == 0 ? 180 : 0);
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(22), dp(22));
+            alp.topMargin = dp(10);
+            strip.addView(arrow, alp);
+            stripLabel = new VerticalLabel(ExplorerActivity.this, dp(17), 0xFFE0E3E8);
+            stripLabel.setPadding(dp(8), dp(12), 0, dp(8));
+            strip.addView(stripLabel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             strip.setOnClickListener(v -> setActive(index));
             box.addView(strip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
         }
 
-        void toggle(Item it) {
-            if (!selected.remove(it)) selected.add(it);
+        /** Görünen listeyi ağaçtan yeniden üretir. */
+        void refresh() {
+            visible.clear();
+            for (TNode r : roots) flatten(r, visible);
+            if (current != null && !visible.contains(current)) current = null;
+            selected.retainAll(new HashSet<>(visible));
             adapter.notifyDataSetChanged();
+            updateChip();
+            if (index == active) updateToolbar();
         }
 
-        void setHeader(String path, String t) {
-            title = t;
-            header.setText(path);
-            StringBuilder v = new StringBuilder();
-            String s = t == null ? "" : t;
-            for (int i = 0; i < Math.min(14, s.length()); i++) v.append(s.charAt(i)).append('\n');
-            strip.setText("➜\n\n" + v);
-            if (index == active) updateTitle();
+        private void flatten(TNode n, List<TNode> out) {
+            out.add(n);
+            if (n.expanded) for (TNode c : n.children) flatten(c, out);
         }
 
-        void show(List<Item> list2) {
-            items.clear();
-            items.addAll(list2);
-            selected.clear();
-            adapter.notifyDataSetChanged();
-            list.setSelection(0);
-        }
-
-        // ---- ekranlar
-
-        void showHome() {
-            mode = "home";
-            fs = null;
-            dir = null;
-            setHeader("Ana sayfa", "Kart Format");
-            show(homeItems(this));
-        }
-
-        void openDir(final VNode d) {
-            final int token = ++loadToken;
-            header.setText("Yükleniyor…  " + d.path);
-            io.execute(() -> {
-                try {
-                    final List<VNode> kids = d.fs.list(d);
-                    main.post(() -> {
-                        if (token != loadToken) return;
-                        mode = "dir";
-                        fs = d.fs;
-                        dir = d;
-                        setHeader(d.fs.title() + (d.parent == null ? "" : "  " + relPath(d)),
-                                d.parent == null ? d.fs.title() : d.name);
-                        show(dirItems(this, kids));
-                    });
-                } catch (final IOException | RuntimeException e) {
-                    main.post(() -> {
-                        if (token != loadToken) return;
-                        header.setText(dir != null ? relPath(dir) : "Ana sayfa");
-                        toast("Açılamadı: " + e.getMessage());
-                    });
-                }
-            });
-        }
-
-        void reload() {
-            switch (mode) {
-                case "dir":
-                    openDir(dir);
-                    break;
-                case "home":
-                    showHome();
-                    break;
-                case "apps":
-                    showApps(this, prefs.getBoolean("systemApps", false));
-                    break;
-                case "recent":
-                    showRecent(this);
-                    break;
-                case "ftp":
-                    showFtpList(this);
-                    break;
-                case "analysis":
-                    analyze(this, analysisDir);
-                    break;
-                default:
-                    break;
+        void updateChip() {
+            TNode root = current;
+            while (root != null && root.parent != null) root = root.parent;
+            String t = root != null ? root.title : "Kart Format";
+            int icon = root != null && root.icon != 0 ? root.icon : R.drawable.ic_phone;
+            String where = "";
+            if (current != null && current != root && current.node != null) {
+                where = "  ›  " + (current.kind == K_FILE && current.parent != null
+                        ? current.parent.title : current.title);
             }
-        }
-
-        boolean goBack() {
-            switch (mode) {
-                case "dir":
-                    if (dir.parent != null) {
-                        openDir(dir.parent);
-                    } else {
-                        if (dir.fs instanceof ZipFs) {
-                            dir.fs.close();
-                        }
-                        showHome();
-                    }
-                    return true;
-                case "analysis":
-                    if (analysisDir != null && analysisDir.parent != null) {
-                        analyze(this, analysisDir.parent);
-                    } else if (analysisDir != null) {
-                        openDir(analysisDir);
-                    } else {
-                        showHome();
-                    }
-                    return true;
-                case "home":
-                    return false;
-                default:
-                    showHome();
-                    return true;
-            }
-        }
-
-        List<VNode> selectedNodes() {
-            List<VNode> out = new ArrayList<>();
-            for (Item it : selected) if (it.node != null) out.add(it.node);
-            return out;
+            chip.setText(t + where);
+            Drawable d = getDrawable(icon);
+            if (d != null) d.setBounds(0, 0, dp(20), dp(20));
+            chip.setCompoundDrawables(d, null, null, null);
+            stripIcon.setImageResource(icon);
+            String label = current == null ? t
+                    : current.kind == K_FILE && current.parent != null ? current.parent.title
+                    : current.title;
+            stripLabel.setText(label);
         }
     }
 
-    private String relPath(VNode d) {
-        if (d.fs instanceof LocalFs) {
-            String root = ((LocalFs) d.fs).rootFile().getAbsolutePath();
-            return d.path.startsWith(root) ? d.path.substring(root.length()) : d.path;
-        }
-        return d.path;
-    }
+    // ---------------------------------------------------------------- satır çizimi
 
-    final class ItemAdapter extends BaseAdapter {
+    final class TreeAdapter extends BaseAdapter {
         private final Pane pane;
 
-        ItemAdapter(Pane pane) {
+        TreeAdapter(Pane pane) {
             this.pane = pane;
         }
 
         @Override
         public int getCount() {
-            return pane.items.size();
+            return pane.visible.size();
         }
 
         @Override
         public Object getItem(int position) {
-            return pane.items.get(position);
+            return pane.visible.get(position);
         }
 
         @Override
@@ -719,102 +762,192 @@ public class ExplorerActivity extends Activity {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            Row row = convertView == null ? new Row() : (Row) convertView.getTag();
-            Item it = pane.items.get(position);
-            boolean sel = pane.selected.contains(it);
-            row.root.setBackgroundColor(sel ? 0xFF1E4A6E : Color.TRANSPARENT);
-            row.check.setVisibility(pane.selected.isEmpty() || it.node == null ? View.GONE : View.VISIBLE);
-            row.check.setText(sel ? "☑" : "☐");
-            row.title.setText(it.title);
-            row.sub.setText(it.sub == null ? "" : it.sub);
-            row.sub.setVisibility(it.sub == null || it.sub.isEmpty() ? View.GONE : View.VISIBLE);
-            if (it.bar >= 0) {
-                row.bar.setVisibility(View.VISIBLE);
-                row.bar.setProgress((int) (it.bar * 1000));
-            } else {
-                row.bar.setVisibility(View.GONE);
-            }
-            row.image.setTag(null);
-            if (it.drawable != null) {
-                row.image.setImageDrawable(it.drawable);
-                row.image.setVisibility(View.VISIBLE);
-                row.icon.setVisibility(View.GONE);
-            } else {
-                row.image.setVisibility(View.GONE);
-                row.icon.setVisibility(View.VISIBLE);
-                row.icon.setText(it.icon);
-                if (it.node != null && !it.node.dir && IMAGES.contains(it.node.ext())) {
-                    File f = it.node.fs.localFile(it.node);
-                    if (f != null) loadThumb(row, f);
-                }
-            }
+            Row row = convertView == null ? new Row(pane) : (Row) convertView.getTag();
+            row.bind(pane.visible.get(position));
             return row.root;
         }
     }
 
     final class Row {
+        final Pane pane;
         final LinearLayout root;
-        final TextView check;
-        final TextView icon;
-        final ImageView image;
+        final LinearLayout card;
+        final View indent;
+        final ImageView arrow;
+        final ImageView icon;
         final TextView title;
         final TextView sub;
+        final TextView path;
+        final LinearLayout right;
+        final TextView right1;
+        final TextView right2;
         final ProgressBar bar;
+        final TextView check;
+        final ProgressBar spinner;
+        TNode node;
 
-        Row() {
+        Row(Pane pane) {
+            this.pane = pane;
             root = new LinearLayout(ExplorerActivity.this);
-            root.setOrientation(LinearLayout.HORIZONTAL);
-            root.setGravity(Gravity.CENTER_VERTICAL);
-            root.setPadding(dp(8), dp(7), dp(8), dp(7));
-            root.setMinimumHeight(dp(56));
-            check = label("☐", 20, ACCENT);
-            check.setPadding(0, 0, dp(6), 0);
-            root.addView(check);
-            icon = label("", 26, TEXT);
-            icon.setGravity(Gravity.CENTER);
-            root.addView(icon, new LinearLayout.LayoutParams(dp(44), dp(44)));
-            image = new ImageView(ExplorerActivity.this);
-            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            root.addView(image, new LinearLayout.LayoutParams(dp(44), dp(44)));
+            root.setOrientation(LinearLayout.VERTICAL);
+            root.setPadding(dp(3), dp(1), dp(3), dp(1));
+
+            card = new LinearLayout(ExplorerActivity.this);
+            card.setOrientation(LinearLayout.HORIZONTAL);
+            card.setGravity(Gravity.CENTER_VERTICAL);
+            card.setPadding(dp(2), dp(6), dp(4), dp(6));
+            card.setMinimumHeight(dp(58));
+            root.addView(card);
+
+            indent = new View(ExplorerActivity.this);
+            card.addView(indent, new LinearLayout.LayoutParams(0, 1));
+            arrow = new ImageView(ExplorerActivity.this);
+            arrow.setPadding(dp(3), dp(3), dp(3), dp(3));
+            card.addView(arrow, new LinearLayout.LayoutParams(dp(22), dp(22)));
+            arrow.setOnClickListener(v -> {
+                if (node != null && node.expandable() && !busy) {
+                    setActive(pane.index);
+                    pane.current = node;
+                    toggle(pane, node);
+                }
+            });
+
+            FrameLayout iconBox = new FrameLayout(ExplorerActivity.this);
+            icon = new ImageView(ExplorerActivity.this);
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iconBox.addView(icon, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            spinner = new ProgressBar(ExplorerActivity.this, null, android.R.attr.progressBarStyleSmall);
+            iconBox.addView(spinner, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
+            card.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)));
+
             LinearLayout texts = new LinearLayout(ExplorerActivity.this);
             texts.setOrientation(LinearLayout.VERTICAL);
-            texts.setPadding(dp(10), 0, 0, 0);
-            title = label("", 16, TEXT);
+            texts.setPadding(dp(10), 0, dp(6), 0);
+            title = label("", 16.5f, TEXT);
             title.setMaxLines(2);
-            sub = label("", 12.5f, MUTED);
+            title.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+            sub = label("", 13, MUTED);
             sub.setSingleLine(true);
-            bar = new ProgressBar(ExplorerActivity.this, null,
-                    android.R.attr.progressBarStyleHorizontal);
-            bar.setMax(1000);
+            path = label("", 13, MUTED);
+            path.setSingleLine(true);
+            path.setEllipsize(TextUtils.TruncateAt.START);
             texts.addView(title);
             texts.addView(sub);
-            texts.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(6)));
-            root.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            texts.addView(path);
+            card.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+            right = new LinearLayout(ExplorerActivity.this);
+            right.setOrientation(LinearLayout.VERTICAL);
+            right.setGravity(Gravity.END);
+            right1 = label("", 13, MUTED);
+            right1.setGravity(Gravity.END);
+            right2 = label("", 13, 0xFFC9CDD3);
+            right2.setGravity(Gravity.END);
+            bar = new ProgressBar(ExplorerActivity.this, null, android.R.attr.progressBarStyleHorizontal);
+            bar.setMax(1000);
+            bar.setProgressDrawable(barDrawable());
+            right.addView(right1);
+            right.addView(right2);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(96), dp(5));
+            bp.topMargin = dp(5);
+            right.addView(bar, bp);
+            card.addView(right);
+
+            check = label("", 15, Color.WHITE);
+            check.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(dp(26), dp(26));
+            cp.leftMargin = dp(8);
+            card.addView(check, cp);
+            check.setOnClickListener(v -> {
+                if (node != null && node.fileish() && !busy) {
+                    setActive(pane.index);
+                    if (!pane.selected.remove(node)) pane.selected.add(node);
+                    pane.refresh();
+                }
+            });
+
             root.setTag(this);
+        }
+
+        void bind(TNode n) {
+            node = n;
+            boolean isCurrent = n == pane.current;
+            boolean sel = pane.selected.contains(n);
+            card.setBackground(round(sel ? SELECT : Color.TRANSPARENT,
+                    isCurrent ? ORANGE : 0, dp(2), dp(6)));
+            indent.setLayoutParams(new LinearLayout.LayoutParams(dp(16) * n.depth, 1));
+            if (n.expandable()) {
+                arrow.setVisibility(View.VISIBLE);
+                arrow.setImageResource(n.expanded ? R.drawable.ic_tree_open : R.drawable.ic_tree_closed);
+            } else {
+                arrow.setVisibility(View.INVISIBLE);
+            }
+            spinner.setVisibility(n.kind == K_INFO && "loading".equals(n.group) ? View.VISIBLE : View.GONE);
+            icon.setTag(null);
+            if (n.drawable != null) {
+                icon.setImageDrawable(n.drawable);
+            } else if (n.icon != 0) {
+                icon.setImageResource(n.icon);
+            } else {
+                icon.setImageDrawable(null);
+            }
+            if (n.kind == K_FILE && n.node != null && IMAGES.contains(n.node.ext())) {
+                File f = n.node.fs.localFile(n.node);
+                if (f != null) loadThumb(icon, f);
+            }
+            title.setText(n.title);
+            title.setTextSize(n.depth == 0 ? 17.5f : 16f);
+            title.setTypeface(n.kind == K_FILE || n.kind == K_INFO ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
+            title.setTextColor(n.kind == K_INFO ? MUTED : TEXT);
+
+            String s = n.expanded && n.dirs >= 0
+                    ? "📁 " + n.dirs + "     📄 " + n.files : n.sub;
+            sub.setText(s == null ? "" : s);
+            sub.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE);
+            path.setText(n.path == null ? "" : n.path);
+            path.setVisibility(n.path == null || n.path.isEmpty() ? View.GONE : View.VISIBLE);
+
+            boolean hasRight = n.right1 != null || n.right2 != null || n.bar >= 0;
+            right.setVisibility(hasRight ? View.VISIBLE : View.GONE);
+            right1.setText(n.right1 == null ? "" : n.right1);
+            right1.setVisibility(n.right1 == null ? View.GONE : View.VISIBLE);
+            right2.setText(n.right2 == null ? "" : n.right2);
+            right2.setVisibility(n.right2 == null ? View.GONE : View.VISIBLE);
+            if (n.bar >= 0) {
+                bar.setVisibility(View.VISIBLE);
+                bar.setProgress((int) (Math.min(1f, n.bar) * 1000));
+            } else {
+                bar.setVisibility(View.GONE);
+            }
+
+            if (n.fileish()) {
+                check.setVisibility(View.VISIBLE);
+                check.setText(sel ? "✓" : "");
+                check.setBackground(sel ? round(ACCENT, 0, 0, dp(5))
+                        : round(Color.TRANSPARENT, 0xFF6B7078, dp(1.5f), dp(5)));
+            } else {
+                check.setVisibility(View.GONE);
+            }
+            root.setPadding(dp(3), n.depth == 0 ? dp(3) : dp(1), dp(3), dp(1));
         }
     }
 
-    private void loadThumb(final Row row, final File f) {
+    private void loadThumb(final ImageView view, final File f) {
         final String key = f.getAbsolutePath() + ":" + f.lastModified();
         Bitmap b = thumbCache.get(key);
         if (b != null) {
-            row.image.setImageBitmap(b);
-            row.image.setVisibility(View.VISIBLE);
-            row.icon.setVisibility(View.GONE);
+            view.setImageBitmap(b);
             return;
         }
-        row.image.setTag(key);
+        view.setTag(key);
         try {
             thumbs.execute(() -> {
-                Bitmap bm = decodeSampled(f, dp(48));
+                Bitmap bm = decodeSampled(f, dp(44));
                 if (bm == null) return;
                 thumbCache.put(key, bm);
                 main.post(() -> {
-                    if (key.equals(row.image.getTag())) {
-                        row.image.setImageBitmap(bm);
-                        row.image.setVisibility(View.VISIBLE);
-                        row.icon.setVisibility(View.GONE);
-                    }
+                    if (key.equals(view.getTag())) view.setImageBitmap(bm);
                 });
             });
         } catch (RuntimeException ignored) {
@@ -831,158 +964,342 @@ public class ExplorerActivity extends Activity {
             while (o.outWidth / (s * 2) >= target && o.outHeight / (s * 2) >= target) s *= 2;
             o = new BitmapFactory.Options();
             o.inSampleSize = s;
-            return BitmapFactory.decodeFile(f.getAbsolutePath(), o);
+            Bitmap full = BitmapFactory.decodeFile(f.getAbsolutePath(), o);
+            if (full == null) return null;
+            int side = Math.min(full.getWidth(), full.getHeight());
+            return Bitmap.createBitmap(full, (full.getWidth() - side) / 2,
+                    (full.getHeight() - side) / 2, side, side);
         } catch (Throwable t) {
             return null;
         }
     }
 
-    // ---------------------------------------------------------------- ana sayfa
+    // ---------------------------------------------------------------- düğüm üretimi
 
-    private void refreshHome() {
-        for (Pane p : panes) {
-            if (p != null && "home".equals(p.mode)) p.show(homeItems(p));
-        }
+    private int iconFor(VNode n) {
+        if (n.dir) return R.drawable.ic_folder;
+        String e = n.ext();
+        if (IMAGES.contains(e)) return R.drawable.ic_file_image;
+        if (VIDEO.contains(e)) return R.drawable.ic_file_video;
+        if (AUDIO.contains(e)) return R.drawable.ic_file_audio;
+        if (e.equals("apk")) return R.drawable.ic_file_apk;
+        if (ARCHIVES.contains(e)) return R.drawable.ic_file_archive;
+        if (e.equals("pdf")) return R.drawable.ic_file_pdf;
+        if (TEXTS.contains(e)) return R.drawable.ic_file_text;
+        if (DOCS.contains(e)) return R.drawable.ic_file_doc;
+        if (SHEETS.contains(e)) return R.drawable.ic_file_sheet;
+        return R.drawable.ic_file;
     }
 
-    private Item item(String icon, String title, String sub, Runnable click) {
-        Item it = new Item();
-        it.icon = icon;
-        it.title = title;
-        it.sub = sub;
-        it.click = click;
-        return it;
+    private static String date(long t) {
+        return t > 0 ? new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.ROOT).format(new Date(t)) : null;
     }
 
-    private Item volumeItem(final Pane p, final Vfs fs, String icon) {
+    private TNode fileNode(TNode parent, VNode v) {
+        TNode t = new TNode();
+        t.kind = v.dir ? K_DIR : K_FILE;
+        t.parent = parent;
+        t.depth = parent == null ? 0 : parent.depth + 1;
+        t.node = v;
+        t.key = "f:" + v.path;
+        t.title = v.name;
+        t.icon = iconFor(v);
+        if (!v.dir) t.right1 = DiskOps.sizeText(Math.max(0, v.size));
+        t.right2 = date(v.modified);
+        return t;
+    }
+
+    private TNode special(String key, int kind, int icon, String title, String sub) {
+        TNode t = new TNode();
+        t.key = key;
+        t.kind = kind;
+        t.icon = icon;
+        t.title = title;
+        t.sub = sub;
+        return t;
+    }
+
+    private TNode volumeNode(Vfs fs, int icon, String key, String pathText) {
+        TNode t = special(key, K_VOLUME, icon, fs.title(), null);
+        t.node = fs.root();
+        t.path = pathText;
         long total = fs.totalBytes();
         long free = fs.freeBytes();
-        Item it = item(icon, fs.title(), total > 0 && free >= 0
-                ? "Boş " + DiskOps.sizeText(free) + " / " + DiskOps.sizeText(total) : null,
-                () -> p.openDir(fs.root()));
-        if (total > 0 && free >= 0) it.bar = 1f - (float) free / total;
-        return it;
+        if (total > 0 && free >= 0) {
+            t.right1 = "Boş";
+            t.right2 = shortSize(free) + "/" + shortSize(total);
+            t.bar = 1f - (float) free / total;
+        }
+        return t;
     }
 
-    private List<Item> homeItems(final Pane p) {
-        List<Item> out = new ArrayList<>();
+    private static String shortSize(long b) {
+        if (b >= 1000L * 1000 * 1000) return String.format(Locale.ROOT, "%.0fGB", b / 1e9);
+        if (b >= 1000L * 1000) return String.format(Locale.ROOT, "%.0fMB", b / 1e6);
+        return String.format(Locale.ROOT, "%.0fKB", b / 1e3);
+    }
+
+    /** Kök listesini kurar; var olan düğümlerin açık/kapalı durumu korunur. */
+    private List<TNode> buildRoots(Pane p) {
+        List<TNode> out = new ArrayList<>();
         if (!hasStorageAccess()) {
-            out.add(item("⚠️", "Dosya erişim izni ver", "Telefondaki dosyaları görmek için gerekli",
-                    this::askStorageAccess));
+            TNode t = special("perm", K_ACTION, R.drawable.ic_warning, "Dosya erişim izni ver",
+                    "Telefondaki dosyaları görmek için gerekli");
+            t.action = this::askStorageAccess;
+            out.add(t);
         }
-        out.add(volumeItem(p, internal, "📱"));
-        for (LocalFs v : otherVolumes) out.add(volumeItem(p, v, "💾"));
-
-        if (usb.isOpen() && !usb.volumes().isEmpty()) {
-            for (CardFs c : usb.volumes()) out.add(volumeItem(p, c, "🔌"));
-        } else if (usb.device() != null) {
-            String sub = usb.isOpen() && usb.error() != null ? usb.error() : "Açmak için dokunun";
-            out.add(item("🔌", "USB kart (OTG)", sub, () -> openUsb(p)));
-        }
-
-        for (final String fav : favorites()) {
-            final File f = new File(fav);
-            out.add(item("⭐", f.getName(), fav, () -> openLocal(p, f)));
-        }
-        File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        out.add(item("📥", "İndirilenler", null, () -> openLocal(p, dl)));
-        File dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        out.add(item("📷", "Kamera (DCIM)", null, () -> openLocal(p, dcim)));
-        out.add(item("🕘", "Son dosyalar", null, () -> showRecent(p)));
-        out.add(item("🤖", "Uygulama yöneticisi", null,
-                () -> showApps(p, prefs.getBoolean("systemApps", false))));
-        out.add(item("🌐", "FTP sunucuları", null, () -> showFtpList(p)));
-        out.add(item("📶", "WiFi dosya paylaşımı", wifi == null ? "Kapalı"
-                : "http://" + WifiShare.address() + ":" + wifi.port + "   kod: " + wifiCode,
-                this::toggleWifi));
-        if (vault == null) {
-            out.add(item("🔒", "Kasa", "Şifreli dosyalar", () -> openVault(p)));
-        } else {
-            out.add(item("🔓", "Kasa (açık)", "Dokun: aç  •  Uzun bas: kilitle",
-                    () -> p.openDir(vault.root())));
-            out.get(out.size() - 1).longClick = this::lockVault;
-        }
-        out.add(item("🛠", "USB kart araçları", "Biçimlendir, imaj yaz, Windows/FreeDOS kartı, PS2…",
-                this::openTools));
-        return out;
-    }
-
-    private void openLocal(Pane p, File f) {
-        if (!f.isDirectory()) {
-            toast("Klasör bulunamadı: " + f.getName());
-            return;
-        }
-        LocalFs fs = internal;
+        for (TNode n : p.roots) if (n.temp) out.add(n);
+        out.add(volumeNode(internal, R.drawable.ic_phone,
+                "vol:" + internal.rootFile().getAbsolutePath(), internal.rootFile().getAbsolutePath()));
         for (LocalFs v : otherVolumes) {
-            if (f.getAbsolutePath().startsWith(v.rootFile().getAbsolutePath())) fs = v;
+            out.add(volumeNode(v, R.drawable.ic_sdcard, "vol:" + v.rootFile().getAbsolutePath(),
+                    v.rootFile().getAbsolutePath()));
         }
-        if (!f.getAbsolutePath().startsWith(fs.rootFile().getAbsolutePath())) {
-            fs = new LocalFs(f.getName(), f);
+        if (usb.isOpen() && !usb.volumes().isEmpty()) {
+            for (CardFs c : usb.volumes()) {
+                out.add(volumeNode(c, R.drawable.ic_usb, "usb:" + c.title(),
+                        usb.readerName() + " • " + c.volume().type()));
+            }
+        } else if (usb.device() != null) {
+            TNode t = special("usbopen", K_ACTION, R.drawable.ic_usb, "USB kart (OTG)",
+                    usb.isOpen() && usb.error() != null ? usb.error() : "Açmak için dokunun");
+            t.action = this::openUsb;
+            out.add(t);
         }
-        p.openDir(fs.node(f));
-    }
+        out.add(special("fav", K_GROUP, R.drawable.ic_star, "Sık kullanılanlar", null));
+        out.add(special("recent", K_GROUP, R.drawable.ic_clock, "Son dosyalar", null));
+        out.add(special("apps", K_GROUP, R.drawable.ic_apps, "Uygulama yöneticisi", null));
+        out.add(special("ftp", K_GROUP, R.drawable.ic_network, "FTP sunucuları", null));
+        TNode wifiNode = special("wifi", K_ACTION, R.drawable.ic_wifi, "WiFi dosya paylaşımı",
+                wifi == null ? "Kapalı" : "http://" + WifiShare.address() + ":" + wifi.port);
+        if (wifi != null) wifiNode.right2 = "Kod " + wifiCode;
+        wifiNode.action = this::toggleWifi;
+        out.add(wifiNode);
+        if (vault == null) {
+            TNode v = special("vault", K_ACTION, R.drawable.ic_vault, "Kasa", "Şifreli dosyalar");
+            v.action = () -> openVault(p);
+            out.add(v);
+        } else {
+            TNode v = volumeNode(vault, R.drawable.ic_vault_open, "vaultopen", "Açık • uzun bas: kilitle");
+            v.title = "Kasa";
+            v.onLong = this::lockVault;
+            out.add(v);
+        }
+        TNode tools = special("tools", K_ACTION, R.drawable.ic_tools, "USB kart araçları",
+                "Biçimlendir, imaj yaz, Windows / FreeDOS, PS2…");
+        tools.action = this::openTools;
+        out.add(tools);
 
-    private List<String> favorites() {
-        String s = prefs.getString("favorites", "");
-        List<String> out = new ArrayList<>();
-        for (String x : s.split("\n")) if (!x.trim().isEmpty()) out.add(x);
+        // Eski düğümlerin durumunu taşı
+        Map<String, TNode> old = new HashMap<>();
+        for (TNode n : p.roots) old.put(n.key, n);
+        for (TNode n : out) {
+            TNode o = old.get(n.key);
+            if (o == null || o == n) continue;
+            if (o.kind == n.kind && o.expanded) {
+                n.expanded = true;
+                n.children = o.children;
+                n.dirs = o.dirs;
+                n.files = o.files;
+                for (TNode c : n.children) c.parent = n;
+            }
+            if (p.current == o) p.current = n;
+            if (p.selected.remove(o)) p.selected.add(n);
+        }
         return out;
     }
 
-    private void addFavorite() {
-        Pane p = panes[active];
-        if (!"dir".equals(p.mode) || !(p.fs instanceof LocalFs)) {
-            toast("Telefon belleğinde bir klasör açın");
-            return;
+    private void refreshRoots() {
+        for (Pane p : panes) {
+            if (p == null) continue;
+            List<TNode> r = buildRoots(p);
+            p.roots.clear();
+            p.roots.addAll(r);
+            p.refresh();
         }
-        List<String> favs = favorites();
-        String path = p.dir.path;
-        if (favs.contains(path)) {
-            favs.remove(path);
-            toast("Sık kullanılanlardan çıkarıldı");
-        } else {
-            favs.add(path);
-            toast("Sık kullanılanlara eklendi");
-        }
-        StringBuilder sb = new StringBuilder();
-        for (String f : favs) sb.append(f).append('\n');
-        prefs.edit().putString("favorites", sb.toString()).apply();
-        refreshHome();
     }
 
-    // ---------------------------------------------------------------- USB
+    // ---------------------------------------------------------------- dokunma
 
-    private void openUsb(final Pane target) {
-        if (!usb.ensurePermission()) {
-            if (usb.device() == null) toast("Kart okuyucu bulunamadı");
+    private void onTap(Pane p, TNode n) {
+        setActive(p.index);
+        if (busy) return;
+        if (!p.selected.isEmpty() && n.fileish()) {
+            if (!p.selected.remove(n)) p.selected.add(n);
+            p.refresh();
             return;
         }
-        runOp("USB kart açılıyor", (pr, c) -> {
-            usb.open();
-            return usb.volumes().isEmpty() ? (usb.error() != null ? usb.error()
-                    : "Kartta açılabilen bölüm yok") : null;
-        }, () -> {
-            refreshHome();
-            if (target != null && usb.volumes().size() == 1) {
-                target.openDir(usb.volumes().get(0).root());
+        if (n.kind == K_INFO) return;
+        p.current = n;
+        switch (n.kind) {
+            case K_ACTION:
+                p.refresh();
+                if (n.action != null) n.action.run();
+                break;
+            case K_APP:
+                p.refresh();
+                appMenu(n);
+                break;
+            case K_FILE:
+                p.refresh();
+                openFile(n);
+                break;
+            default:
+                toggle(p, n);
+        }
+    }
+
+    private void onLongTap(Pane p, TNode n) {
+        setActive(p.index);
+        if (busy) return;
+        if (n.onLong != null) {
+            n.onLong.run();
+            return;
+        }
+        if (n.temp && n.depth == 0) {
+            p.roots.remove(n);
+            p.refresh();
+            return;
+        }
+        if (n.fileish()) {
+            if (!p.selected.remove(n)) p.selected.add(n);
+            p.refresh();
+        }
+    }
+
+    private void toggle(Pane p, TNode n) {
+        if (!n.expandable()) return;
+        if (n.expanded) {
+            n.expanded = false;
+            p.refresh();
+        } else {
+            expand(p, n);
+        }
+    }
+
+    private TNode info(TNode parent, String text, String kind) {
+        TNode t = new TNode();
+        t.kind = K_INFO;
+        t.parent = parent;
+        t.depth = parent.depth + 1;
+        t.title = text;
+        t.group = kind;
+        t.key = "info:" + kind;
+        return t;
+    }
+
+    private interface Loader {
+        List<TNode> load(TNode parent) throws IOException;
+    }
+
+    /** Düğümü açar ve içeriğini arka planda yükler. */
+    private void expand(final Pane p, final TNode n) {
+        n.expanded = true;
+        final List<TNode> oldKids = n.children;
+        final Loader loader = loaderFor(p, n);
+        if (loader == null) {
+            p.refresh();
+            return;
+        }
+        if (oldKids.isEmpty()) {
+            n.children = new ArrayList<>();
+            n.children.add(info(n, "Yükleniyor…", "loading"));
+        }
+        p.refresh();
+        io.execute(() -> {
+            List<TNode> kids;
+            String error = null;
+            try {
+                kids = loader.load(n);
+            } catch (IOException | RuntimeException e) {
+                kids = new ArrayList<>();
+                error = e.getMessage();
             }
+            final List<TNode> fk = kids;
+            final String fe = error;
+            main.post(() -> {
+                if (!n.expanded) return;
+                // Açık alt klasörler açık kalsın
+                Map<String, TNode> prev = new HashMap<>();
+                for (TNode o : oldKids) if (o.key != null) prev.put(o.key, o);
+                List<TNode> reopen = new ArrayList<>();
+                for (TNode k : fk) {
+                    TNode o = prev.get(k.key);
+                    if (o == null) continue;
+                    if (o.expanded && k.expandable()) {
+                        k.expanded = true;
+                        k.children = o.children;
+                        for (TNode c : k.children) c.parent = k;
+                        reopen.add(k);
+                    }
+                    if (p.current == o) p.current = k;
+                    if (p.selected.remove(o)) p.selected.add(k);
+                }
+                if (fe != null) {
+                    fk.clear();
+                    fk.add(info(n, "Açılamadı: " + fe, "error"));
+                } else if (fk.isEmpty()) {
+                    fk.add(info(n, "(boş)", "empty"));
+                }
+                n.children = fk;
+                p.refresh();
+                for (TNode k : reopen) expand(p, k);
+            });
         });
     }
 
-    private void openTools() {
-        // Araçlar kartı kendisi açar; gezgin bağlantısını bırakır
-        for (Pane p : panes) {
-            if (p.fs instanceof CardFs) p.showHome();
+    private Loader loaderFor(final Pane p, final TNode n) {
+        if (n.kind == K_VOLUME || n.kind == K_DIR) {
+            return parent -> dirChildren(parent, parent.node.fs.list(parent.node));
         }
-        try {
-            io.submit(() -> usb.close()).get(3, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (Exception ignored) {
-            // bağlantı kapanmadıysa araçlar ekranı "Yenile" ile yeniden dener
+        if (n.key == null) return null;
+        switch (n.key) {
+            case "fav":
+                return this::favoriteChildren;
+            case "recent":
+                return this::recentChildren;
+            case "apps":
+                return parent -> appChildren(parent, prefs.getBoolean("systemApps", false));
+            case "ftp":
+                return this::ftpChildren;
+            default:
+                return null;   // geçici gruplar (arama, analiz) hazır gelir
         }
-        startActivity(new Intent(this, MainActivity.class));
     }
 
-    // ---------------------------------------------------------------- dizin listesi
+    private List<TNode> favoriteChildren(TNode parent) {
+        List<TNode> out = new ArrayList<>();
+        for (String f : favorites()) {
+            File file = new File(f);
+            if (!file.isDirectory()) continue;
+            TNode t = fileNode(parent, fsFor(file).node(file));
+            t.path = f;
+            t.key = "fav:" + f;
+            out.add(t);
+        }
+        File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        File dcim = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+        for (File f : new File[]{dl, dcim}) {
+            if (!f.isDirectory()) continue;
+            TNode t = fileNode(parent, internal.node(f));
+            t.icon = f == dl ? R.drawable.ic_download : R.drawable.ic_camera;
+            t.key = "fav:" + f.getAbsolutePath();
+            t.path = f.getAbsolutePath();
+            out.add(t);
+        }
+        if (favorites().isEmpty()) {
+            out.add(info(parent, "Bir klasöre dokunup ⭐ ile ekleyebilirsiniz", "hint"));
+        }
+        return out;
+    }
+
+    private LocalFs fsFor(File f) {
+        for (LocalFs v : otherVolumes) {
+            if (f.getAbsolutePath().startsWith(v.rootFile().getAbsolutePath())) return v;
+        }
+        if (f.getAbsolutePath().startsWith(internal.rootFile().getAbsolutePath())) return internal;
+        return new LocalFs(f.getName(), f);
+    }
 
     private Comparator<VNode> comparator() {
         final String sort = prefs.getString("sort", "name");
@@ -1008,68 +1325,137 @@ public class ExplorerActivity extends Activity {
         };
     }
 
-    private List<Item> dirItems(final Pane p, List<VNode> kids) {
+    private List<TNode> dirChildren(TNode parent, List<VNode> list) {
         boolean hidden = prefs.getBoolean("hidden", false);
         List<VNode> sorted = new ArrayList<>();
-        for (VNode k : kids) if (hidden || !k.hidden()) sorted.add(k);
-        Collections.sort(sorted, comparator());
-        List<Item> out = new ArrayList<>();
-        for (final VNode k : sorted) out.add(nodeItem(p, k, null));
-        if (out.isEmpty()) {
-            Item e = item("·", "(boş klasör)", null, null);
-            out.add(e);
+        int dirs = 0;
+        int files = 0;
+        for (VNode k : list) {
+            if (!hidden && k.hidden()) continue;
+            sorted.add(k);
+            if (k.dir) dirs++; else files++;
         }
+        Collections.sort(sorted, comparator());
+        parent.dirs = dirs;
+        parent.files = files;
+        List<TNode> out = new ArrayList<>();
+        for (VNode k : sorted) out.add(fileNode(parent, k));
         return out;
     }
 
-    private Item nodeItem(final Pane p, final VNode k, String subOverride) {
-        Item it = item(iconFor(k), k.name, subOverride != null ? subOverride : nodeSub(k), null);
-        it.node = k;
-        it.click = () -> {
-            if (k.dir) p.openDir(k);
-            else openFile(p, k);
-        };
-        return it;
+    // ---------------------------------------------------------------- yukarı / yenile
+
+    private boolean goUp(Pane p) {
+        TNode c = p.current;
+        if (c == null) return false;
+        if (c.expanded && c.expandable()) {
+            c.expanded = false;
+            p.refresh();
+            return true;
+        }
+        if (c.parent != null) {
+            p.current = c.parent;
+            p.current.expanded = false;
+            p.refresh();
+            int pos = p.visible.indexOf(p.current);
+            if (pos >= 0) p.list.setSelection(Math.max(0, pos - 2));
+            return true;
+        }
+        return false;
+    }
+
+    /** Açık klasörlerin içeriğini yeniden okur. */
+    private void reloadPane(Pane p) {
+        List<TNode> r = buildRoots(p);
+        p.roots.clear();
+        p.roots.addAll(r);
+        p.refresh();
+        for (TNode n : p.roots) {
+            if (n.expanded && !n.temp && loaderFor(p, n) != null) expand(p, n);
+        }
+    }
+
+    private void reloadAll() {
+        reloadPane(panes[0]);
+        reloadPane(panes[1]);
+    }
+
+    // ---------------------------------------------------------------- hedefler
+
+    /** Seçili öğeler; seçim yoksa üzerinde durulan dosya/klasör. */
+    private List<VNode> targets(Pane p) {
+        List<VNode> out = new ArrayList<>();
+        for (TNode n : p.selected) if (n.node != null) out.add(n.node);
+        if (out.isEmpty() && p.current != null && p.current.fileish()) out.add(p.current.node);
+        return out;
+    }
+
+    /** İşlem yapılacak klasör: üzerinde durulan klasör ya da dosyanın klasörü. */
+    private static VNode dirOf(TNode n) {
+        if (n == null || n.node == null) return null;
+        if (n.kind == K_FILE) return n.node.parent;
+        return n.node.dir ? n.node : null;
+    }
+
+    private List<VNode> needTargets() {
+        List<VNode> t = targets(panes[active]);
+        if (t.isEmpty()) toast("Önce bir öğeye dokunun ya da uzun basıp seçin");
+        return t;
     }
 
     // ---------------------------------------------------------------- dosya açma
 
-    private void openFile(final Pane p, final VNode f) {
+    private void openFile(final TNode t) {
+        final Pane p = panes[active];
+        final VNode f = t.node;
         String e = f.ext();
         File local = f.fs.localFile(f);
         if ((e.equals("zip") || e.equals("jar")) && local != null) {
             try {
-                ZipFs z = new ZipFs(local);
-                p.openDir(z.root());
+                final ZipFs z = new ZipFs(local);
+                final TNode g = special("zip:" + local.getAbsolutePath(), K_VOLUME,
+                        R.drawable.ic_file_archive, z.title(), "ZIP içi • uzun bas: kapat");
+                g.node = z.root();
+                g.temp = true;
+                g.onLong = () -> {
+                    z.close();
+                    for (Pane q : panes) {
+                        q.roots.remove(g);
+                        q.refresh();
+                    }
+                };
+                addTempGroup(p, g);
+                expand(p, g);
             } catch (IOException | RuntimeException ex) {
-                // Ör. Türkçe Windows'ta UTF-8 olmadan sıkıştırılmış adlar: "Arşivi aç" ile çıkarılabilir
                 new AlertDialog.Builder(this).setTitle(f.name)
                         .setMessage("ZIP içine göz atılamadı (" + ex.getMessage() + "). "
                                 + "Arşivi bir klasöre çıkarmayı deneyin.")
                         .setNegativeButton("Vazgeç", null)
-                        .setPositiveButton("Buraya çıkar", (d, w) -> extract(f, p.dir))
+                        .setPositiveButton("Buraya çıkar", (d, w) -> extract(f, f.parent))
                         .show();
             }
             return;
         }
-        if (ARCHIVES.contains(e) && !e.equals("zip")) {
+        if (ARCHIVES.contains(e) && !e.equals("zip") && !e.equals("jar")) {
             new AlertDialog.Builder(this)
                     .setTitle(f.name)
-                    .setItems(new String[]{"Diğer panele çıkar", "Bu klasöre çıkar",
+                    .setItems(new String[]{"Diğer paneldeki klasöre çıkar", "Bu klasöre çıkar",
                             "Başka uygulamayla aç"}, (d, w) -> {
                         if (w == 2) withLocal(f, file -> openExternal(file, null));
-                        else extract(f, w == 0 ? other().dir : p.dir);
+                        else extract(f, w == 0 ? dirOf(other().current) : f.parent);
                     }).show();
             return;
         }
         if (IMAGES.contains(e)) {
-            if (local != null) {
+            if (local != null && t.parent != null) {
                 ArrayList<String> paths = new ArrayList<>();
                 int index = 0;
-                for (Item it : p.items) {
-                    if (it.node != null && !it.node.dir && IMAGES.contains(it.node.ext())) {
-                        if (it.node.same(f)) index = paths.size();
-                        paths.add(it.node.fs.localFile(it.node).getAbsolutePath());
+                for (TNode s : t.parent.children) {
+                    if (s.kind == K_FILE && s.node != null && IMAGES.contains(s.node.ext())) {
+                        File sf = s.node.fs.localFile(s.node);
+                        if (sf == null) continue;
+                        if (s == t) index = paths.size();
+                        paths.add(sf.getAbsolutePath());
                     }
                 }
                 startActivity(new Intent(this, ImageViewerActivity.class)
@@ -1103,7 +1489,6 @@ public class ExplorerActivity extends Activity {
         void run(File f);
     }
 
-    /** Dosya telefonda değilse önbelleğe kopyalar, sonra verilen işi yapar. */
     private void withLocal(final VNode f, final FileAction action) {
         File local = f.fs.localFile(f);
         if (local != null) {
@@ -1111,7 +1496,7 @@ public class ExplorerActivity extends Activity {
             return;
         }
         final File[] out = new File[1];
-        runOp("Dosya hazırlanıyor", (pr, c) -> {
+        runOp("Dosya hazırlanıyor: " + f.name, (pr, c) -> {
             out[0] = new FileOps(pr, c, null).toCache(f, getCacheDir());
             return null;
         }, () -> {
@@ -1149,9 +1534,9 @@ public class ExplorerActivity extends Activity {
     }
 
     private void openWithSelected() {
-        final List<VNode> sel = panes[active].selectedNodes();
+        final List<VNode> sel = targets(panes[active]);
         if (sel.size() != 1 || sel.get(0).dir) {
-            toast("Bir dosya seçin (uzun basın)");
+            toast("Bir dosyaya dokunun");
             return;
         }
         final VNode f = sel.get(0);
@@ -1185,18 +1570,18 @@ public class ExplorerActivity extends Activity {
     private void clearOpenCache() {
         File d = new File(getCacheDir(), "acilan");
         File[] fs = d.listFiles();
-        if (fs != null) for (File f : fs) //noinspection ResultOfMethodCallIgnored
-            f.delete();
+        if (fs != null) {
+            for (File f : fs) {
+                //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            }
+        }
     }
 
     // ---------------------------------------------------------------- işlem çalıştırıcı
 
     interface Job {
         String run(Fat32Formatter.Progress p, DiskOps.Cancel c) throws IOException;
-    }
-
-    private void runOp(String title, Job job) {
-        runOp(title, job, null);
     }
 
     private void runOp(final String title, final Job job, final Runnable after) {
@@ -1210,6 +1595,7 @@ public class ExplorerActivity extends Activity {
         statusProgress.setIndeterminate(true);
         statusText.setText(title + "…");
         statusCancel.setEnabled(true);
+        statusCancel.setText("İptal");
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         final Fat32Formatter.Progress progress = new Fat32Formatter.Progress() {
             private long last;
@@ -1255,36 +1641,7 @@ public class ExplorerActivity extends Activity {
         });
     }
 
-    private Pane other() {
-        return panes[1 - active];
-    }
-
-    private void reloadDirs() {
-        for (Pane p : panes) {
-            if ("dir".equals(p.mode)) p.reload();
-        }
-        refreshHome();
-    }
-
     // ---------------------------------------------------------------- dosya işlemleri
-
-    private List<VNode> needSelection() {
-        List<VNode> sel = panes[active].selectedNodes();
-        if (sel.isEmpty()) toast("Önce öğeleri seçin (uzun basın)");
-        return sel;
-    }
-
-    private boolean needWritableDir(Pane p) {
-        if (!"dir".equals(p.mode)) {
-            toast("Önce bir klasör açın");
-            return false;
-        }
-        if (!p.fs.writable()) {
-            toast("Bu konum salt okunur");
-            return false;
-        }
-        return true;
-    }
 
     private EditText input(String text, String hint) {
         EditText e = new EditText(this);
@@ -1304,23 +1661,29 @@ public class ExplorerActivity extends Activity {
     }
 
     private void askNewFolder() {
-        final Pane p = panes[active];
-        if (!needWritableDir(p)) return;
+        final VNode dir = dirOf(panes[active].current);
+        if (dir == null) {
+            toast("Önce bir klasöre dokunun");
+            return;
+        }
+        if (!dir.fs.writable()) {
+            toast("Bu konum salt okunur");
+            return;
+        }
         final EditText e = input("", "Klasör adı");
-        new AlertDialog.Builder(this).setTitle("Yeni klasör").setView(padded(e))
+        new AlertDialog.Builder(this).setTitle("Yeni klasör: " + dir.name).setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Oluştur", (d, w) -> {
                     final String name = e.getText().toString();
-                    final VNode dir = p.dir;
                     runOp("Klasör oluşturuluyor", (pr, c) -> {
                         dir.fs.mkdir(dir, name);
                         return null;
-                    }, this::reloadDirs);
+                    }, this::reloadAll);
                 }).show();
     }
 
     private void askRename() {
-        final List<VNode> sel = needSelection();
+        final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
         if (sel.size() != 1) {
             toast("Yeniden adlandırmak için tek öğe seçin");
@@ -1339,20 +1702,20 @@ public class ExplorerActivity extends Activity {
                     runOp("Yeniden adlandırılıyor", (pr, c) -> {
                         n.fs.rename(n, name);
                         return null;
-                    }, this::reloadDirs);
+                    }, this::reloadAll);
                 }).show();
     }
 
     private void copySelected(final boolean move) {
-        final List<VNode> sel = needSelection();
+        final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
-        final Pane target = other();
-        if (!"dir".equals(target.mode)) {
-            toast("Diğer panelde hedef klasörü açın");
-            setActive(target.index);
+        final VNode dest = dirOf(other().current);
+        if (dest == null) {
+            toast("Diğer panelde hedef klasöre dokunun");
+            setActive(1 - active);
             return;
         }
-        if (!target.fs.writable()) {
+        if (!dest.fs.writable()) {
             toast("Hedef salt okunur");
             return;
         }
@@ -1360,20 +1723,22 @@ public class ExplorerActivity extends Activity {
             toast("Kaynak salt okunur; taşınamaz, kopyalayın");
             return;
         }
-        final VNode dest = target.dir;
         new AlertDialog.Builder(this)
                 .setTitle(move ? "Taşı" : "Kopyala")
-                .setMessage(sel.size() + " öğe →\n" + dest.fs.title() + "  " + relPath(dest))
+                .setMessage(sel.size() + " öğe\n→ " + dest.fs.title() + " › " + dest.name)
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton(move ? "Taşı" : "Kopyala", (d, w) ->
                         runOp(move ? "Taşınıyor" : "Kopyalanıyor",
                                 (pr, c) -> new FileOps(pr, c, this::status).copy(sel, dest, move),
-                                this::reloadDirs))
+                                () -> {
+                                    panes[active].selected.clear();
+                                    reloadAll();
+                                }))
                 .show();
     }
 
     private void askDelete() {
-        final List<VNode> sel = needSelection();
+        final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
         if (!sel.get(0).fs.writable()) {
             toast("Bu konum salt okunur");
@@ -1383,24 +1748,28 @@ public class ExplorerActivity extends Activity {
         for (int i = 0; i < Math.min(5, sel.size()); i++) names.append("• ").append(sel.get(i).name).append('\n');
         if (sel.size() > 5) names.append("… ve ").append(sel.size() - 5).append(" öğe daha\n");
         new AlertDialog.Builder(this)
-                .setTitle(sel.size() + " öğe silinsin mi?")
+                .setTitle(sel.size() == 1 ? "Silinsin mi?" : sel.size() + " öğe silinsin mi?")
                 .setMessage(names + "\nSilinen dosyalar geri getirilemez.")
                 .setNegativeButton("Vazgeç", null)
                 .setPositiveButton("Sil", (d, w) -> runOp("Siliniyor", (pr, c) -> {
                     FileOps ops = new FileOps(pr, c, this::status);
                     ops.delete(sel);
                     return ops.files() + " öğe silindi";
-                }, this::reloadDirs))
+                }, () -> {
+                    Pane p = panes[active];
+                    p.selected.clear();
+                    if (p.current != null && p.current.fileish()) p.current = p.current.parent;
+                    reloadAll();
+                }))
                 .show();
     }
 
     private void askZip() {
-        final List<VNode> sel = needSelection();
+        final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
-        final Pane p = panes[active];
-        final VNode dest = "dir".equals(p.mode) && p.fs.writable() ? p.dir
-                : "dir".equals(other().mode) && other().fs.writable() ? other().dir : null;
-        if (dest == null) {
+        VNode here = sel.get(0).parent;
+        final VNode dest = here != null && here.fs.writable() ? here : dirOf(other().current);
+        if (dest == null || !dest.fs.writable()) {
             toast("ZIP'in kaydedileceği klasörü açın");
             return;
         }
@@ -1414,20 +1783,19 @@ public class ExplorerActivity extends Activity {
                         FileOps ops = new FileOps(pr, c, this::status);
                         VNode z = ops.zip(sel, dest, name, getCacheDir());
                         return z.name + " oluşturuldu (" + DiskOps.sizeText(z.size) + ")";
-                    }, this::reloadDirs);
+                    }, this::reloadAll);
                 }).show();
     }
 
     private void extractSelected() {
-        final List<VNode> sel = needSelection();
+        final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
         if (sel.size() != 1 || sel.get(0).dir) {
             toast("Bir arşiv dosyası seçin");
             return;
         }
-        Pane o = other();
-        VNode target = "dir".equals(o.mode) && o.fs.writable() ? o.dir : panes[active].dir;
-        extract(sel.get(0), target);
+        VNode o = dirOf(other().current);
+        extract(sel.get(0), o != null && o.fs.writable() ? o : sel.get(0).parent);
     }
 
     private void extract(final VNode archive, final VNode target) {
@@ -1439,11 +1807,11 @@ public class ExplorerActivity extends Activity {
             FileOps ops = new FileOps(pr, c, this::status);
             VNode d = ops.extract(archive, target, getCacheDir());
             return ops.files() + " dosya \"" + d.name + "\" klasörüne açıldı";
-        }, this::reloadDirs);
+        }, this::reloadAll);
     }
 
     private void shareSelected() {
-        final List<VNode> sel = needSelection();
+        final List<VNode> sel = needTargets();
         if (sel.isEmpty()) return;
         for (VNode n : sel) {
             if (n.dir) {
@@ -1482,10 +1850,13 @@ public class ExplorerActivity extends Activity {
 
     private void showProperties() {
         Pane p = panes[active];
-        List<VNode> sel = p.selectedNodes();
-        if (sel.isEmpty() && "dir".equals(p.mode)) sel = Collections.singletonList(p.dir);
+        List<VNode> sel = targets(p);
         if (sel.isEmpty()) {
-            toast("Önce öğeleri seçin (uzun basın)");
+            VNode d = dirOf(p.current);
+            if (d != null) sel = Collections.singletonList(d);
+        }
+        if (sel.isEmpty()) {
+            toast("Önce bir öğeye dokunun");
             return;
         }
         final List<VNode> nodes = sel;
@@ -1499,7 +1870,7 @@ public class ExplorerActivity extends Activity {
             if (nodes.size() == 1) {
                 VNode n = nodes.get(0);
                 sb.append("Ad: ").append(n.name).append('\n');
-                sb.append("Yer: ").append(n.fs.title()).append("  ").append(relPath(n)).append('\n');
+                sb.append("Yer: ").append(n.fs.title()).append("  ").append(n.path).append('\n');
                 if (n.modified > 0) {
                     sb.append("Değiştirilme: ").append(new SimpleDateFormat("dd.MM.yyyy HH:mm:ss",
                             Locale.ROOT).format(new Date(n.modified))).append('\n');
@@ -1513,39 +1884,85 @@ public class ExplorerActivity extends Activity {
             } else {
                 sb.append(nodes.size()).append(" öğe seçili\n");
             }
+            int dirsSel = 0;
+            for (VNode v : nodes) if (v.dir) dirsSel++;
             sb.append("Boyut: ").append(DiskOps.sizeText(r[0][0])).append(" (")
                     .append(String.format(Locale.ROOT, "%,d", r[0][0])).append(" bayt)\n");
             sb.append("İçerik: ").append(r[0][1]).append(" dosya, ")
-                    .append(Math.max(0, r[0][2] - countDirs(nodes))).append(" klasör");
+                    .append(Math.max(0, r[0][2] - dirsSel)).append(" klasör");
             new AlertDialog.Builder(this).setTitle("Özellikler").setMessage(sb)
                     .setPositiveButton("Tamam", null).show();
         });
     }
 
-    private static int countDirs(List<VNode> nodes) {
-        int n = 0;
-        for (VNode v : nodes) if (v.dir) n++;
-        return n;
-    }
-
     private void selectAll() {
         Pane p = panes[active];
+        TNode c = p.current;
+        TNode dir = c == null ? null : c.kind == K_FILE ? c.parent : c;
+        if (dir == null || !dir.expanded) {
+            toast("Önce bir klasör açın");
+            return;
+        }
         boolean all = true;
-        for (Item it : p.items) if (it.node != null && !p.selected.contains(it)) all = false;
-        p.selected.clear();
-        if (!all) for (Item it : p.items) if (it.node != null) p.selected.add(it);
-        p.adapter.notifyDataSetChanged();
+        for (TNode k : dir.children) if (k.fileish() && !p.selected.contains(k)) all = false;
+        for (TNode k : dir.children) {
+            if (!k.fileish()) continue;
+            if (all) p.selected.remove(k); else p.selected.add(k);
+        }
+        p.refresh();
+    }
+
+    private void addFavorite() {
+        VNode d = dirOf(panes[active].current);
+        if (d == null || !(d.fs instanceof LocalFs)) {
+            toast("Telefon belleğinde bir klasöre dokunun");
+            return;
+        }
+        List<String> favs = favorites();
+        if (favs.contains(d.path)) {
+            favs.remove(d.path);
+            toast("Sık kullanılanlardan çıkarıldı");
+        } else {
+            favs.add(d.path);
+            toast("Sık kullanılanlara eklendi");
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String f : favs) sb.append(f).append('\n');
+        prefs.edit().putString("favorites", sb.toString()).apply();
+        for (Pane p : panes) {
+            for (TNode r : p.roots) if ("fav".equals(r.key) && r.expanded) expand(p, r);
+        }
+    }
+
+    private List<String> favorites() {
+        String s = prefs.getString("favorites", "");
+        List<String> out = new ArrayList<>();
+        for (String x : s.split("\n")) if (!x.trim().isEmpty()) out.add(x);
+        return out;
     }
 
     // ---------------------------------------------------------------- arama / sıralama / menü
 
+    private void addTempGroup(Pane p, TNode g) {
+        for (int i = p.roots.size() - 1; i >= 0; i--) {
+            if (p.roots.get(i).temp && g.key.equals(p.roots.get(i).key)) p.roots.remove(i);
+        }
+        int at = 0;
+        while (at < p.roots.size() && "perm".equals(p.roots.get(at).key)) at++;
+        p.roots.add(at, g);
+        p.current = g;
+        p.refresh();
+        p.list.setSelection(at);
+    }
+
     private void askSearch() {
         final Pane p = panes[active];
-        final VNode where = "dir".equals(p.mode) ? p.dir : internal.root();
+        VNode d = dirOf(p.current);
+        final VNode where = d != null ? d : internal.root();
         final EditText e = input("", "Dosya adı (bir kısmı)");
         new AlertDialog.Builder(this).setTitle("Ara: " + where.name).setView(padded(e))
                 .setNegativeButton("Vazgeç", null)
-                .setPositiveButton("Ara", (d, w) -> {
+                .setPositiveButton("Ara", (dd, w) -> {
                     final String q = e.getText().toString().trim();
                     if (q.isEmpty()) return;
                     final List<VNode> found = new ArrayList<>();
@@ -1554,14 +1971,16 @@ public class ExplorerActivity extends Activity {
                         return found.isEmpty() ? "Bulunamadı" : null;
                     }, () -> {
                         if (found.isEmpty()) return;
-                        p.mode = "search";
-                        p.setHeader("Arama: \"" + q + "\"  (" + found.size() + ")", "Arama");
-                        List<Item> items = new ArrayList<>();
+                        TNode g = special("search", K_GROUP, R.drawable.ic_search_file,
+                                "Arama: \"" + q + "\"", found.size() + " sonuç • uzun bas: kapat");
+                        g.temp = true;
+                        g.expanded = true;
                         for (VNode n : found) {
-                            items.add(nodeItem(p, n, (n.dir ? "" : DiskOps.sizeText(n.size) + "  ")
-                                    + (n.parent != null ? relPath(n.parent) : "")));
+                            TNode t = fileNode(g, n);
+                            t.path = n.parent != null ? n.parent.path : null;
+                            g.children.add(t);
                         }
-                        p.show(items);
+                        addTempGroup(p, g);
                     });
                 }).show();
     }
@@ -1577,11 +1996,11 @@ public class ExplorerActivity extends Activity {
                 .setSingleChoiceItems(names, sel, (d, w) -> {
                     prefs.edit().putString("sort", keys[w]).apply();
                     d.dismiss();
-                    reloadDirs();
+                    reloadAll();
                 })
-                .setNeutralButton(desc ? "Artan yap" : "Azalan yap", (d, w) -> {
+                .setNeutralButton(desc ? "Artan sırala" : "Azalan sırala", (d, w) -> {
                     prefs.edit().putBoolean("desc", !desc).apply();
-                    reloadDirs();
+                    reloadAll();
                 })
                 .show();
     }
@@ -1591,7 +2010,6 @@ public class ExplorerActivity extends Activity {
         String[] opts = {
                 (hidden ? "✓ " : "") + "Gizli dosyaları göster",
                 "Panelleri değiştir",
-                "Diğer panelde aynı klasörü aç",
                 "WiFi dosya paylaşımı",
                 "USB kart araçları",
                 "Önbelleği temizle",
@@ -1601,22 +2019,18 @@ public class ExplorerActivity extends Activity {
             switch (w) {
                 case 0:
                     prefs.edit().putBoolean("hidden", !hidden).apply();
-                    reloadDirs();
+                    reloadAll();
                     break;
                 case 1:
                     setActive(1 - active);
                     break;
                 case 2:
-                    Pane p = panes[active];
-                    if ("dir".equals(p.mode)) other().openDir(p.dir);
-                    break;
-                case 3:
                     toggleWifi();
                     break;
-                case 4:
+                case 3:
                     openTools();
                     break;
-                case 5:
+                case 4:
                     clearOpenCache();
                     thumbCache.evictAll();
                     toast("Önbellek temizlendi");
@@ -1632,135 +2046,155 @@ public class ExplorerActivity extends Activity {
         }).show();
     }
 
-    // ---------------------------------------------------------------- son dosyalar
+    // ---------------------------------------------------------------- USB
 
-    private void showRecent(final Pane p) {
-        if (!hasStorageAccess()) {
-            askStorageAccess();
+    private void openUsb() {
+        if (!usb.ensurePermission()) {
+            if (usb.device() == null) toast("Kart okuyucu bulunamadı");
             return;
         }
-        final List<VNode> found = new ArrayList<>();
-        runOp("Son dosyalar yükleniyor", (pr, c) -> {
-            String[] proj = {MediaStore.Files.FileColumns.DATA};
-            try (Cursor cur = getContentResolver().query(MediaStore.Files.getContentUri("external"),
-                    proj, null, null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC")) {
-                if (cur == null) return "Liste alınamadı";
-                String root = internal.rootFile().getAbsolutePath();
-                while (cur.moveToNext() && found.size() < 300) {
-                    String path = cur.getString(0);
-                    if (path == null || !path.startsWith(root)) continue;
-                    File f = new File(path);
-                    if (!f.isFile() || f.getName().startsWith(".")) continue;
-                    found.add(internal.node(f));
+        runOp("USB kart açılıyor", (pr, c) -> {
+            usb.open();
+            return usb.volumes().isEmpty() ? (usb.error() != null ? usb.error()
+                    : "Kartta açılabilen bölüm yok") : null;
+        }, () -> {
+            refreshRoots();
+            Pane p = panes[active];
+            for (TNode r : p.roots) {
+                if (r.key != null && r.key.startsWith("usb:") && !r.expanded) {
+                    p.current = r;
+                    expand(p, r);
+                    break;
                 }
             }
-            return null;
-        }, () -> {
-            p.mode = "recent";
-            p.setHeader("Son dosyalar (" + found.size() + ")", "Son dosyalar");
-            List<Item> items = new ArrayList<>();
-            for (VNode n : found) {
-                items.add(nodeItem(p, n, nodeSub(n) + "   " + relPath(n.parent)));
-            }
-            p.show(items);
         });
+    }
+
+    private void openTools() {
+        try {
+            io.submit(() -> usb.close()).get(3, TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+            // bağlantı kapanmadıysa araçlar ekranı "Yenile" ile yeniden dener
+        }
+        refreshRoots();
+        startActivity(new Intent(this, MainActivity.class));
+    }
+
+    // ---------------------------------------------------------------- son dosyalar
+
+    private List<TNode> recentChildren(TNode parent) {
+        List<TNode> out = new ArrayList<>();
+        if (!hasStorageAccess()) {
+            out.add(info(parent, "Dosya erişim izni gerekli", "error"));
+            return out;
+        }
+        String[] proj = {MediaStore.Files.FileColumns.DATA};
+        try (Cursor cur = getContentResolver().query(MediaStore.Files.getContentUri("external"),
+                proj, null, null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC")) {
+            if (cur == null) return out;
+            String root = internal.rootFile().getAbsolutePath();
+            while (cur.moveToNext() && out.size() < 200) {
+                String path = cur.getString(0);
+                if (path == null || !path.startsWith(root)) continue;
+                File f = new File(path);
+                if (!f.isFile() || f.getName().startsWith(".")) continue;
+                TNode t = fileNode(parent, internal.node(f));
+                t.path = f.getParent();
+                out.add(t);
+            }
+        }
+        return out;
     }
 
     // ---------------------------------------------------------------- disk analizi
 
     private void analyzeCurrent() {
-        Pane p = panes[active];
-        if (!"dir".equals(p.mode)) {
-            toast("Önce bir klasör açın");
+        final Pane p = panes[active];
+        final VNode dir = dirOf(p.current);
+        if (dir == null) {
+            toast("Önce bir klasöre dokunun");
             return;
         }
-        analyze(p, p.dir);
-    }
-
-    private void analyze(final Pane p, final VNode dir) {
         final List<Object[]> res = new ArrayList<>();
-        runOp("Disk analizi", (pr, c) -> {
+        runOp("Disk analizi: " + dir.name, (pr, c) -> {
             res.addAll(new FileOps(pr, c, this::status).analyze(dir));
             return null;
         }, () -> {
-            if (res.isEmpty() && !"analysis".equals(p.mode)) {
-                toast("Klasör boş");
-                return;
-            }
             Collections.sort(res, (a, b) -> Long.compare((Long) b[1], (Long) a[1]));
             long total = 0;
             for (Object[] o : res) total += (Long) o[1];
-            p.mode = "analysis";
-            p.analysisDir = dir;
-            p.fs = dir.fs;
-            p.dir = dir;
-            p.setHeader("Disk analizi: " + relPath(dir) + "  (" + DiskOps.sizeText(total) + ")",
-                    "Analiz: " + dir.name);
-            List<Item> items = new ArrayList<>();
+            TNode g = special("analysis", K_GROUP, R.drawable.ic_t_analysis,
+                    "Disk analizi: " + dir.name, DiskOps.sizeText(total) + " • uzun bas: kapat");
+            g.temp = true;
+            g.expanded = true;
             for (Object[] o : res) {
-                final VNode n = (VNode) o[0];
+                VNode n = (VNode) o[0];
                 long bytes = (Long) o[1];
-                Item it = nodeItem(p, n, DiskOps.sizeText(bytes) + String.format(Locale.ROOT, "   %%%.1f",
-                        total > 0 ? bytes * 100.0 / total : 0));
-                it.bar = total > 0 ? (float) bytes / total : 0;
-                if (n.dir) it.click = () -> analyze(p, n);
-                items.add(it);
+                TNode t = fileNode(g, n);
+                t.right1 = String.format(Locale.ROOT, "%%%.1f", total > 0 ? bytes * 100.0 / total : 0);
+                t.right2 = DiskOps.sizeText(bytes);
+                t.bar = total > 0 ? (float) bytes / total : 0;
+                g.children.add(t);
             }
-            p.show(items);
+            if (g.children.isEmpty()) g.children.add(info(g, "(boş)", "empty"));
+            addTempGroup(p, g);
         });
     }
 
     // ---------------------------------------------------------------- uygulama yöneticisi
 
-    private void showApps(final Pane p, final boolean system) {
-        final PackageManager pm = getPackageManager();
-        final List<Item> items = new ArrayList<>();
-        runOp("Uygulamalar yükleniyor", (pr, c) -> {
-            List<ApplicationInfo> apps = pm.getInstalledApplications(0);
-            List<Object[]> rows = new ArrayList<>();
-            for (ApplicationInfo a : apps) {
-                boolean sys = (a.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                        && (a.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
-                if (sys && !system) continue;
-                String label = String.valueOf(pm.getApplicationLabel(a));
-                rows.add(new Object[]{label, a});
+    private List<TNode> appChildren(TNode parent, final boolean system) {
+        PackageManager pm = getPackageManager();
+        List<TNode> out = new ArrayList<>();
+        TNode toggle = new TNode();
+        toggle.kind = K_ACTION;
+        toggle.parent = parent;
+        toggle.depth = parent.depth + 1;
+        toggle.key = "apps:toggle";
+        toggle.icon = R.drawable.ic_t_selectall;
+        toggle.title = system ? "Yalnızca yüklenen uygulamalar" : "Sistem uygulamalarını da göster";
+        toggle.action = () -> {
+            prefs.edit().putBoolean("systemApps", !system).apply();
+            for (Pane p : panes) for (TNode r : p.roots) if ("apps".equals(r.key) && r.expanded) expand(p, r);
+        };
+        out.add(toggle);
+        List<Object[]> rows = new ArrayList<>();
+        for (ApplicationInfo a : pm.getInstalledApplications(0)) {
+            boolean sys = (a.flags & ApplicationInfo.FLAG_SYSTEM) != 0
+                    && (a.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+            if (sys && !system) continue;
+            rows.add(new Object[]{String.valueOf(pm.getApplicationLabel(a)), a});
+        }
+        Collections.sort(rows, (x, y) -> ((String) x[0]).compareToIgnoreCase((String) y[0]));
+        for (Object[] r : rows) {
+            ApplicationInfo a = (ApplicationInfo) r[1];
+            TNode t = new TNode();
+            t.kind = K_APP;
+            t.parent = parent;
+            t.depth = parent.depth + 1;
+            t.key = "app:" + a.packageName;
+            t.title = (String) r[0];
+            t.app = a;
+            String ver = "";
+            try {
+                PackageInfo pi = pm.getPackageInfo(a.packageName, 0);
+                ver = pi.versionName == null ? "" : pi.versionName;
+            } catch (PackageManager.NameNotFoundException ignored) {
             }
-            Collections.sort(rows, (x, y) -> ((String) x[0]).compareToIgnoreCase((String) y[0]));
-            for (Object[] r : rows) {
-                final ApplicationInfo a = (ApplicationInfo) r[1];
-                String ver = "";
-                try {
-                    PackageInfo pi = pm.getPackageInfo(a.packageName, 0);
-                    ver = pi.versionName == null ? "" : " • " + pi.versionName;
-                } catch (PackageManager.NameNotFoundException ignored) {
-                }
-                long size = a.sourceDir != null ? new File(a.sourceDir).length() : 0;
-                Item it = item("🤖", (String) r[0], a.packageName + ver + " • "
-                        + DiskOps.sizeText(size), null);
-                it.app = a;
-                try {
-                    it.drawable = pm.getApplicationIcon(a);
-                } catch (RuntimeException ignored) {
-                }
-                it.click = () -> appMenu(it);
-                items.add(it);
+            t.sub = a.packageName;
+            t.right1 = ver.length() > 14 ? ver.substring(0, 14) : ver;
+            t.right2 = a.sourceDir != null ? DiskOps.sizeText(new File(a.sourceDir).length()) : null;
+            try {
+                t.drawable = pm.getApplicationIcon(a);
+            } catch (RuntimeException ignored) {
+                t.icon = R.drawable.ic_file_apk;
             }
-            return null;
-        }, () -> {
-            p.mode = "apps";
-            p.setHeader("Uygulamalar (" + items.size() + ")" + (system ? " + sistem" : ""),
-                    "Uygulamalar");
-            Item toggle = item("⚙️", system ? "Yalnızca yüklenen uygulamalar" : "Sistem uygulamalarını da göster",
-                    null, () -> {
-                        prefs.edit().putBoolean("systemApps", !system).apply();
-                        showApps(p, !system);
-                    });
-            items.add(0, toggle);
-            p.show(items);
-        });
+            out.add(t);
+        }
+        return out;
     }
 
-    private void appMenu(final Item it) {
+    private void appMenu(final TNode it) {
         final ApplicationInfo a = it.app;
         new AlertDialog.Builder(this)
                 .setTitle(it.title)
@@ -1790,7 +2224,7 @@ public class ExplorerActivity extends Activity {
                 }).show();
     }
 
-    private void backupApk(final Item it, final boolean share) {
+    private void backupApk(final TNode it, final boolean share) {
         final ApplicationInfo a = it.app;
         final File[] out = new File[1];
         runOp("APK kopyalanıyor", (pr, c) -> {
@@ -1853,36 +2287,52 @@ public class ExplorerActivity extends Activity {
         prefs.edit().putString("ftp", sb.toString()).apply();
     }
 
-    private void showFtpList(final Pane p) {
-        p.mode = "ftp";
-        p.setHeader("FTP sunucuları", "FTP");
-        List<Item> items = new ArrayList<>();
+    private List<TNode> ftpChildren(TNode parent) {
+        List<TNode> out = new ArrayList<>();
         final List<FtpFs.Server> list = ftpServers();
         for (int i = 0; i < list.size(); i++) {
             final int idx = i;
             final FtpFs.Server s = list.get(i);
-            Item it = item("🌐", s.name, s.user + "@" + s.host + ":" + s.port + s.path, () -> {
-                FtpFs fs = new FtpFs(s);
-                p.openDir(fs.root());
-            });
-            it.longClick = () -> new AlertDialog.Builder(this).setTitle(s.name)
+            FtpFs fs = new FtpFs(s);
+            TNode t = new TNode();
+            t.kind = K_VOLUME;
+            t.parent = parent;
+            t.depth = parent.depth + 1;
+            t.key = "ftpsrv:" + s.host + ":" + s.port + ":" + s.user;
+            t.node = fs.root();
+            t.icon = R.drawable.ic_network;
+            t.title = s.name;
+            t.sub = s.user + "@" + s.host + ":" + s.port + s.path;
+            t.onLong = () -> new AlertDialog.Builder(this).setTitle(s.name)
                     .setItems(new String[]{"Düzenle", "Sil"}, (d, w) -> {
                         if (w == 0) {
-                            editFtp(p, idx);
+                            editFtp(idx);
                         } else {
                             list.remove(idx);
                             saveFtp(list);
-                            showFtpList(p);
+                            reloadFtp();
                         }
                     }).show();
-            items.add(it);
+            out.add(t);
         }
-        items.add(item("➕", "Sunucu ekle", "Bilgisayar, modem ya da NAS'taki FTP sunucusu",
-                () -> editFtp(p, -1)));
-        p.show(items);
+        TNode add = new TNode();
+        add.kind = K_ACTION;
+        add.parent = parent;
+        add.depth = parent.depth + 1;
+        add.key = "ftp:add";
+        add.icon = R.drawable.ic_t_newfolder;
+        add.title = "Sunucu ekle";
+        add.sub = "Bilgisayar, modem ya da NAS'taki FTP sunucusu";
+        add.action = () -> editFtp(-1);
+        out.add(add);
+        return out;
     }
 
-    private void editFtp(final Pane p, final int idx) {
+    private void reloadFtp() {
+        for (Pane p : panes) for (TNode r : p.roots) if ("ftp".equals(r.key) && r.expanded) expand(p, r);
+    }
+
+    private void editFtp(final int idx) {
         final List<FtpFs.Server> list = ftpServers();
         final FtpFs.Server s = idx >= 0 ? list.get(idx) : new FtpFs.Server();
         LinearLayout box = new LinearLayout(this);
@@ -1922,7 +2372,7 @@ public class ExplorerActivity extends Activity {
                             : path.getText().toString().trim();
                     if (idx >= 0) list.set(idx, s); else list.add(s);
                     saveFtp(list);
-                    showFtpList(p);
+                    reloadFtp();
                 }).show();
     }
 
@@ -1933,7 +2383,7 @@ public class ExplorerActivity extends Activity {
             wifi.stop();
             wifi = null;
             toast("WiFi paylaşımı kapatıldı");
-            refreshHome();
+            refreshRoots();
             return;
         }
         if (!hasStorageAccess()) {
@@ -1952,7 +2402,7 @@ public class ExplorerActivity extends Activity {
             toast("Sunucu başlatılamadı: " + e.getMessage());
             return;
         }
-        refreshHome();
+        refreshRoots();
         new AlertDialog.Builder(this).setTitle("WiFi dosya paylaşımı açık")
                 .setMessage("Aynı WiFi'deki bilgisayarda tarayıcıyı açıp şu adrese gidin:\n\n"
                         + "http://" + ip + ":" + wifi.port + "\n\nKod: " + wifiCode
@@ -1978,8 +2428,7 @@ public class ExplorerActivity extends Activity {
         final boolean setup = saltB == null || verB == null;
         if (setup) {
             box.addView(pass2);
-            TextView note = label("Parolayı unutursanız kasadaki dosyalar açılamaz.", 13, 0xFF888888);
-            box.addView(note);
+            box.addView(label("Parolayı unutursanız kasadaki dosyalar açılamaz.", 13, 0xFF888888));
         }
         new AlertDialog.Builder(this).setTitle(setup ? "Kasa parolası belirle" : "Kasayı aç")
                 .setView(box)
@@ -2014,8 +2463,13 @@ public class ExplorerActivity extends Activity {
                     }, () -> {
                         if (opened[0] == null) return;
                         vault = opened[0];
-                        refreshHome();
-                        p.openDir(vault.root());
+                        refreshRoots();
+                        for (TNode r : p.roots) {
+                            if ("vaultopen".equals(r.key)) {
+                                p.current = r;
+                                expand(p, r);
+                            }
+                        }
                         toast("Kasa açık. Dosya eklemek için diğer panelden kopyalayın ya da taşıyın.");
                     });
                 }).show();
@@ -2023,11 +2477,10 @@ public class ExplorerActivity extends Activity {
 
     private void lockVault() {
         if (vault == null) return;
-        for (Pane p : panes) if (p.fs == vault) p.showHome();
         vault.close();
         vault = null;
         clearOpenCache();
-        refreshHome();
+        refreshRoots();
         toast("Kasa kilitlendi");
     }
 }
