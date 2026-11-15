@@ -17,7 +17,9 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.Drawable;
@@ -904,10 +906,60 @@ public class ExplorerActivity extends Activity {
         }
     }
 
+    /** Ağaç bağlantı çizgilerini (X-plore gibi) çizen satır kapsayıcısı. */
+    final class GuideCard extends LinearLayout {
+        private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private TNode node;
+
+        GuideCard(Context c) {
+            super(c);
+            setWillNotDraw(false);
+            line.setColor(0xFFA8733C);
+            line.setStrokeWidth(dp(1));
+        }
+
+        void setNode(TNode n) {
+            node = n;
+            invalidate();
+        }
+
+        private boolean isLast(TNode n) {
+            TNode p = n.parent;
+            return p == null || p.children.isEmpty() || p.children.get(p.children.size() - 1) == n;
+        }
+
+        private float cx(int k) {
+            return dp(3) + dp(14) * k + dp(8);
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            super.onDraw(cv);
+            TNode n = node;
+            if (n == null) return;
+            int h = getHeight();
+            int d = n.depth;
+            // üstteki atalardan devam eden dikey çizgiler
+            TNode a = n.parent;
+            for (int L = d - 1; L >= 1 && a != null; L--, a = a.parent) {
+                if (!isLast(a)) cv.drawLine(cx(L - 1), 0, cx(L - 1), h, line);
+            }
+            if (d >= 1) {
+                float x = cx(d - 1);
+                cv.drawLine(x, 0, x, isLast(n) ? h / 2f : h, line);
+                cv.drawLine(x, h / 2f, dp(3) + dp(14) * d, h / 2f, line);
+            }
+            if (n.expanded && !n.children.isEmpty()) {
+                float x = cx(d);
+                cv.drawLine(x, h / 2f + dp(8), x, h, line);
+            }
+        }
+    }
+
     final class Row {
         final Pane pane;
         final LinearLayout root;
-        final LinearLayout card;
+        final GuideCard card;
         final View indent;
         final ImageView arrow;
         final ImageView icon;
@@ -931,7 +983,7 @@ public class ExplorerActivity extends Activity {
             root.setOrientation(LinearLayout.VERTICAL);
             root.setPadding(dp(3), 0, dp(3), 0);
 
-            card = new LinearLayout(ExplorerActivity.this);
+            card = new GuideCard(ExplorerActivity.this);
             card.setOrientation(LinearLayout.HORIZONTAL);
             card.setGravity(Gravity.CENTER_VERTICAL);
             card.setPadding(dp(3), dp(4), dp(6), dp(4));
@@ -1033,6 +1085,7 @@ public class ExplorerActivity extends Activity {
             card.setBackground(round(sel ? SELECT : Color.TRANSPARENT,
                     isCurrent ? ORANGE : 0, dp(2), dp(6)));
             indent.setLayoutParams(new LinearLayout.LayoutParams(dp(14) * n.depth, 1));
+            card.setNode(n);
             if (n.expandable()) {
                 arrow.setVisibility(View.VISIBLE);
                 arrow.setImageResource(n.expanded ? R.drawable.ic_tree_open : R.drawable.ic_tree_closed);
