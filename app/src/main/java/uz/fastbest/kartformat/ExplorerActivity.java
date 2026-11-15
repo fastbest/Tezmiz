@@ -2106,10 +2106,15 @@ public class ExplorerActivity extends Activity {
             items.add(new Object[]{R.drawable.ic_t_star, "Sık kullanılanlara ekle", (Runnable) this::addFavorite});
         }
 
+        showIconMenu(multi ? p.selected.size() + " öğe" : n.title, items);
+    }
+
+    /** Simgeli işlem penceresi (basılı tutma menüsü ve USB araçları). */
+    private void showIconMenu(String headTitle, final List<Object[]> items) {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setBackgroundColor(SURF);
-        TextView head = label(multi ? p.selected.size() + " öğe" : n.title, 17, TEXT);
+        TextView head = label(headTitle, 17, TEXT);
         head.setSingleLine(true);
         head.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         head.setPadding(dp(18), dp(14), dp(18), dp(14));
@@ -3656,13 +3661,35 @@ public class ExplorerActivity extends Activity {
     }
 
     private void openTools() {
+        List<Object[]> items = new ArrayList<>();
+        Object[][] list = {
+                {R.drawable.ic_tool_format, "Biçimlendir", "format"},
+                {R.drawable.ic_tool_write, "İmaj yaz", "image"},
+                {R.drawable.ic_tool_backup, "Yedek al", "backup"},
+                {R.drawable.ic_tool_wipe, "Kartı sil", "wipe"},
+                {R.drawable.ic_tool_parts, "Bölüm sihirbazı", "parts"},
+                {R.drawable.ic_tool_setup, "Windows kurulum kartı (ISO)", "windows"},
+                {R.drawable.ic_tool_game, "PS2 oyunu ekle", "ps2"},
+                {R.drawable.ic_tool_speed, "Hız testi", "bench"},
+                {R.drawable.ic_t_info, "Kart bilgisi", "info"},
+                {R.drawable.ic_usb_tools, "Tüm araçlar", null},
+        };
+        for (final Object[] o : list) {
+            items.add(new Object[]{o[0], o[1], (Runnable) () -> launchTool((String) o[2])});
+        }
+        showIconMenu(L.t("USB kart araçları"), items);
+    }
+
+    private void launchTool(String tool) {
         try {
             io.submit(() -> usb.close()).get(3, TimeUnit.SECONDS);
         } catch (Exception ignored) {
             // bağlantı kapanmadıysa araçlar ekranı "Yenile" ile yeniden dener
         }
         refreshRoots();
-        startActivity(new Intent(this, MainActivity.class));
+        Intent i = new Intent(this, MainActivity.class);
+        if (tool != null) i.putExtra("tool", tool);
+        startActivity(i);
     }
 
     // ---------------------------------------------------------------- son dosyalar

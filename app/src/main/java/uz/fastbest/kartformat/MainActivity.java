@@ -82,6 +82,159 @@ public class MainActivity extends Activity {
     private Button cancelButton;
     private Button refreshButton;
     private Button[] tools;
+    private LinearLayout grid;
+    private String pendingTool;
+
+    private int dp(float v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    private static android.graphics.drawable.GradientDrawable round(int fill, int stroke, int sw, float r) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setColor(fill);
+        g.setCornerRadius(r);
+        if (stroke != 0) g.setStroke(sw, stroke);
+        return g;
+    }
+
+    private TextView txt(String s, float size, int color) {
+        TextView t = new TextView(this);
+        t.setText(L.t(s));
+        t.setTextSize(size * Theme.SCALE);
+        t.setTextColor(color);
+        return t;
+    }
+
+    /** Simgeli araç kutucuğu. */
+    private Button tool(int icon, String label) {
+        Button b = new Button(this);
+        b.setAllCaps(false);
+        b.setText(L.t(label));
+        b.setTextSize(13.5f * Theme.SCALE);
+        b.setTextColor(Theme.TXT);
+        b.setStateListAnimator(null);
+        android.graphics.drawable.Drawable d = getDrawable(icon);
+        if (d != null) {
+            d.setBounds(0, 0, dp(34), dp(34));
+            b.setCompoundDrawables(null, d, null, null);
+        }
+        b.setCompoundDrawablePadding(dp(6));
+        b.setPadding(dp(6), dp(12), dp(6), dp(8));
+        android.graphics.drawable.RippleDrawable rd = new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(Theme.alpha(Theme.ACCENT, 0x44)),
+                round(Theme.GLASS ? Theme.ROW : Theme.SURF, Theme.OUTLINE, dp(1), dp(16)), null);
+        b.setBackground(rd);
+        return b;
+    }
+
+    private void buildUi() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackground(Theme.pageBg());
+        root.setFitsSystemWindows(true);
+
+        LinearLayout bar = new LinearLayout(this);
+        bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        bar.setBackgroundColor(Theme.BAR);
+        bar.setMinimumHeight(dp(56));
+        TextView back = txt("←", 24, Theme.TXT);
+        back.setPadding(dp(16), dp(6), dp(14), dp(6));
+        back.setOnClickListener(v -> finish());
+        bar.addView(back);
+        android.widget.ImageView logo = new android.widget.ImageView(this);
+        logo.setImageResource(R.drawable.ic_usb_tools);
+        bar.addView(logo, new LinearLayout.LayoutParams(dp(30), dp(30)));
+        TextView title = txt("USB kart araçları", 20, Theme.TXT);
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        title.setPadding(dp(10), 0, 0, 0);
+        bar.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        refreshButton = new Button(this);
+        refreshButton.setAllCaps(false);
+        refreshButton.setText(L.t("Yenile"));
+        refreshButton.setTextColor(Theme.ACCENT);
+        refreshButton.setBackground(null);
+        bar.addView(refreshButton);
+        root.addView(bar);
+
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(12), dp(12), dp(12), dp(24));
+
+        status = txt("", 15, Theme.TXT);
+        status.setPadding(dp(16), dp(14), dp(16), dp(14));
+        status.setBackground(round(Theme.alpha(Theme.ACCENT, 0x22), Theme.ACCENT, dp(1), dp(16)));
+        status.setCompoundDrawablePadding(dp(12));
+        android.graphics.drawable.Drawable sd = getDrawable(R.drawable.ic_sdcard);
+        if (sd != null) {
+            sd.setBounds(0, 0, dp(32), dp(32));
+            status.setCompoundDrawables(sd, null, null, null);
+        }
+        status.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        body.addView(status);
+
+        TextView note = txt("Biçimlendirme, imaj yazma ve silme karttaki tüm dosyaları siler. Önce yedek alın.", 12.5f, Theme.SUB);
+        note.setPadding(dp(6), dp(10), dp(6), dp(6));
+        body.addView(note);
+
+        grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        body.addView(grid);
+
+        progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(100);
+        progressBar.setProgressTintList(android.content.res.ColorStateList.valueOf(Theme.ACCENT));
+        progressBar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(Theme.TRACK));
+        progressBar.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(Theme.ACCENT));
+        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(10));
+        pl.topMargin = dp(16);
+        body.addView(progressBar, pl);
+        progressText = txt("", 13, Theme.SUB);
+        progressText.setPadding(dp(4), dp(6), dp(4), 0);
+        body.addView(progressText);
+
+        cancelButton = new Button(this);
+        cancelButton.setAllCaps(false);
+        cancelButton.setText(L.t("İptal"));
+        cancelButton.setTextColor(0xFFFFFFFF);
+        cancelButton.setBackground(round(0xFFE53935, 0, 0, dp(12)));
+        cancelButton.setVisibility(View.GONE);
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
+        cl.topMargin = dp(10);
+        body.addView(cancelButton, cl);
+
+        result = txt("", 14, Theme.TXT);
+        result.setPadding(dp(14), dp(12), dp(14), dp(12));
+        result.setTextIsSelectable(true);
+        result.setBackground(round(Theme.GLASS ? Theme.ROW : Theme.SURF, Theme.OUTLINE, dp(1), dp(14)));
+        LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        rl.topMargin = dp(12);
+        body.addView(result, rl);
+
+        ScrollView sv = new ScrollView(this);
+        sv.addView(body);
+        root.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        setContentView(root);
+    }
+
+    /** Gezginden seçilen aracı, kart hazır olunca çalıştırır. */
+    private void runPendingTool() {
+        String t = pendingTool;
+        pendingTool = null;
+        if (t == null) return;
+        switch (t) {
+            case "format": askFormat(); break;
+            case "image": pickImage(); break;
+            case "backup": pickBackupTarget(); break;
+            case "wipe": askWipe(); break;
+            case "bench": runOp("Hız ölçülüyor", (s, p, c) -> DiskOps.benchmark(s, p, c)); break;
+            case "info": showInfo(); break;
+            case "windows": pickIso(); break;
+            case "parts": askPartitions(); break;
+            case "ps2": pickPs2(); break;
+            default: break;
+        }
+    }
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -106,32 +259,39 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(Theme.widgetTheme(this));
         super.onCreate(savedInstanceState);
         L.init(this);
-        setContentView(R.layout.activity_main);
-        L.tree(findViewById(android.R.id.content));
+        Theme.apply(this);
+        buildUi();
+        pendingTool = getIntent().getStringExtra("tool");
 
         usb = (UsbManager) getSystemService(Context.USB_SERVICE);
         NtfsFormatter.tool = new java.io.File(getApplicationInfo().nativeLibraryDir, "libmkntfs.so");
         NtfsFormatter.workDir = getCacheDir();
         BootCode.load(getAssets());
-        status = findViewById(R.id.status);
-        result = findViewById(R.id.result);
-        progressText = findViewById(R.id.progressText);
-        progressBar = findViewById(R.id.progressBar);
-        cancelButton = findViewById(R.id.cancelButton);
-        refreshButton = findViewById(R.id.refreshButton);
 
-        Button format = findViewById(R.id.formatButton);
-        Button image = findViewById(R.id.imageButton);
-        Button backup = findViewById(R.id.backupButton);
-        Button wipe = findViewById(R.id.wipeButton);
-        Button bench = findViewById(R.id.benchButton);
-        Button info = findViewById(R.id.infoButton);
-        Button windows = findViewById(R.id.windowsButton);
-        Button files = findViewById(R.id.filesButton);
-        Button parts = findViewById(R.id.partsButton);
-        Button ps2 = findViewById(R.id.ps2Button);
+        Button format = tool(R.drawable.ic_tool_format, "Biçimlendir");
+        Button image = tool(R.drawable.ic_tool_write, "İmaj yaz");
+        Button backup = tool(R.drawable.ic_tool_backup, "Yedek al");
+        Button wipe = tool(R.drawable.ic_tool_wipe, "Sil");
+        Button bench = tool(R.drawable.ic_tool_speed, "Hız testi");
+        Button info = tool(R.drawable.ic_t_info, "Kart bilgisi");
+        Button parts = tool(R.drawable.ic_tool_parts, "Bölüm sihirbazı");
+        Button ps2 = tool(R.drawable.ic_tool_game, "PS2 oyunu ekle");
+        Button windows = tool(R.drawable.ic_tool_setup, "Windows kurulum kartı (ISO)");
+        Button files = tool(R.drawable.ic_folder, "Dosyalar");
+        Button[] order = {format, image, backup, wipe, bench, info, parts, ps2, windows, files};
+        for (int i = 0; i < order.length; i += 2) {
+            LinearLayout row = new LinearLayout(this);
+            for (int k = i; k < i + 2; k++) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(96), 1);
+                lp.setMargins(dp(5), dp(5), dp(5), dp(5));
+                if (k < order.length) row.addView(order[k], lp);
+                else row.addView(new View(this), lp);
+            }
+            grid.addView(row);
+        }
         tools = new Button[]{files, format, image, backup, wipe, bench, info, windows, parts, ps2};
 
         format.setOnClickListener(v -> askFormat());
@@ -187,7 +347,7 @@ public class MainActivity extends Activity {
     private void setToolsEnabled(boolean enabled) {
         for (Button b : tools) {
             b.setEnabled(enabled);
-            b.setAlpha(enabled ? 1f : 0.5f);
+            b.setAlpha(enabled ? 1f : 0.45f);
         }
     }
 
@@ -251,6 +411,7 @@ public class MainActivity extends Activity {
                             + DiskOps.sizeText(s.blockCount() * s.blockSize())));
                     setToolsEnabled(true);
                     if (rescanAfter) scan();
+                    else runPendingTool();
                 });
             } catch (final IOException e) {
                 main.post(() -> {
